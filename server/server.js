@@ -112,10 +112,12 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
         // 2. Insert Metrics
         if (metrics) {
             const metricsQuery = `
-                INSERT INTO metrics (machine_id, cpu_usage, ram_usage, disk_total_gb, disk_free_gb, network_up_kbps, network_down_kbps, active_vpn, disk_details, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);
+                INSERT INTO metrics (machine_id, cpu_usage, ram_usage, disk_total_gb, disk_free_gb, network_up_kbps, network_down_kbps, active_vpn, disk_details, processes, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);
             `;
             const diskDetailsStr = metrics.disk_details ? JSON.stringify(metrics.disk_details) : null;
+            const processesStr = metrics.processes ? JSON.stringify(metrics.processes) : null;
+
             db.run(metricsQuery, [
                 machine.id,
                 metrics.cpu_usage,
@@ -125,7 +127,8 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
                 metrics.network_up_kbps || 0,
                 metrics.network_down_kbps || 0,
                 metrics.active_vpn ? 1 : 0,
-                diskDetailsStr
+                diskDetailsStr,
+                processesStr
             ], (err) => { if (err) console.error("Error inserting metrics:", err); });
         }
 
@@ -203,10 +206,10 @@ app.put('/api/machines/:id/nickname', authenticateAPI, (req, res) => {
 app.get('/api/machines', (req, res) => {
     const query = `
         SELECT m.*, 
-               me.cpu_usage, me.ram_usage, me.disk_total_gb, me.disk_free_gb, me.network_up_kbps, me.network_down_kbps, me.active_vpn, me.disk_details
+               me.cpu_usage, me.ram_usage, me.disk_total_gb, me.disk_free_gb, me.network_up_kbps, me.network_down_kbps, me.active_vpn, me.disk_details, me.processes
         FROM machines m
         LEFT JOIN (
-            SELECT machine_id, cpu_usage, ram_usage, disk_free_gb, disk_total_gb, network_up_kbps, network_down_kbps, active_vpn, disk_details
+            SELECT machine_id, cpu_usage, ram_usage, disk_free_gb, disk_total_gb, network_up_kbps, network_down_kbps, active_vpn, disk_details, processes
             FROM metrics
             WHERE id IN (SELECT MAX(id) FROM metrics GROUP BY machine_id)
         ) me ON m.id = me.machine_id
@@ -223,9 +226,11 @@ app.get('/api/machines', (req, res) => {
         const machines = rows.map(row => {
             let hwInfo = null;
             let diskDetails = [];
+            let processes = [];
             try {
                 if (row.hardware_info) hwInfo = JSON.parse(row.hardware_info);
                 if (row.disk_details) diskDetails = JSON.parse(row.disk_details);
+                if (row.processes) processes = JSON.parse(row.processes);
             } catch (e) { console.error("Error parsing JSON", e); }
 
             return {
@@ -252,6 +257,7 @@ app.get('/api/machines', (req, res) => {
                     ram: row.ram_usage || 0,
                     disk: row.disk_total_gb ? Math.round(((row.disk_total_gb - row.disk_free_gb) / row.disk_total_gb) * 100) : 0,
                     disk_details: diskDetails,
+                    processes: processes,
                     network_up_kbps: row.network_up_kbps || 0,
                     network_down_kbps: row.network_down_kbps || 0,
                     active_vpn: !!row.active_vpn

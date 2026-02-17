@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS metrics (
     network_down_kbps REAL,
     active_vpn BOOLEAN,
     disk_details TEXT, -- JSON string of all drives
+    processes TEXT, -- JSON string of top processes
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(machine_id) REFERENCES machines(id)
 );

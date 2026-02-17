@@ -3,6 +3,7 @@ const axios = require('axios');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
+const { exec } = require('child_process');
 
 // Configuration: Prefer Command Line Args > CONFIG file > Env Var > Default
 const args = process.argv.slice(2);
@@ -86,9 +87,22 @@ async function getSystemMetrics() {
             iface.operstate === 'up'
         );
 
+        // Processes
+        const processes = await si.processes();
+        const topProcesses = processes.list
+            .sort((a, b) => b.cpu - a.cpu)
+            .slice(0, 5)
+            .map(p => ({
+                name: p.name,
+                cpu: p.cpu.toFixed(1),
+                mem: p.mem.toFixed(1),
+                pid: p.pid
+            }));
+
         return {
             cpu_usage: Math.round(cpu.currentLoad),
-            ram_usage: Math.round((mem.active / mem.total) * 100),
+            // Use (total - available) for a better match with Task Manager
+            ram_usage: Math.round(((mem.total - mem.available) / mem.total) * 100),
             disk_total_gb: mainDrive ? Math.round(mainDrive.size / (1024 ** 3)) : 0,
             disk_free_gb: mainDrive ? Math.round((mainDrive.size - mainDrive.used) / (1024 ** 3)) : 0,
             disk_details: fsSize.map(d => ({
@@ -101,6 +115,7 @@ async function getSystemMetrics() {
             network_up_kbps: defaultNet ? Math.round(defaultNet.tx_sec / 1024) : 0,
             network_down_kbps: defaultNet ? Math.round(defaultNet.rx_sec / 1024) : 0,
             active_vpn: activeVPN,
+            processes: topProcesses,
             ip_address: getIpAddress()
         };
     } catch (e) {
@@ -168,6 +183,40 @@ async function getDetailedHardwareInfo() {
     }
 }
 
+async function getWindowsEvents() {
+    if (process.platform !== 'win32') return [];
+
+    return new Promise((resolve) => {
+        // Get last 5 Errors from System log
+        const command = `powershell -Command "Get-EventLog -LogName System -EntryType Error,Warning -Newest 5 | Select-Object Index,EntryType,Source,Message,TimeGenerated | ConvertTo-Json"`;
+
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                console.error('Event Log Error:', error.message);
+                resolve([]);
+                return;
+            }
+            try {
+                const events = JSON.parse(stdout);
+                // Powershell returns single object if only 1 result, array otherwise
+                const eventArray = Array.isArray(events) ? events : [events];
+
+                resolve(eventArray.map(e => ({
+                    event_id: e.Index,
+                    severity: e.EntryType === 1 ? 'Error' : (e.EntryType === 2 ? 'Warning' : 'Info'), // 1=Error, 2=Warning in .NET enum usually, checking string is safer
+                    type: typeof e.EntryType === 'string' ? e.EntryType : (e.EntryType === 1 ? 'Error' : 'Warning'),
+                    source: e.Source,
+                    message: e.Message,
+                    timestamp: new Date(parseInt(e.TimeGenerated.replace(/\/Date\((.*?)\)\//, '$1'))).toISOString()
+                })));
+            } catch (e) {
+                // stdout might be empty or invalid json
+                resolve([]);
+            }
+        });
+    });
+}
+
 async function logToServer(level, message, error = null) {
     const stack = error?.stack || error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
     if (level === 'error') console.error(message, error);
@@ -217,10 +266,13 @@ async function main() {
     // Main Loop
     setInterval(async () => {
         const metrics = await getSystemMetrics();
+        const events = await getWindowsEvents();
+
         if (metrics) {
             const payload = {
                 machine: sysInfo,
-                metrics: metrics
+                metrics: metrics,
+                events: events
             };
 
             console.log('Sending Metrics:', JSON.stringify(metrics)); // DEBUG LOG
