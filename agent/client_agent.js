@@ -112,8 +112,8 @@ async function getSystemMetrics() {
                 used_gb: Math.round(d.used / (1024 ** 3)),
                 percent: Math.round(d.use)
             })),
-            network_up_kbps: defaultNet ? Math.round(defaultNet.tx_sec / 1024) : 0,
-            network_down_kbps: defaultNet ? Math.round(defaultNet.rx_sec / 1024) : 0,
+            network_up_kbps: defaultNet ? parseFloat((defaultNet.tx_sec / 1024).toFixed(2)) : 0,
+            network_down_kbps: defaultNet ? parseFloat((defaultNet.rx_sec / 1024).toFixed(2)) : 0,
             active_vpn: activeVPN,
             processes: topProcesses,
             ip_address: getIpAddress()

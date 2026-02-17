@@ -153,11 +153,22 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
         }
 
         // Notify Dashboard via Socket.IO
+        const mappedMetrics = {
+            cpu: metrics.cpu_usage,
+            ram: metrics.ram_usage,
+            disk: metrics.disk_total_gb ? Math.round(((metrics.disk_total_gb - metrics.disk_free_gb) / metrics.disk_total_gb) * 100) : 0,
+            disk_details: metrics.disk_details,
+            processes: metrics.processes,
+            network_up_kbps: metrics.network_up_kbps,
+            network_down_kbps: metrics.network_down_kbps,
+            active_vpn: metrics.active_vpn
+        };
+
         io.emit('machine_update', {
             id: machine.id,
             status: 'online',
             last_seen: new Date(),
-            metrics: metrics,
+            metrics: mappedMetrics,
             hardware_info: machine.hardware_info
         });
 
