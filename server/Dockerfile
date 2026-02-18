@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 
 # Install build dependencies for sqlite3
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ bash && ln -sf python3 /usr/bin/python
 
 # Install production dependencies
 RUN npm install --only=production
