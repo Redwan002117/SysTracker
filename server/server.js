@@ -33,8 +33,7 @@ app.use(cors());
 app.use(express.json()); // Changed from app.use(express.json({ limit: '5mb' }));
 
 // Database Setup
-const dbPath = path.join(process.cwd(), 'systracker.db'); // DB should remain outside the EXE for persistence!
-app.use(express.static(dashboardPath)); // Added this line as per instruction
+
 
 // Handle client-side routing by serving index.html for all non-API routes
 app.get('*', (req, res, next) => {
