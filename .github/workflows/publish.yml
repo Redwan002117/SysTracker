@@ -89,7 +89,50 @@ jobs:
         with:
           cache-to: type=gha,mode=max
 
-  agent:
+  binaries:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Build Dashboard
+        run: |
+          cd dashboard
+          npm install
+          npm run build
+          cd ..
+          mkdir -p server/dashboard-dist
+          cp -r dashboard/out/* server/dashboard-dist/
+
+      - name: Build Admin Executables (pkg)
+        run: |
+          cd server
+          npm install
+          npm install -g pkg
+          npx pkg . --targets node18-win-x64,node18-linux-x64 --output SysTracker_Admin --compress GZip
+
+      - name: Rename Output Info
+        run: |
+          cd server
+          ls -la
+
+      - name: Upload Admin Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            server/SysTracker_Admin.exe
+            server/SysTracker_Admin
+            agent/agent.py
+
+  agent-windows:
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build # Optional, but good for ordering
@@ -121,7 +164,9 @@ jobs:
         run: |
           Compress-Archive -Path dist/SysTracker_Agent.exe, dist/config.json, agent/install.ps1 -DestinationPath SysTracker_Agent_Windows.zip
 
-      - name: Upload Release Asset
+      - name: Upload Agent Assets
         uses: softprops/action-gh-release@v1
         with:
-          files: SysTracker_Agent_Windows.zip
+          files: |
+            SysTracker_Agent_Windows.zip
+            dist/SysTracker_Agent.exe
