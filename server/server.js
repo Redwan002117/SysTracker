@@ -156,6 +156,31 @@ const authenticateAPI = (req, res, next) => {
     next();
 };
 
+// --- DEBUG ENDPOINT ---
+app.get('/api/debug/config', (req, res) => {
+    const dbFolder = path.join(__dirname, 'data');
+    const dbFile = path.join(dbFolder, 'systracker.db');
+
+    let folderContents = [];
+    try {
+        if (fs.existsSync(dbFolder)) {
+            folderContents = fs.readdirSync(dbFolder);
+        }
+    } catch (e) { folderContents = [`Error: ${e.message}`]; }
+
+    res.json({
+        cwd: process.cwd(),
+        dirname: __dirname,
+        dbFolder: dbFolder,
+        dbFolderExists: fs.existsSync(dbFolder),
+        dbFile: dbFile,
+        dbFileExists: fs.existsSync(dbFile),
+        folderContents: folderContents,
+        envPort: process.env.PORT,
+        isDocker: fs.existsSync('/.dockerenv')
+    });
+});
+
 // --- API Endpoints ---
 
 // Ingest Telemetry (from Python Agent)
