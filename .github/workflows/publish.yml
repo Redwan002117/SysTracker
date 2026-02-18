@@ -133,7 +133,6 @@ jobs:
           files: |
             server/SysTracker_Admin.exe
             server/SysTracker_Admin
-            agent/agent.py
 
   agent-build:
     runs-on: windows-latest
