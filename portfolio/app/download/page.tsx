@@ -90,7 +90,7 @@ export default function DownloadPage() {
     const [policyPopup, setPolicyPopup] = useState(false);
 
     const REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || 'Redwan002117/SysTracker';
-    const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'http://localhost:7777';
+    const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'https://monitor.rico.bd';
 
     useEffect(() => {
         Promise.all([
@@ -120,7 +120,7 @@ export default function DownloadPage() {
             code: `# 1. Download SysTracker_Agent_Windows.zip from the latest release
 # 2. Extract and edit config.json:
 {
-  "server_url": "http://YOUR_SERVER_IP:3001"
+  "server_url": "https://monitor.rico.bd"
 }
 
 # 3. Run the installer as Administrator:
@@ -146,7 +146,7 @@ chmod +x ./SysTracker_Admin
             icon: <Box size={16} />,
             code: `docker run -d \\
   --name systracker \\
-  -p 3001:3001 \\
+  -p 7777:7777 \\
   -v /DATA/AppData/Monitor:/DATA/AppData/Monitor \\
   ghcr.io/redwan002117/systracker:latest`,
             lang: 'bash',
