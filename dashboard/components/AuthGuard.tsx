@@ -15,11 +15,25 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
     useEffect(() => {
         async function checkAuth() {
-            // Quick local check first (avoids flicker if token is fresh)
+            // Helper with timeout
+            const fetchWithTimeout = async (url: string, options = {}) => {
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), 5000); // 5s timeout
+                try {
+                    const res = await fetch(url, { ...options, signal: controller.signal });
+                    clearTimeout(id);
+                    return res;
+                } catch (e) {
+                    clearTimeout(id);
+                    throw e;
+                }
+            };
+
+            // Quick local check first
             if (!isAuthenticated()) {
                 // Check if setup is needed
                 try {
-                    const res = await fetch('/api/auth/status');
+                    const res = await fetchWithTimeout('/api/auth/status');
                     const data = await res.json();
                     if (data.setup_required) {
                         router.replace('/setup');
@@ -27,6 +41,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
                         router.replace('/login');
                     }
                 } catch {
+                    // If network fails, go to login
                     router.replace('/login');
                 }
                 setStatus('redirect');
@@ -36,7 +51,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
             // Verify token with server
             try {
                 const token = getToken();
-                const res = await fetch('/api/auth/me', {
+                const res = await fetchWithTimeout('/api/auth/me', {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (res.ok) {
@@ -48,6 +63,9 @@ export default function AuthGuard({ children }: AuthGuardProps) {
                 }
             } catch {
                 // Network error — allow access if token looks valid locally
+                // Or deny? Better to allow viewing dashboard (offline mode) if possible
+                // But for now, let's allow it to prevent lockout loop
+                console.warn("Auth check failed (network), assuming offline authenticated");
                 setStatus('authenticated');
             }
         }
