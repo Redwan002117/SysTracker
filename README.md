@@ -33,9 +33,9 @@ The Agent runs as a **Windows Service** (starts automatically, runs in backgroun
 
 1.  **Download** the `SysTracker_Agent_Windows.zip` from the [Latest Release](https://github.com/Redwan002117/SysTracker/releases/latest).
 2.  **Extract** the zip file to a folder (e.g., Downloads).
-3.  Right-click `install.ps1` and select **Run with PowerShell**.
+3.  Right-click `install_agent.ps1` and select **Run with PowerShell**.
     *   *Note: If prompted about Execution Policy, type `Y` to allow.*
-4.  Enter your **Server URL** when prompted (e.g., `http://192.168.1.10:7777/api`).
+4.  Enter your **Server URL** when prompted (e.g., `http://192.168.1.10:7777`).
 5.  The script will:
     *   Install the agent to `C:\Program Files\SysTracker Agent`.
     *   Register and Start the Background Service.
@@ -43,7 +43,7 @@ The Agent runs as a **Windows Service** (starts automatically, runs in backgroun
 ### Manual Service Control
 - **Start**: `Start-Service SysTrackerAgent`
 - **Stop**: `Stop-Service SysTrackerAgent`
-- **Logs**: Check Event Viewer -> Windows Logs -> Application.
+- **Logs**: Check `agent.log` in the installation directory.
 
 ## 📦 Installation & Deployment
 
@@ -129,9 +129,9 @@ pkg . --out-path dist
 ### 3. Build the Agent
 ```bash
 cd agent
-pip install -r requirements.txt
-# Edit default API_URL in agent.py if desired
-python -m PyInstaller --onefile --noconsole --name "SysTracker_Agent" --uac-admin agent.py
+npm install
+# Build executable
+npx pkg . --targets node18-win-x64 --output SysTracker_Agent
 ```
 
 ---
