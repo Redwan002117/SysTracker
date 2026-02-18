@@ -34,7 +34,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(express.static(dashboardPath));
+app.use(express.static(dashboardPath, { extensions: ['html'] }));
 
 app.use(cors());
 app.use(express.json()); // Changed from app.use(express.json({ limit: '5mb' }));
