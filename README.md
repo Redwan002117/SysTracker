@@ -27,6 +27,24 @@
 
 ---
 
+## 💻 Agent Installation (Windows)
+
+The Agent runs as a **Windows Service** (starts automatically, runs in background).
+
+1.  **Download** the `SysTracker_Agent_Windows.zip` from the [Latest Release](https://github.com/Redwan002117/SysTracker/releases/latest).
+2.  **Extract** the zip file to a folder (e.g., Downloads).
+3.  Right-click `install.ps1` and select **Run with PowerShell**.
+    *   *Note: If prompted about Execution Policy, type `Y` to allow.*
+4.  Enter your **Server URL** when prompted (e.g., `http://192.168.1.10:7777/api`).
+5.  The script will:
+    *   Install the agent to `C:\Program Files\SysTracker Agent`.
+    *   Register and Start the Background Service.
+
+### Manual Service Control
+- **Start**: `Start-Service SysTrackerAgent`
+- **Stop**: `Stop-Service SysTrackerAgent`
+- **Logs**: Check Event Viewer -> Windows Logs -> Application.
+
 ## 📦 Installation & Deployment
 
 ### Metric 1: The "Easy Way" (Pre-built Binaries)
