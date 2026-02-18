@@ -77,6 +77,21 @@ docker build -t systracker-portfolio .
 docker run -d -p 2222:80 --name portfolio systracker-portfolio
 ```
 
+## Updating
+
+To update the portfolio app to the latest version (pulls code and rebuilds container):
+
+### Windows (PowerShell)
+```powershell
+.\update.ps1
+```
+
+### Linux / Mac
+```bash
+chmod +x update.sh
+./update.sh
+```
+
 ## Deployment
 
 ### Vercel
