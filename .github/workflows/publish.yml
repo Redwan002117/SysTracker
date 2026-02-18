@@ -62,7 +62,7 @@ jobs:
       - name: Install and Build Dashboard
         run: |
           cd dashboard
-          npm ci
+          npm install
           npm run build
           cd ..
           # Ensure destination exists
