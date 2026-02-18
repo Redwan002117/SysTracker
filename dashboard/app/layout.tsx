@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "SysTracker - System Monitoring",
   description: "Real-time fleet monitoring solution",
   icons: {
-    icon: '/logo.png',
+    icon: '/logo.svg',
   }
 };
 
