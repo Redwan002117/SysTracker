@@ -33,14 +33,27 @@ export default function Dashboard() {
   const [filter, setFilter] = useState<'all' | 'online' | 'offline' | 'critical'>('all');
   const [loading, setLoading] = useState(true);
 
+  const router = useRouter(); // Explicitly use router
+
   useEffect(() => {
-    const socket = io();
+    // Explicit socket options for better connectivity behind proxies
+    const socket = io({
+      path: '/socket.io',
+      transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    socket.on('connect_error', (err) => {
+      console.warn('Socket connection error:', err.message);
+    });
 
     // Initial fetch (with auth token)
     fetchWithAuth('/api/machines')
       .then(res => {
         if (res.status === 401) {
-          window.location.href = '/login';
+          clearToken(); // Ensure token is removed
+          router.replace('/login');
           return null;
         }
         return res.json();

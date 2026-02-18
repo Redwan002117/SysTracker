@@ -11,7 +11,31 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
 // JWT secret — use env var in production, auto-generate otherwise
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
+// JWT Secret Persistence (Prevent session invalidation on restart)
+let JWT_SECRET = process.env.JWT_SECRET;
+const secretFilePath = path.join(__dirname, 'data', 'jwt.secret');
+
+if (!JWT_SECRET) {
+    if (fs.existsSync(secretFilePath)) {
+        try {
+            JWT_SECRET = fs.readFileSync(secretFilePath, 'utf8').trim();
+        } catch (e) {
+            console.error('Error reading JWT secret file:', e);
+        }
+    }
+
+    if (!JWT_SECRET) {
+        JWT_SECRET = crypto.randomBytes(64).toString('hex');
+        try {
+            const dbDir = path.dirname(secretFilePath);
+            if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+            fs.writeFileSync(secretFilePath, JWT_SECRET, { mode: 0o600 });
+            console.log('Generated and persisted new JWT_SECRET to data/jwt.secret');
+        } catch (e) {
+            console.error('Error writing JWT secret file:', e);
+        }
+    }
+}
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 const app = express();
