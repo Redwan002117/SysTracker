@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { io } from 'socket.io-client';
 import MachineCard from '../../components/MachineCard';
 import MachineDetails from '../../components/MachineDetails';
