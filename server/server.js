@@ -172,6 +172,36 @@ function initializeDb() {
 function ensureSetupToken() {
     db.get('SELECT COUNT(*) as count FROM admin_users', [], (err, row) => {
         if (err || (row && row.count > 0)) return; // Already set up
+
+        // Check for Auto-Setup via Env Vars (Docker friendly)
+        const envUser = process.env.ADMIN_USER || 'admin';
+        const envPass = process.env.ADMIN_PASSWORD;
+
+        if (envPass) {
+            if (envPass.length < 8) {
+                console.error('[Setup] ADMIN_PASSWORD must be at least 8 characters. Falling back to manual setup.');
+            } else {
+                bcrypt.hash(envPass, 12, (err, hash) => {
+                    if (err) {
+                        console.error('[Setup] Error hashing env password:', err);
+                        return;
+                    }
+                    db.run('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)', [envUser.toLowerCase().trim(), hash], (err) => {
+                        if (err) console.error('[Setup] Error creating auto-admin:', err);
+                        else {
+                            console.log('\n' + '='.repeat(60));
+                            console.log('  SYSTRACKER AUTO-SETUP');
+                            console.log(`  Admin account created from environment variables.`);
+                            console.log(`  Username: ${envUser}`);
+                            console.log('='.repeat(60) + '\n');
+                        }
+                    });
+                });
+                return; // Skip token generation
+            }
+        }
+
+        // Manual Setup Token
         const token = crypto.randomBytes(24).toString('hex');
         db.run('DELETE FROM setup_tokens', [], () => {
             db.run('INSERT INTO setup_tokens (token) VALUES (?)', [token], (err) => {
