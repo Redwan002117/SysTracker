@@ -11,3 +11,9 @@ services:
       - ./data:/app/data
     environment:
       - PORT=7777
+      # Zero-Touch Setup (Optional) - Auto-creates admin account on first run
+      - ADMIN_USER=admin
+      - ADMIN_PASSWORD=ChangeMe123!
+      # Session Security (Recommended) - Persists sessions across restarts
+      # If not set, a random secret is generated and saved to data/jwt.secret
+      - JWT_SECRET=your_super_secret_jwt_key_here
