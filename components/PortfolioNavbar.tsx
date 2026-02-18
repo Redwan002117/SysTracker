@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Zap, Github } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'http://localhost:7777';
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || 'https://monitor.rico.bd';
 
 const PortfolioNavbar = () => {
     const pathname = usePathname();
