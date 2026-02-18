@@ -8,34 +8,121 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const server = http.createServer(app);
+const server = http.createServer(app); // Changed from http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "*", // Allow all origins for now (dev/prod mixed)
         methods: ["GET", "POST"]
     }
 });
 
+// Serve the static dashboard files
+// In 'pkg', __dirname points to the virtual filesystem inside the snapshot
+const dashboardPath = path.join(__dirname, 'dashboard-dist');
+
+// Middleware to check if assets exist (debugging)
+app.use((req, res, next) => {
+    // Only log if specifically requesting asset (uncomment for debug)
+    // console.log('Request:', req.path); 
+    next();
+});
+
+app.use(express.static(dashboardPath));
+
 app.use(cors());
-app.use(express.json({ limit: '5mb' })); // Increased limit for event logs
+app.use(express.json()); // Changed from app.use(express.json({ limit: '5mb' }));
+
+// Database Setup
+
+
+// Handle client-side routing by serving index.html for all non-API routes
+app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+        return next();
+    }
+    res.sendFile(path.join(dashboardPath, 'index.html'));
+});
 
 // Database Setup (SQLite)
-const dbPath = path.resolve(__dirname, 'systracker.db');
+// Database Setup (SQLite)
+const dbFolder = path.join(__dirname, 'data');
+if (!fs.existsSync(dbFolder)) {
+    fs.mkdirSync(dbFolder, { recursive: true });
+}
+const dbPath = path.join(dbFolder, 'systracker.db');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Error opening database:', err.message);
     } else {
-        console.log('Connected to the SQLite database.');
+        console.log('Connected to the SQLite database at:', dbPath);
         initializeDb();
     }
 });
 
 function initializeDb() {
     const schemaPath = path.resolve(__dirname, 'schema_sqlite.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8');
+    let schema = '';
+    try {
+        schema = fs.readFileSync(schemaPath, 'utf8');
+    } catch (e) {
+        // Fallback schema if file not found
+        schema = `
+            CREATE TABLE IF NOT EXISTS machines (
+                id TEXT PRIMARY KEY,
+                hostname TEXT,
+                nickname TEXT,
+                ip_address TEXT,
+                os_info TEXT,
+                os_distro TEXT,
+                os_release TEXT,
+                os_codename TEXT,
+                os_serial TEXT,
+                os_uefi INTEGER,
+                uuid TEXT,
+                device_name TEXT,
+                users TEXT,
+                hardware_info TEXT,
+                status TEXT,
+                last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+                profile TEXT
+            );
+            CREATE TABLE IF NOT EXISTS metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                machine_id TEXT,
+                cpu_usage REAL,
+                ram_usage REAL,
+                disk_total_gb REAL,
+                disk_free_gb REAL,
+                network_up_kbps REAL,
+                network_down_kbps REAL,
+                active_vpn INTEGER,
+                disk_details TEXT,
+                processes TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(machine_id) REFERENCES machines(id)
+            );
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                machine_id TEXT,
+                event_id INTEGER,
+                source TEXT,
+                message TEXT,
+                severity TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(machine_id) REFERENCES machines(id)
+            );
+            CREATE TABLE IF NOT EXISTS logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                machine_id TEXT,
+                level TEXT,
+                message TEXT,
+                stack_trace TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(machine_id) REFERENCES machines(id)
+            );
+        `;
+    }
 
-    // Split commands by semicolon to execute them one by one
-    // Simple split might be fragile for complex SQL but sufficient here
     const queries = schema.split(';').filter(q => q.trim().length > 0);
 
     db.serialize(() => {
@@ -44,18 +131,54 @@ function initializeDb() {
                 if (err) console.error('Error initializing DB:', err.message);
             });
         });
+
+        // Migration: Add profile column if it doesn't exist
+        db.run("ALTER TABLE machines ADD COLUMN profile TEXT", (err) => {
+            if (err && !err.message.includes("duplicate column name")) {
+                console.error("Migration error (profile):", err.message);
+            } else {
+                // console.log("Migration check: profile column ensured.");
+            }
+        });
     });
 }
 
 // Middleware for API Key Authentication
 const authenticateAPI = (req, res, next) => {
-    // Basic bypass for now to get it working easily, enable if needed
-    // const apiKey = req.header('X-API-Key');
-    // if (!apiKey || apiKey !== process.env.API_KEY) {
-    //     return res.status(401).json({ error: 'Unauthorized: Invalid API Key' });
-    // }
+    const apiKey = req.header('X-API-Key');
+    // Simple static key for Phase 1 as requested
+    const VALID_API_KEY = "YOUR_STATIC_API_KEY_HERE";
+
+    if (!apiKey || apiKey !== VALID_API_KEY) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid API Key' });
+    }
     next();
 };
+
+// --- DEBUG ENDPOINT ---
+app.get('/api/debug/config', (req, res) => {
+    const dbFolder = path.join(__dirname, 'data');
+    const dbFile = path.join(dbFolder, 'systracker.db');
+
+    let folderContents = [];
+    try {
+        if (fs.existsSync(dbFolder)) {
+            folderContents = fs.readdirSync(dbFolder);
+        }
+    } catch (e) { folderContents = [`Error: ${e.message}`]; }
+
+    res.json({
+        cwd: process.cwd(),
+        dirname: __dirname,
+        dbFolder: dbFolder,
+        dbFolderExists: fs.existsSync(dbFolder),
+        dbFile: dbFile,
+        dbFileExists: fs.existsSync(dbFile),
+        folderContents: folderContents,
+        envPort: process.env.PORT,
+        isDocker: fs.existsSync('/.dockerenv')
+    });
+});
 
 // --- API Endpoints ---
 
@@ -129,7 +252,34 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
                 metrics.active_vpn ? 1 : 0,
                 diskDetailsStr,
                 processesStr
-            ], (err) => { if (err) console.error("Error inserting metrics:", err); });
+            ], (err) => {
+                if (err) console.error("Error inserting metrics:", err);
+
+                // --- ALERTING ENGINE ---
+                const alerts = [];
+                // CPU Alert (> 95%)
+                if (metrics.cpu_usage > 95) {
+                    alerts.push({ type: 'CPU', message: `High CPU Usage: ${metrics.cpu_usage}%` });
+                }
+                // Disk Alert (< 10% free)
+                if (metrics.disk_total_gb > 0 && (metrics.disk_free_gb / metrics.disk_total_gb) < 0.10) {
+                    alerts.push({ type: 'DISK', message: `Low Disk Space: ${metrics.disk_free_gb}GB free` });
+                }
+
+                // Trigger Webhook/Log for Alerts
+                if (alerts.length > 0) {
+                    console.log(`[ALERT] Machine ${machine.id}:`, alerts);
+                    // TODO: Send to Slack/Discord via axios.post(WEBHOOK_URL, ...)
+                    // For now, we'll just log it to the 'events' table as a system alert? 
+                    // Or ideally a separate 'alerts' table, but 'events' works for now if we use a special source.
+
+                    const alertStmt = db.prepare(`INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, 9999, 'SysTracker-Alert', ?, 'Warning', CURRENT_TIMESTAMP)`);
+                    alerts.forEach(a => {
+                        alertStmt.run([machine.id, a.message]);
+                    });
+                    alertStmt.finalize();
+                }
+            });
         }
 
         // 3. Insert Events
@@ -198,17 +348,20 @@ app.post('/api/logs', authenticateAPI, (req, res) => {
     });
 });
 
-// Update Machine Nickname
-app.put('/api/machines/:id/nickname', authenticateAPI, (req, res) => {
+// Update Machine Profile
+app.put('/api/machines/:id/profile', authenticateAPI, (req, res) => {
     const { id } = req.params;
-    const { nickname } = req.body;
-    console.log(`Updating nickname for ${id} to: ${nickname}`);
+    const { profile } = req.body; // Expects full profile object
+    console.log(`Updating profile for ${id}`);
 
-    db.run('UPDATE machines SET nickname = ? WHERE id = ?', [nickname, id], function (err) {
+    // Extract nickname from profile.name for backward compatibility/search if needed
+    const nickname = profile?.name || null;
+
+    db.run('UPDATE machines SET nickname = ?, profile = ? WHERE id = ?', [nickname, JSON.stringify(profile), id], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         if (this.changes === 0) return res.status(404).json({ error: 'Machine not found' });
 
-        io.emit('machine_update', { id, nickname }); // Notify clients
+        io.emit('machine_update', { id, nickname, profile }); // Notify clients
         res.json({ success: true });
     });
 });
@@ -238,10 +391,12 @@ app.get('/api/machines', (req, res) => {
             let hwInfo = null;
             let diskDetails = [];
             let processes = [];
+            let profile = null;
             try {
                 if (row.hardware_info) hwInfo = JSON.parse(row.hardware_info);
                 if (row.disk_details) diskDetails = JSON.parse(row.disk_details);
                 if (row.processes) processes = JSON.parse(row.processes);
+                if (row.profile) profile = JSON.parse(row.profile);
             } catch (e) { console.error("Error parsing JSON", e); }
 
             return {
@@ -261,6 +416,7 @@ app.get('/api/machines', (req, res) => {
                 device_name: row.device_name,
                 users: row.users ? JSON.parse(row.users) : [],
                 hardware_info: hwInfo,
+                profile: profile, // Return profile object
                 status: row.status,
                 last_seen: row.last_seen,
                 metrics: {
@@ -335,21 +491,10 @@ setInterval(() => {
     });
 }, 30000);
 
-// Serve Static Dashboard (Single Port Mode)
-const dashboardPath = path.join(__dirname, '../dashboard/out');
-app.use(express.static(dashboardPath));
+// Log periodic status to console (optional)
+// setInterval(() => console.log(`[Server] Active. Clients: ${io.engine.clientsCount}`), 60000);
 
-// Handle SPA routing - return index.html for unknown routes (that aren't APIs)
-app.get(/(.*)/, (req, res) => {
-    // Only serve index.html if it exists, otherwise 404
-    if (fs.existsSync(path.join(dashboardPath, 'index.html'))) {
-        res.sendFile(path.join(dashboardPath, 'index.html'));
-    } else {
-        res.status(404).send('Dashboard not built. Run "npm run build" in dashboard directory.');
-    }
-});
-
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+const PORT = process.env.PORT || 7777;
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${PORT}`);
 });

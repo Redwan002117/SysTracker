@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  systracker:
+    image: ghcr.io/redwan002117/systracker:latest
+    container_name: systracker-admin
+    restart: unless-stopped
+    ports:
+      - "7777:7777"
+    volumes:
+      # Persist the SQLite database
+      # In CasaOS, you might want to map this to a specific path on your drive
+      - /DATA/AppData/Monitor:/app/data
+    environment:
+      - PORT=7777
+    x-casaos:
+      architectures:
+        - amd64
+        - arm64
+        - arm
+      main: systracker
+      description: "Real-time fleet monitoring solution."
+      icon: "https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/logo.svg"
+      title: "SysTracker"
+      category: "Monitoring"
