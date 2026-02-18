@@ -18,6 +18,16 @@ export interface Machine {
     last_seen: string;
     metrics?: Metrics;
     hardware_info?: HardwareInfo;
+    profile?: {
+        name: string;
+        role: string;
+        avatar?: string;
+        tags?: string[];
+        stats?: Array<{ label: string; value: string }>;
+        floor_name?: string;
+        desk_name?: string;
+        pc_number?: string;
+    };
 }
 
 export interface DiskDetail {
