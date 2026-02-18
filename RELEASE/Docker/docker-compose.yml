@@ -10,7 +10,7 @@ services:
     volumes:
       # Persist the SQLite database
       # In CasaOS, you might want to map this to a specific path on your drive
-      - ./data:/app/data
+      - /DATA/AppData/Monitor:/app/data
     environment:
       - PORT=7777
     x-casaos:
