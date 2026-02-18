@@ -87,9 +87,41 @@ jobs:
         id: build-and-push
         uses: docker/build-push-action@v4
         with:
-          context: ./server
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  agent:
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build # Optional, but good for ordering
+    permissions:
+      contents: write # Required to upload assets to release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r agent/requirements.txt
+          pip install pyinstaller
+
+      - name: Build Agent (EXE)
+        run: |
+          pyinstaller --onefile --noconsole --name SysTracker_Agent agent/agent.py
+
+      - name: Create Config Template
+        run: |
+          echo "{\"api_url\": \"http://YOUR_SERVER_IP:7777/api\", \"api_key\": \"YOUR_API_KEY\"}" > dist/config.json
+
+      - name: Zip Release
+        run: |
+          Compress-Archive -Path dist/SysTracker_Agent.exe, dist/config.json, agent/install.ps1 -DestinationPath SysTracker_Agent_Windows.zip
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: SysTracker_Agent_Windows.zip

@@ -417,65 +417,87 @@ def send_payload(endpoint, data):
         logging.error(f"Failed to send data to {endpoint}: {e}")
         return False
 
-def main():
-    logging.info(f"Starting IT Manager Pro Agent on {MACHINE_ID}")
-    last_event_check = datetime.datetime.now() - datetime.timedelta(hours=24)
-    
-    # Registration / First Heartbeat
-    # Initial Handshake
-    # machine_id = get_machine_id() # Assuming MACHINE_ID is already defined globally
-    hostname = socket.gethostname()
-    
-    # Collect static details once
-    detailed_info = get_detailed_hardware_info() # Use existing function
-    
-    # Basic hardware info (legacy format + new details)
-    hardware_info = {
-        "system": platform.system(),
-        "release": platform.release(),
-        "version": platform.version(),
-        "machine": platform.machine(),
-        "processor": platform.processor(),
-        "all_details": detailed_info # Nest the new deep details here
-    }
-    
-    sys_info = {
-        "id": MACHINE_ID,
-        "hostname": hostname,
-        "os_info": f"{platform.system()} {platform.release()}",
-        "users": get_logged_in_users(),
-        "hardware_info": hardware_info # Assign the new structured hardware_info
-    }
+# Service Imports
+import win32serviceutil
+import win32service
+import win32event
+import servicemanager
 
-    # The original `if hw_info:` block is now integrated into the `sys_info` construction above.
-    # if hw_info:
-    #     sys_info["hardware_info"] = hw_info
-    #     logging.info("Collected detailed hardware info w/ Network.")
-    logging.info("Collected detailed hardware info w/ Network.") # Keep the log message
+class AppServerSvc (win32serviceutil.ServiceFramework):
+    _svc_name_ = "SysTrackerAgent"
+    _svc_display_name_ = "SysTracker Monitoring Agent"
+    _svc_description_ = "Reports system telemetry to the SysTracker Server."
 
-    try:
-        while True:
-            metrics = get_system_metrics()
-            if metrics:
-                # Refresh users list periodically
-                sys_info["users"] = get_logged_in_users()
-                
-                payload = { "machine": sys_info, "metrics": metrics }
-                
-                if (datetime.datetime.now() - last_event_check).total_seconds() >= EVENT_POLL_INTERVAL:
-                    logging.info("Polling Event Logs...")
-                    events = get_event_logs(last_event_check)
-                    if events:
-                        payload["events"] = events
-                        logging.info(f"Found {len(events)} critical events.")
-                    last_event_check = datetime.datetime.now()
-                
-                send_payload("telemetry", payload)
-            
-            time.sleep(TELEMETRY_INTERVAL)
-            
-    except KeyboardInterrupt:
-        logging.info("Stopping agent...")
+    def __init__(self, args):
+        win32serviceutil.ServiceFramework.__init__(self, args)
+        self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
+        socket.setdefaulttimeout(60)
+        self.is_running = True
 
-if __name__ == "__main__":
-    main()
+    def SvcStop(self):
+        self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
+        win32event.SetEvent(self.hWaitStop)
+        self.is_running = False
+        logging.info("Service stopping...")
+
+    def SvcDoRun(self):
+        servicemanager.LogMsg(servicemanager.EVENTLOG_INFORMATION_TYPE,
+                              servicemanager.PYS_SERVICE_STARTED,
+                              (self._svc_name_, ''))
+        self.main()
+
+    def main(self):
+        logging.info(f"Starting IT Manager Pro Agent on {MACHINE_ID}")
+        last_event_check = datetime.datetime.now() - datetime.timedelta(hours=24)
+        hostname = socket.gethostname()
+        
+        # Collect static details once
+        detailed_info = get_detailed_hardware_info()
+        
+        sys_info = {
+            "id": MACHINE_ID,
+            "hostname": hostname,
+            "os_info": f"{platform.system()} {platform.release()}",
+            "users": get_logged_in_users(),
+            "hardware_info": {
+                "system": platform.system(),
+                "release": platform.release(),
+                "version": platform.version(),
+                "machine": platform.machine(),
+                "processor": platform.processor(),
+                "all_details": detailed_info
+            }
+        }
+
+        logging.info("Collected detailed hardware info w/ Network.")
+
+        while self.is_running:
+            try:
+                metrics = get_system_metrics()
+                if metrics:
+                    sys_info["users"] = get_logged_in_users()
+                    payload = { "machine": sys_info, "metrics": metrics }
+                    
+                    if (datetime.datetime.now() - last_event_check).total_seconds() >= EVENT_POLL_INTERVAL:
+                        logging.info("Polling Event Logs...")
+                        events = get_event_logs(last_event_check)
+                        if events:
+                            payload["events"] = events
+                            logging.info(f"Found {len(events)} critical events.")
+                        last_event_check = datetime.datetime.now()
+                    
+                    send_payload("telemetry", payload)
+            except Exception as e:
+                logging.error(f"Error in main loop: {e}")
+
+            # Check for stop signal every 2 seconds
+            if win32event.WaitForSingleObject(self.hWaitStop, TELEMETRY_INTERVAL * 1000) == win32event.WAIT_OBJECT_0:
+                break
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        servicemanager.Initialize()
+        servicemanager.PrepareToHostSingle(AppServerSvc)
+        servicemanager.StartServiceCtrlDispatcher()
+    else:
+        win32serviceutil.HandleCommandLine(AppServerSvc)
