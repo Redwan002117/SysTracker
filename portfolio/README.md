@@ -46,6 +46,28 @@ npm run build      # Outputs static files to ./out/
 
 The `out/` directory can be deployed directly to any static host.
 
+## Docker Deployment
+
+The portfolio app can be run as a lightweight container using nginx.
+
+### Using Docker Compose (Recommended)
+
+```bash
+docker-compose up -d
+```
+
+Access the app at `http://localhost:2222`.
+
+### Manual Build & Run
+
+```bash
+# Build the image
+docker build -t systracker-portfolio .
+
+# Run container (map port 2222 to container port 80)
+docker run -d -p 2222:80 --name portfolio systracker-portfolio
+```
+
 ## Deployment
 
 ### Vercel
