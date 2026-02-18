@@ -2,21 +2,12 @@ version: '3'
 
 services:
   systracker:
-    build: .
+    image: ghcr.io/redwan002117/systracker:latest
     container_name: systracker-admin
     restart: unless-stopped
     ports:
       - "7777:7777"
     volumes:
-      # Persist the SQLite database
       - ./data:/app/data
     environment:
       - PORT=7777
-      # If using Cloudflare Tunnel, you might not need to expose ports, 
-      # but for local access it's good.
-
-      # Optional: Included Cloudflare Tunnel sidecar
-      # tunnel:
-      #   image: cloudflare/cloudflared:latest
-      #   restart: unless-stopped
-      #   command: tunnel run --token YOUR_TOKEN_HERE
