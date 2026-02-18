@@ -10,11 +10,17 @@ if ($LASTEXITCODE -ne 0) {
 
 # 2. Rebuild and restart container
 Write-Host "Building and restarting Docker container..." -ForegroundColor Yellow
-docker-compose up -d --build
+if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
+    docker-compose up -d --build
+}
+else {
+    docker compose up -d --build
+}
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Update complete! Portfolio is running at http://localhost:2222" -ForegroundColor Green
-} else {
+}
+else {
     Write-Error "Docker command failed."
     exit 1
 }

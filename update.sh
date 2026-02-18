@@ -11,6 +11,10 @@ git pull
 
 # 2. Rebuild and restart container
 echo -e "\033[0;33mBuilding and restarting Docker container...\033[0m"
-docker-compose up -d --build
+if command -v docker-compose &> /dev/null; then
+    docker-compose up -d --build
+else
+    docker compose up -d --build
+fi
 
 echo -e "\033[0;32mUpdate complete! Portfolio is running on port 80 (mapped to host).\033[0m"
