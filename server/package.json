@@ -1,6 +1,6 @@
 {
   "name": "systracker-server",
-  "version": "1.1.67",
+  "version": "2.0.0",
   "main": "server.js",
   "bin": "server.js",
   "pkg": {
@@ -23,4 +23,3 @@
     "sqlite3": "^5.1.6"
   }
 }
-

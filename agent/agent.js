@@ -5,6 +5,7 @@ const os = require('os');
 // Configuration
 const SERVER_URL = 'http://localhost:3001';
 const RECONNECT_DELAY = 5000;
+const VERSION = '2.0.0';
 
 let socket;
 let machineId = os.hostname(); // Simple ID for now
