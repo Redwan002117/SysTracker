@@ -1,6 +1,6 @@
 {
   "name": "agent",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "",
   "bin": "client_agent.js",
   "pkg": {
