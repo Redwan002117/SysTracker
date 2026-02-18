@@ -10,7 +10,7 @@ import AuthGuard from '../../components/AuthGuard';
 import { Machine } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Search, Cpu, Wifi, Server } from 'lucide-react';
-import { fetchWithAuth } from '../../lib/auth';
+import { fetchWithAuth, clearToken } from '../../lib/auth';
 
 const container = {
   hidden: { opacity: 0 },
