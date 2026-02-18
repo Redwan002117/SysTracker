@@ -135,41 +135,41 @@ jobs:
             server/SysTracker_Admin
             agent/agent.py
 
-  agent-windows:
+  agent-build:
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build # Optional, but good for ordering
     permissions:
-      contents: write # Required to upload assets to release
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          python-version: '3.11'
+          node-version: 18
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: |
-          pip install -r agent/requirements.txt
-          pip install pyinstaller
+          cd agent
+          npm install
 
       - name: Build Agent (EXE)
         run: |
-          pyinstaller --onefile --noconsole --name SysTracker_Agent agent/agent.py
+          cd agent
+          npx pkg . --targets node18-win-x64 --output SysTracker_Agent --compress GZip
 
       - name: Create Config Template
         run: |
-          echo "{\"api_url\": \"http://YOUR_SERVER_IP:7777/api\", \"api_key\": \"YOUR_API_KEY\"}" > dist/config.json
+          echo "{\"server_url\": \"http://YOUR_SERVER_IP:3001\"}" > agent/config.json
 
-      - name: Zip Release
+      - name: Create Zip Archive
         run: |
-          Compress-Archive -Path dist/SysTracker_Agent.exe, dist/config.json, agent/install.ps1 -DestinationPath SysTracker_Agent_Windows.zip
+          Compress-Archive -Path agent/SysTracker_Agent.exe, agent/config.json, agent/install_agent.ps1 -DestinationPath SysTracker_Agent_Windows.zip
 
       - name: Upload Agent Assets
         uses: softprops/action-gh-release@v1
         with:
           files: |
             SysTracker_Agent_Windows.zip
-            dist/SysTracker_Agent.exe
+            agent/SysTracker_Agent.exe
