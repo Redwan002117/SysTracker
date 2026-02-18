@@ -6,6 +6,13 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+
+// JWT secret — use env var in production, auto-generate otherwise
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 const app = express();
 const server = http.createServer(app); // Changed from http.createServer(app);
@@ -136,24 +143,176 @@ function initializeDb() {
         db.run("ALTER TABLE machines ADD COLUMN profile TEXT", (err) => {
             if (err && !err.message.includes("duplicate column name")) {
                 console.error("Migration error (profile):", err.message);
-            } else {
-                // console.log("Migration check: profile column ensured.");
             }
+        });
+
+        // Auth: Create admin_users table
+        db.run(`CREATE TABLE IF NOT EXISTS admin_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, (err) => {
+            if (err) console.error('Error creating admin_users table:', err.message);
+        });
+
+        // Auth: Create setup_tokens table (one-time first-run token)
+        db.run(`CREATE TABLE IF NOT EXISTS setup_tokens (
+            token TEXT PRIMARY KEY,
+            used INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, (err) => {
+            if (err) console.error('Error creating setup_tokens table:', err.message);
+            else ensureSetupToken();
         });
     });
 }
 
-// Middleware for API Key Authentication
+// Generate a one-time setup token if no admin users exist
+function ensureSetupToken() {
+    db.get('SELECT COUNT(*) as count FROM admin_users', [], (err, row) => {
+        if (err || (row && row.count > 0)) return; // Already set up
+        const token = crypto.randomBytes(24).toString('hex');
+        db.run('DELETE FROM setup_tokens', [], () => {
+            db.run('INSERT INTO setup_tokens (token) VALUES (?)', [token], (err) => {
+                if (!err) {
+                    const PORT = process.env.PORT || 7777;
+                    console.log('\n' + '='.repeat(60));
+                    console.log('  SYSTRACKER FIRST-RUN SETUP');
+                    console.log('  No admin account found.');
+                    console.log(`  Visit: http://localhost:${PORT}/setup?token=${token}`);
+                    console.log('  This link is one-time use only.');
+                    console.log('='.repeat(60) + '\n');
+                }
+            });
+        });
+    });
+}
+
+// Middleware for API Key Authentication (used by agents)
 const authenticateAPI = (req, res, next) => {
     const apiKey = req.header('X-API-Key');
-    // Simple static key for Phase 1 as requested
-    const VALID_API_KEY = "YOUR_STATIC_API_KEY_HERE";
-
+    const VALID_API_KEY = process.env.API_KEY || "YOUR_STATIC_API_KEY_HERE";
     if (!apiKey || apiKey !== VALID_API_KEY) {
         return res.status(401).json({ error: 'Unauthorized: Invalid API Key' });
     }
     next();
 };
+
+// Middleware for Dashboard JWT Authentication
+const authenticateDashboard = (req, res, next) => {
+    const authHeader = req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    }
+    const token = authHeader.slice(7);
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.admin = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+    }
+};
+
+// ─── Auth Endpoints ───────────────────────────────────────────────────────────
+
+// Check if setup is needed (no admin users)
+app.get('/api/auth/status', (req, res) => {
+    db.get('SELECT COUNT(*) as count FROM admin_users', [], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ setup_required: row.count === 0 });
+    });
+});
+
+// First-run setup — create the first admin account
+app.post('/api/auth/setup', (req, res) => {
+    const { username, password, setup_token } = req.body;
+    if (!username || !password || !setup_token) {
+        return res.status(400).json({ error: 'username, password, and setup_token are required' });
+    }
+    if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+    // Check no users exist
+    db.get('SELECT COUNT(*) as count FROM admin_users', [], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (row.count > 0) return res.status(403).json({ error: 'Setup already completed' });
+        // Validate setup token
+        db.get('SELECT * FROM setup_tokens WHERE token = ? AND used = 0', [setup_token], (err, tokenRow) => {
+            if (err || !tokenRow) return res.status(403).json({ error: 'Invalid or expired setup token' });
+            // Hash password and create user
+            bcrypt.hash(password, 12, (err, hash) => {
+                if (err) return res.status(500).json({ error: 'Error hashing password' });
+                db.run('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)', [username.toLowerCase().trim(), hash], function (err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    // Mark token as used
+                    db.run('UPDATE setup_tokens SET used = 1 WHERE token = ?', [setup_token]);
+                    console.log(`[Auth] Admin account created: ${username}`);
+                    res.json({ success: true, message: 'Admin account created. Please log in.' });
+                });
+            });
+        });
+    });
+});
+
+// Login
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required' });
+    }
+    db.get('SELECT * FROM admin_users WHERE username = ?', [username.toLowerCase().trim()], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(401).json({ error: 'Invalid username or password' });
+        bcrypt.compare(password, user.password_hash, (err, match) => {
+            if (err || !match) return res.status(401).json({ error: 'Invalid username or password' });
+            const token = jwt.sign(
+                { id: user.id, username: user.username },
+                JWT_SECRET,
+                { expiresIn: JWT_EXPIRES_IN }
+            );
+            console.log(`[Auth] Login: ${user.username}`);
+            res.json({ token, username: user.username, expires_in: JWT_EXPIRES_IN });
+        });
+    });
+});
+
+// Get current user (validates token)
+app.get('/api/auth/me', authenticateDashboard, (req, res) => {
+    res.json({ id: req.admin.id, username: req.admin.username });
+});
+
+// Logout (stateless — client drops token; endpoint for future blacklist)
+app.post('/api/auth/logout', authenticateDashboard, (req, res) => {
+    console.log(`[Auth] Logout: ${req.admin.username}`);
+    res.json({ success: true });
+});
+
+// Change password
+app.post('/api/auth/change-password', authenticateDashboard, (req, res) => {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+        return res.status(400).json({ error: 'current_password and new_password are required' });
+    }
+    if (new_password.length < 8) {
+        return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+    db.get('SELECT * FROM admin_users WHERE id = ?', [req.admin.id], (err, user) => {
+        if (err || !user) return res.status(500).json({ error: 'User not found' });
+        bcrypt.compare(current_password, user.password_hash, (err, match) => {
+            if (err || !match) return res.status(401).json({ error: 'Current password is incorrect' });
+            bcrypt.hash(new_password, 12, (err, hash) => {
+                if (err) return res.status(500).json({ error: 'Error hashing password' });
+                db.run('UPDATE admin_users SET password_hash = ? WHERE id = ?', [hash, user.id], (err) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    console.log(`[Auth] Password changed: ${user.username}`);
+                    res.json({ success: true });
+                });
+            });
+        });
+    });
+});
 
 // --- DEBUG ENDPOINT ---
 app.get('/api/debug/config', (req, res) => {
@@ -366,8 +525,8 @@ app.put('/api/machines/:id/profile', authenticateAPI, (req, res) => {
     });
 });
 
-// Get All Machines (for Dashboard)
-app.get('/api/machines', (req, res) => {
+// Get All Machines (for Dashboard) — JWT protected
+app.get('/api/machines', authenticateDashboard, (req, res) => {
     const query = `
         SELECT m.*, 
                me.cpu_usage, me.ram_usage, me.disk_total_gb, me.disk_free_gb, me.network_up_kbps, me.network_down_kbps, me.active_vpn, me.disk_details, me.processes
@@ -436,8 +595,8 @@ app.get('/api/machines', (req, res) => {
     });
 });
 
-// Get Machine Details
-app.get('/api/machines/:id', (req, res) => {
+// Get Machine Details — JWT protected
+app.get('/api/machines/:id', authenticateDashboard, (req, res) => {
     const { id } = req.params;
 
     db.get('SELECT * FROM machines WHERE id = ?', [id], (err, row) => {
