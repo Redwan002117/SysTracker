@@ -32,6 +32,8 @@ export interface Machine {
 
 export interface DiskDetail {
     mount: string;
+    device?: string;
+    label?: string;
     type: string;
     total_gb: number;
     used_gb: number;
@@ -43,7 +45,7 @@ export interface Metrics {
     ram: number;
     disk: number;
     disk_details?: DiskDetail[];
-    processes?: Array<{ name: string; cpu: number; mem: number; pid: number }>;
+    processes?: Array<{ name: string; cpu: number; mem: number; mem_mb?: number; pid: number }>;
     network_up_kbps: number;
     network_down_kbps: number;
     active_vpn: boolean;
@@ -80,4 +82,52 @@ export interface HardwareInfo {
         type: string;
         speed_mbps: number | null;
     }>;
+    system?: {
+        uuid: string;
+        identifying_number: string;
+    };
+    all_details?: {
+        cpu: {
+            name: string;
+            cores: number;
+            logical: number;
+            socket: string;
+            l2_cache: string;
+            l3_cache: string;
+            virtualization: string;
+        };
+        ram: {
+            modules: Array<{
+                capacity: string;
+                speed: string;
+                manufacturer: string;
+                part_number: string;
+                form_factor: string;
+            }>;
+            slots_used: number;
+        };
+        gpu: Array<{
+            name: string;
+            driver_version: string;
+            driver_date: string;
+            memory: string;
+        }>;
+        motherboard?: {
+            manufacturer: string;
+            product: string;
+            serial: string;
+            version: string;
+        };
+        system?: {
+            uuid: string;
+            identifying_number: string;
+        };
+        network?: Array<{
+            interface: string;
+            ip_address: string;
+            mac: string;
+            type: string;
+            speed_mbps: number | null;
+        }>;
+    };
 }

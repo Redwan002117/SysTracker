@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Activity, LayoutDashboard, Settings, Github, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 
 const Navbar = () => {
     const pathname = usePathname();
@@ -18,10 +17,9 @@ const Navbar = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     {/* Logo */}
-                    {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 group">
-                        <div className="relative w-8 h-8">
-                            <Image src="/logo.svg" alt="SysTracker Logo" fill className="object-contain" />
+                        <div className="bg-blue-600 text-white p-1.5 rounded-lg shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300">
+                            <Zap size={20} fill="currentColor" className="group-hover:scale-110 transition-transform" />
                         </div>
                         <span className="font-bold text-xl tracking-tight text-slate-900">
                             Sys<span className="text-blue-600">Tracker</span>

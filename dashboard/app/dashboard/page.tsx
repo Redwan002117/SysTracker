@@ -59,6 +59,7 @@ export default function Dashboard() {
           ...data,
           metrics: data.metrics || newMachines[index].metrics,
           hardware_info: data.hardware_info || newMachines[index].hardware_info,
+          profile: data.profile || newMachines[index].profile,
           nickname: data.nickname || newMachines[index].nickname,
           status: (data.status || newMachines[index].status) as 'online' | 'offline'
         };

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Machine } from '../types';
-import { Server, HardDrive, Cpu, Activity } from 'lucide-react';
+import { Server, HardDrive, Cpu, Activity, ShieldCheck, Wifi, WifiOff } from 'lucide-react';
 
 interface MachineCardProps {
     machine: Machine;
@@ -10,101 +10,157 @@ interface MachineCardProps {
 const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick }) => {
     const isOnline = machine.status === 'online';
 
+    // Helper for usage color coding
     const getUsageColor = (usage: number) => {
-        if (usage >= 90) return 'text-red-500';
-        if (usage >= 70) return 'text-yellow-500';
-        return 'text-green-500';
+        if (usage >= 90) return 'text-red-600';
+        if (usage >= 70) return 'text-amber-600';
+        return 'text-emerald-600';
     };
 
     const getProgressBarColor = (usage: number) => {
-        if (usage >= 90) return 'bg-red-500';
-        if (usage >= 70) return 'bg-yellow-500';
-        return 'bg-green-500';
+        if (usage >= 90) return 'bg-gradient-to-r from-red-500 to-red-600';
+        if (usage >= 70) return 'bg-gradient-to-r from-amber-400 to-amber-500';
+        return 'bg-gradient-to-r from-emerald-400 to-emerald-500';
+    };
+
+    const formatNetworkSpeed = (kbps: number | undefined) => {
+        if (!kbps) return '0 bps';
+        const bitsPerSec = kbps * 1024 * 8;
+        if (bitsPerSec >= 1_000_000_000) return `${(bitsPerSec / 1_000_000_000).toFixed(1)} Gbps`;
+        if (bitsPerSec >= 1_000_000) return `${(bitsPerSec / 1_000_000).toFixed(1)} Mbps`;
+        if (bitsPerSec >= 1_000) return `${(bitsPerSec / 1_000).toFixed(1)} Kbps`;
+        return `${bitsPerSec.toFixed(0)} bps`;
     };
 
     return (
         <div
             onClick={() => onClick(machine)}
-            className={`p-5 rounded-2xl shadow-sm border transition-all duration-300 cursor-pointer hover:shadow-lg hover:-translate-y-1 ${isOnline ? 'bg-white/80 backdrop-blur-md border-white/50' : 'bg-gray-100 border-gray-200 opacity-60 grayscale'}`}
+            className={`
+                group relative p-5 rounded-2xl border transition-all duration-500 cursor-pointer overflow-hidden
+                ${isOnline
+                    ? 'bg-white/80 backdrop-blur-xl border-white/40 shadow-sm hover:shadow-2xl hover:-translate-y-1 hover:border-blue-200/50 ring-1 ring-slate-900/5'
+                    : 'bg-slate-50/50 backdrop-blur-sm border-slate-200/60 opacity-60 grayscale-[0.8] hover:opacity-100 hover:grayscale-0'}
+            `}
         >
-            <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${isOnline ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
-                        <Server size={24} />
+            {/* Hover Glow Effect */}
+            {isOnline && (
+                <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-500/0 via-blue-500/0 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+            )}
+
+            {/* Header */}
+            <div className="flex justify-between items-start mb-6 relative z-10">
+                <div className="flex items-center gap-4">
+                    <div className={`
+                        p-3 rounded-xl transition-colors shadow-inner ring-1 ring-inset
+                        ${isOnline ? 'bg-blue-50/80 text-blue-600 ring-blue-100 group-hover:bg-blue-100/80' : 'bg-slate-100 text-slate-400 ring-slate-200'}
+                    `}>
+                        <Server size={22} strokeWidth={2} />
                     </div>
                     <div>
-                        <h3 className="font-bold text-lg text-gray-800">{machine.nickname || machine.hostname}</h3>
-                        <p className="text-xs text-gray-500">{machine.nickname ? machine.hostname : machine.ip}</p>
+                        <h3 className="font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors text-lg tracking-tight">
+                            {machine.nickname || machine.hostname}
+                        </h3>
+                        <p className="text-xs text-slate-500 font-mono mt-0.5 tracking-wide opacity-80">
+                            {machine.nickname ? machine.hostname : machine.ip}
+                        </p>
                     </div>
                 </div>
-                <div className={`px-2 py-1 rounded-full text-xs font-semibold ${isOnline ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
-                    {machine.status.toUpperCase()}
+
+                {/* Status Badge */}
+                <div className={`
+                    pl-2 pr-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase border flex items-center gap-1.5 shadow-sm
+                    ${isOnline
+                        ? 'bg-emerald-50/80 text-emerald-700 border-emerald-100/50 backdrop-blur-sm'
+                        : 'bg-slate-100/80 text-slate-500 border-slate-200/50'}
+                `}>
+                    <div className="relative flex size-2">
+                        {isOnline && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
+                        <span className={`relative inline-flex rounded-full size-2 ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                    </div>
+                    {machine.status}
                 </div>
             </div>
 
-            <div className="space-y-3">
+            {/* Metrics Grid */}
+            <div className="space-y-5 relative z-10">
                 {/* CPU */}
-                <div>
-                    <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-600 flex items-center gap-1"><Cpu size={14} /> CPU</span>
-                        <span className={`font-medium ${getUsageColor(machine.metrics?.cpu || 0)}`}>{machine.metrics?.cpu || 0}%</span>
+                <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold tracking-tight">
+                        <span className="text-slate-500 flex items-center gap-1.5">
+                            <Cpu size={14} className="text-slate-400" /> CPU
+                        </span>
+                        <span className={getUsageColor(machine.metrics?.cpu || 0)}>
+                            {machine.metrics?.cpu || 0}%
+                        </span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-slate-100/80 rounded-full overflow-hidden shadow-inner">
                         <div
-                            className={`h-full rounded-full transition-all duration-500 ${getProgressBarColor(machine.metrics?.cpu || 0)}`}
+                            className={`h-full rounded-full transition-all duration-700 ease-out shadow-sm ${getProgressBarColor(machine.metrics?.cpu || 0)}`}
                             style={{ width: `${machine.metrics?.cpu || 0}%` }}
                         />
                     </div>
                 </div>
 
                 {/* RAM */}
-                <div>
-                    <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-600 flex items-center gap-1"><Activity size={14} /> RAM</span>
-                        <span className={`font-medium ${getUsageColor(machine.metrics?.ram || 0)}`}>{machine.metrics?.ram || 0}%</span>
+                <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold tracking-tight">
+                        <span className="text-slate-500 flex items-center gap-1.5">
+                            <Activity size={14} className="text-slate-400" /> RAM
+                        </span>
+                        <span className={getUsageColor(machine.metrics?.ram || 0)}>
+                            {machine.metrics?.ram || 0}%
+                        </span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-slate-100/80 rounded-full overflow-hidden shadow-inner">
                         <div
-                            className={`h-full rounded-full transition-all duration-500 ${getProgressBarColor(machine.metrics?.ram || 0)}`}
+                            className={`h-full rounded-full transition-all duration-700 ease-out shadow-sm ${getProgressBarColor(machine.metrics?.ram || 0)}`}
                             style={{ width: `${machine.metrics?.ram || 0}%` }}
                         />
                     </div>
                 </div>
 
                 {/* Disk */}
-                <div>
-                    <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-600 flex items-center gap-1"><HardDrive size={14} /> Main Disk</span>
-                        <span className={`font-medium ${getUsageColor(machine.metrics?.disk || 0)}`}>{machine.metrics?.disk || 0}%</span>
+                <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold tracking-tight">
+                        <span className="text-slate-500 flex items-center gap-1.5">
+                            <HardDrive size={14} className="text-slate-400" /> Disk
+                        </span>
+                        <span className={getUsageColor(machine.metrics?.disk || 0)}>
+                            {machine.metrics?.disk || 0}%
+                        </span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-slate-100/80 rounded-full overflow-hidden shadow-inner">
                         <div
-                            className={`h-full rounded-full transition-all duration-500 ${getProgressBarColor(machine.metrics?.disk || 0)}`}
+                            className={`h-full rounded-full transition-all duration-700 ease-out shadow-sm ${getProgressBarColor(machine.metrics?.disk || 0)}`}
                             style={{ width: `${machine.metrics?.disk || 0}%` }}
                         />
                     </div>
                 </div>
-
-                {/* Network Summary */}
-                <div className="pt-2 border-t border-gray-100 flex justify-between items-center text-xs">
-                    <div className="flex gap-3">
-                        <span className="flex items-center gap-1 text-gray-500">
-                            <Activity size={12} className="rotate-180 text-blue-500" />
-                            {(machine.metrics?.network_down_kbps || 0).toFixed(1)} KB/s
-                        </span>
-                        <span className="flex items-center gap-1 text-gray-500">
-                            <Activity size={12} className="text-green-500" />
-                            {(machine.metrics?.network_up_kbps || 0).toFixed(1)} KB/s
-                        </span>
-                    </div>
-                    {machine.metrics?.active_vpn && (
-                        <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-bold">VPN</span>
-                    )}
-                </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-400">
-                OS: {machine.os}
+            {/* Footer / Network Stats */}
+            <div className="mt-6 pt-4 border-t border-slate-100/60 flex justify-between items-center relative z-10">
+                <div className="flex gap-4 text-[11px] font-semibold text-slate-500">
+                    <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md border border-slate-100" title="Download">
+                        <Activity size={12} className="rotate-180 text-blue-500" />
+                        {formatNetworkSpeed(machine.metrics?.network_down_kbps)}
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-md border border-slate-100" title="Upload">
+                        <Activity size={12} className="text-emerald-500" />
+                        {formatNetworkSpeed(machine.metrics?.network_up_kbps)}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {machine.metrics?.active_vpn && (
+                        <div className="px-1.5 py-0.5 bg-indigo-50/80 text-indigo-600 rounded text-[10px] font-bold border border-indigo-100/50 flex items-center gap-1 shadow-sm">
+                            <ShieldCheck size={10} /> VPN
+                        </div>
+                    )}
+                    <div className="text-[10px] text-slate-400 font-bold bg-white/50 px-2 py-0.5 rounded border border-slate-100/80 uppercase tracking-widest">
+                        {machine.os.split(' ')[0]}
+                    </div>
+                </div>
             </div>
         </div>
     );
