@@ -49,11 +49,13 @@ function initializeDb() {
 
 // Middleware for API Key Authentication
 const authenticateAPI = (req, res, next) => {
-    // Basic bypass for now to get it working easily, enable if needed
-    // const apiKey = req.header('X-API-Key');
-    // if (!apiKey || apiKey !== process.env.API_KEY) {
-    //     return res.status(401).json({ error: 'Unauthorized: Invalid API Key' });
-    // }
+    const apiKey = req.header('X-API-Key');
+    // Simple static key for Phase 1 as requested
+    const VALID_API_KEY = "YOUR_STATIC_API_KEY_HERE";
+
+    if (!apiKey || apiKey !== VALID_API_KEY) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid API Key' });
+    }
     next();
 };
 
@@ -129,7 +131,34 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
                 metrics.active_vpn ? 1 : 0,
                 diskDetailsStr,
                 processesStr
-            ], (err) => { if (err) console.error("Error inserting metrics:", err); });
+            ], (err) => {
+                if (err) console.error("Error inserting metrics:", err);
+
+                // --- ALERTING ENGINE ---
+                const alerts = [];
+                // CPU Alert (> 95%)
+                if (metrics.cpu_usage > 95) {
+                    alerts.push({ type: 'CPU', message: `High CPU Usage: ${metrics.cpu_usage}%` });
+                }
+                // Disk Alert (< 10% free)
+                if (metrics.disk_total_gb > 0 && (metrics.disk_free_gb / metrics.disk_total_gb) < 0.10) {
+                    alerts.push({ type: 'DISK', message: `Low Disk Space: ${metrics.disk_free_gb}GB free` });
+                }
+
+                // Trigger Webhook/Log for Alerts
+                if (alerts.length > 0) {
+                    console.log(`[ALERT] Machine ${machine.id}:`, alerts);
+                    // TODO: Send to Slack/Discord via axios.post(WEBHOOK_URL, ...)
+                    // For now, we'll just log it to the 'events' table as a system alert? 
+                    // Or ideally a separate 'alerts' table, but 'events' works for now if we use a special source.
+
+                    const alertStmt = db.prepare(`INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, 9999, 'SysTracker-Alert', ?, 'Warning', CURRENT_TIMESTAMP)`);
+                    alerts.forEach(a => {
+                        alertStmt.run([machine.id, a.message]);
+                    });
+                    alertStmt.finalize();
+                }
+            });
         }
 
         // 3. Insert Events
