@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const server = createServer(app); // Changed from http.createServer(app);
+const server = http.createServer(app); // Changed from http.createServer(app);
 const io = new Server(server, {
     cors: {
         origin: "*", // Allow all origins for now (dev/prod mixed)
