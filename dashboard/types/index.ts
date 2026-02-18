@@ -1,0 +1,73 @@
+export interface Machine {
+    id: string;
+    hostname: string;
+    nickname?: string | null;
+    ip: string;
+    os: string;
+    os_details?: {
+        distro: string;
+        release: string;
+        codename: string;
+        serial: string;
+        uefi: boolean;
+        uuid: string;
+    };
+    device_name?: string;
+    users?: Array<{ user: string; tty: string; date: string; time: string; }>;
+    status: 'online' | 'offline' | 'warning' | 'error';
+    last_seen: string;
+    metrics?: Metrics;
+    hardware_info?: HardwareInfo;
+}
+
+export interface DiskDetail {
+    mount: string;
+    type: string;
+    total_gb: number;
+    used_gb: number;
+    percent: number;
+}
+
+export interface Metrics {
+    cpu: number;
+    ram: number;
+    disk: number;
+    disk_details?: DiskDetail[];
+    processes?: Array<{ name: string; cpu: number; mem: number; pid: number }>;
+    network_up_kbps: number;
+    network_down_kbps: number;
+    active_vpn: boolean;
+}
+
+export interface HardwareInfo {
+    motherboard?: {
+        manufacturer: string;
+        product: string;
+        serial: string;
+        version: string;
+    };
+    ram?: Array<{
+        capacity_gb: number;
+        speed: number;
+        manufacturer: string;
+        part_number: string;
+    }>;
+    gpu?: Array<{
+        name: string;
+        driver_version: string;
+    }>;
+    disks?: Array<{
+        model: string;
+        serial: string;
+        size_gb: number;
+        interface: string;
+        media_type: string;
+    }>;
+    network?: Array<{
+        interface: string;
+        ip_address: string;
+        mac: string;
+        type: string;
+        speed_mbps: number | null;
+    }>;
+}
