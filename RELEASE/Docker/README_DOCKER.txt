@@ -13,7 +13,7 @@ If you are using **Cloudflare Tunnel** and get a 502 Error, it is because you po
 *   **Docker Image**: `ghcr.io/redwan002117/systracker:latest`
 *   **Title**: SysTracker
 *   **Web UI**: `http://172.17.0.1:7777`  (or `http://0.0.0.0:7777`)
-*   **Icon URL**: `https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/logo.png`
+*   **Icon URL**: `https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/logo.svg`
 *   **Network**: `bridge`
 
 **Port Settings:**

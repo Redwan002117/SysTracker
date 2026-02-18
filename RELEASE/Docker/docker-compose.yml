@@ -13,3 +13,13 @@ services:
       - ./data:/app/data
     environment:
       - PORT=7777
+    x-casaos:
+      architectures:
+        - amd64
+        - arm64
+        - arm
+      main: systracker
+      description: "Real-time fleet monitoring solution."
+      icon: "https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/logo.svg"
+      title: "SysTracker"
+      category: "Monitoring"
