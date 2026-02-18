@@ -16,7 +16,7 @@ if (fs.existsSync(configPath)) {
     } catch (e) { console.error("Config parse error", e); }
 }
 
-const SERVER_URL = args[0] || config.SERVER_URL || process.env.SERVER_URL || 'http://localhost:3001';
+const SERVER_URL = args[0] || config.SERVER_URL || process.env.SERVER_URL || 'https://monitor.rico.bd';
 const API_URL = `${SERVER_URL}/api`;
 
 const MACHINE_ID = os.hostname();

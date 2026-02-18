@@ -3,9 +3,9 @@ const si = require('systeminformation');
 const os = require('os');
 
 // Configuration
-const SERVER_URL = 'http://localhost:3001';
+const SERVER_URL = 'https://monitor.rico.bd';
 const RECONNECT_DELAY = 5000;
-const VERSION = '2.0.1';
+const VERSION = '2.0.2';
 
 let socket;
 let machineId = os.hostname(); // Simple ID for now
