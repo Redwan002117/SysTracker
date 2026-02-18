@@ -1,8 +1,20 @@
 # SysTracker Changelog
 
-## [v1.1.10] - 2026-02-18
+# SysTracker Changelog
+
+## [v1.1.16] - 2026-02-18
+### Changed
+- **Branding**: Updated README banner to `banner.svg`.
+### Fixed
+- **Server**: Fixed critical startup crash caused by duplicate variable declaration in `v1.1.15`.
+
+## [v1.1.15] - 2026-02-18
+### Fixed
+- **Server**: add duplicate `dbPath` check (Hotfix).
+
+## [v1.1.14] - 2026-02-18
 ### Added
-- **Smart Update Script**: Added `update_app.sh` for one-click updates with health checks and rollback safety.
+- **Debug**: Added `/api/debug/config` endpoint.
 
 ## [v1.1.9] - 2026-02-18
 ### Fixed

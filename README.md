@@ -2,7 +2,7 @@
 
 **SysTracker** is a powerful, self-hosted system monitoring tool designed to track performance metrics (CPU, RAM, Disk, Network) across a fleet of Windows computers. It consists of a central **Admin Dashboard** and lightweight **Agents** deployed on client machines.
 
-![SysTracker Dashboard](https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/logo.svg) 
+![SysTracker Dashboard](https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/banner.svg) 
 
 ---
 
