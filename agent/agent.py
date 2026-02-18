@@ -16,7 +16,7 @@ import uuid
 # Check for config.json to get API_URL
 CONFIG_FILE = "config.json"
 DEFAULT_CONFIG = {
-    "api_url": "http://localhost:3001/api",
+    "api_url": "https://monitor.rico.bd/api",
     "api_key": "YOUR_STATIC_API_KEY_HERE"
 }
 
