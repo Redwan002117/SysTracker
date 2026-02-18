@@ -36,6 +36,7 @@ app.use((req, res, next) => {
 
 app.use(express.static(dashboardPath, { extensions: ['html'] }));
 
+app.set('trust proxy', 1); // Trust Nginx proxy headers
 app.use(cors());
 app.use(express.json()); // Changed from app.use(express.json({ limit: '5mb' }));
 
