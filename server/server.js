@@ -45,12 +45,17 @@ app.get('*', (req, res, next) => {
 });
 
 // Database Setup (SQLite)
-const dbPath = path.resolve(__dirname, 'systracker.db');
+// Database Setup (SQLite)
+const dbFolder = path.join(__dirname, 'data');
+if (!fs.existsSync(dbFolder)) {
+    fs.mkdirSync(dbFolder, { recursive: true });
+}
+const dbPath = path.join(dbFolder, 'systracker.db');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Error opening database:', err.message);
     } else {
-        console.log('Connected to the SQLite database.');
+        console.log('Connected to the SQLite database at:', dbPath);
         initializeDb();
     }
 });
