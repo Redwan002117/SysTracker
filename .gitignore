@@ -3,7 +3,7 @@ node_modules/
 out/
 build/
 dist/
-RELEASE/
+
 __pycache__/
 *.spec
 *.env
