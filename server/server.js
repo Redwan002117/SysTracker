@@ -8,20 +8,33 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app); // Changed from http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "*", // Allow all origins for now (dev/prod mixed)
         methods: ["GET", "POST"]
     }
 });
 
-app.use(cors());
-app.use(express.json({ limit: '5mb' })); // Increased limit for event logs
-
-// Serve Static Dashboard (Exported)
+// Serve the static dashboard files
+// In 'pkg', __dirname points to the virtual filesystem inside the snapshot
 const dashboardPath = path.join(__dirname, 'dashboard-dist');
+
+// Middleware to check if assets exist (debugging)
+app.use((req, res, next) => {
+    // Only log if specifically requesting asset (uncomment for debug)
+    // console.log('Request:', req.path); 
+    next();
+});
+
 app.use(express.static(dashboardPath));
+
+app.use(cors());
+app.use(express.json()); // Changed from app.use(express.json({ limit: '5mb' }));
+
+// Database Setup
+const dbPath = path.join(process.cwd(), 'systracker.db'); // DB should remain outside the EXE for persistence!
+app.use(express.static(dashboardPath)); // Added this line as per instruction
 
 // Handle client-side routing by serving index.html for all non-API routes
 app.get('*', (req, res, next) => {
