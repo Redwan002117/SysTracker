@@ -8,10 +8,50 @@ import logging
 import win32evtlog
 import datetime
 import wmi
+import sys
+import ctypes
+import os
+import uuid
 
-# Configuration
-API_URL = "http://localhost:3001/api"
-API_KEY = "YOUR_STATIC_API_KEY_HERE" 
+# Check for config.json to get API_URL
+CONFIG_FILE = "config.json"
+DEFAULT_CONFIG = {
+    "api_url": "http://localhost:3001/api",
+    "api_key": "YOUR_STATIC_API_KEY_HERE"
+}
+
+def load_config():
+    # Get the directory where the executable or script is running
+    if getattr(sys, 'frozen', False):
+        application_path = os.path.dirname(sys.executable)
+    else:
+        application_path = os.path.dirname(os.path.abspath(__file__))
+    
+    config_path = os.path.join(application_path, CONFIG_FILE)
+
+    if not os.path.exists(config_path):
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(DEFAULT_CONFIG, f, indent=4)
+            print(f"Created default config file at {config_path}")
+        except Exception as e:
+            print(f"Failed to create config file: {e}")
+            return DEFAULT_CONFIG
+
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+            # Ensure keys exist
+            if "api_url" not in config: config["api_url"] = DEFAULT_CONFIG["api_url"]
+            if "api_key" not in config: config["api_key"] = DEFAULT_CONFIG["api_key"]
+            return config
+    except Exception as e:
+        print(f"Error loading config: {e}")
+        return DEFAULT_CONFIG
+
+config = load_config()
+API_URL = config["api_url"]
+API_KEY = config["api_key"]
 TELEMETRY_INTERVAL = 2 # seconds
 EVENT_POLL_INTERVAL = 300 # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() 
@@ -360,7 +400,10 @@ def get_event_logs(last_check_time):
                 objects = win32evtlog.ReadEventLog(hand, flags, 0)
             win32evtlog.CloseEventLog(hand)
         except Exception as e:
-            logging.error(f"Error reading {log_type} event log: {e}")
+            if "privilege" in str(e).lower() or "access is denied" in str(e).lower():
+                logging.warning(f"Permission denied reading {log_type} event log. Run as Administrator for full logs.")
+            else:
+                logging.error(f"Error reading {log_type} event log: {e}")
     return events
 
 def send_payload(endpoint, data):

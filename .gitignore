@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+RELEASE/
+__pycache__/
+*.spec
+*.env
+.DS_Store
+*.exe
+systracker.db
+systracker.db-journal
+config.json
