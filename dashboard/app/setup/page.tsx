@@ -14,7 +14,7 @@ function SetupForm() {
     const searchParams = useSearchParams();
     const setupToken = searchParams.get('token') || '';
 
-    const [form, setForm] = useState({ username: '', password: '', confirmPassword: '' });
+    const [form, setForm] = useState({ username: '', password: '', confirmPassword: '', token: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'success' | 'already_done'>('idle');
     const [errorMsg, setErrorMsg] = useState('');
@@ -55,9 +55,10 @@ function SetupForm() {
             setErrorMsg('Password must be at least 8 characters');
             return;
         }
-        if (!setupToken) {
+        const tokenToUse = setupToken || form.token;
+        if (!tokenToUse) {
             setStatus('error');
-            setErrorMsg('Missing setup token. Check the server console for the setup URL.');
+            setErrorMsg('Missing setup token. Check the server console and paste the token.');
             return;
         }
 
@@ -71,7 +72,7 @@ function SetupForm() {
                 body: JSON.stringify({
                     username: form.username,
                     password: form.password,
-                    setup_token: setupToken,
+                    setup_token: tokenToUse,
                 }),
             });
             const data = await res.json();
@@ -225,8 +226,8 @@ function SetupForm() {
                                         onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))}
                                         placeholder="Repeat password"
                                         className={`w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm ${form.confirmPassword && form.confirmPassword !== form.password
-                                                ? 'border-red-500/50'
-                                                : 'border-white/10'
+                                            ? 'border-red-500/50'
+                                            : 'border-white/10'
                                             }`}
                                     />
                                 </div>
@@ -260,9 +261,29 @@ function SetupForm() {
                                 )}
                             </AnimatePresence>
 
+                            {/* Token Input (Manual Fallback) */}
+                            {!setupToken && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-300 mb-1.5">Setup Token</label>
+                                    <div className="relative">
+                                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                                            <Shield size={16} />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            required
+                                            value={form.token}
+                                            onChange={e => setForm(f => ({ ...f, token: e.target.value }))}
+                                            placeholder="Paste token from server console"
+                                            className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm font-mono"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <button
                                 type="submit"
-                                disabled={status === 'loading' || status === 'success' || !setupToken}
+                                disabled={status === 'loading' || status === 'success' || (!setupToken && !form.token)}
                                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold shadow-xl shadow-blue-500/30 transition-all hover:-translate-y-0.5 cursor-pointer mt-2"
                             >
                                 {status === 'loading' ? (

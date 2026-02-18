@@ -14,7 +14,7 @@ API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 60 # seconds
 EVENT_POLL_INTERVAL = 300 # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() # Using Hostname as ID for simplicity, typically MAC or UUID is better
-VERSION = "2.0.1"
+VERSION = "2.0.0"
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
