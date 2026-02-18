@@ -1,0 +1,62 @@
+# SysTracker Portfolio App
+
+A standalone, statically-exported Next.js app for the SysTracker download/marketing site. Independently hostable on Vercel, Netlify, GitHub Pages, or any static host — no dependency on the main SysTracker dashboard server.
+
+## Pages
+
+| Route | Description |
+|---|---|
+| `/` | Redirects to `/download` |
+| `/download` | Main download page with GitHub releases, install instructions, feature grid |
+| `/contact` | Contact form (mailto) + FAQ |
+| `/privacy` | Privacy Policy |
+| `/terms` | Terms of Use |
+| `/data-retention` | Data Retention Policy |
+| `/acceptable-use` | Acceptable Use Policy |
+
+## Setup
+
+```bash
+cd portfolio
+npm install
+```
+
+Copy the environment file and fill in your values:
+
+```bash
+cp .env.example .env.local
+```
+
+| Variable | Description | Default |
+|---|---|---|
+| `NEXT_PUBLIC_DASHBOARD_URL` | URL of your deployed SysTracker dashboard | `http://localhost:7777` |
+| `NEXT_PUBLIC_GITHUB_REPO` | GitHub repo slug | `Redwan002117/SysTracker` |
+
+## Development
+
+```bash
+npm run dev        # Starts on http://localhost:3001
+```
+
+## Production Build (Static Export)
+
+```bash
+npm run build      # Outputs static files to ./out/
+```
+
+The `out/` directory can be deployed directly to any static host.
+
+## Deployment
+
+### Vercel
+1. Import the `portfolio/` folder as a new Vercel project.
+2. Set environment variables in the Vercel dashboard.
+3. Deploy — Vercel auto-detects Next.js static export.
+
+### Netlify
+1. Set **Base directory** to `portfolio`.
+2. Set **Build command** to `npm run build`.
+3. Set **Publish directory** to `portfolio/out`.
+
+### GitHub Pages
+Use the included CI/CD workflow (`.github/workflows/portfolio.yml`) to auto-deploy on push to the `Portfolio` branch.
