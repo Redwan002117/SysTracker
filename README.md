@@ -1,71 +1,132 @@
-# SysTracker
+# SysTracker - Enterprise System Monitoring Solution
 
-**A Modern, Real-time System Monitoring Solution**
+**SysTracker** is a powerful, self-hosted system monitoring tool designed to track performance metrics (CPU, RAM, Disk, Network) across a fleet of Windows computers. It consists of a central **Admin Dashboard** and lightweight **Agents** deployed on client machines.
 
-SysTracker is a lightweight, agent-based system monitoring tool designed to track performance metrics (CPU, RAM, Disk, Network) and hardware details across multiple machines in a network. It consists of a **Python Agent** running on client machines and a **Node.js Server** + **Next.js Dashboard** for centralization and visualization.
+![SysTracker Dashboard](https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/window.svg) 
+*(Note: Replace with actual screenshot if available)*
 
-## Features
+---
 
-- **Real-time Telemetry:** Live updates for CPU, RAM, Disk, and Network usage.
-- **Hardware Inspection:** Detailed views for Motherboard, CPU, GPU, Memory, and Network Interfaces.
-- **Process Monitoring:** Track resource-heavy processes on connected machines.
-- **Event Logging:** Capture important system events and machine status changes.
-- **Modern Dashboard:** A beautiful, responsive UI built with Next.js, Tailwind CSS, and Framer Motion.
-- **Lightweight Agent:** Minimal footprint Python agent using standard libraries and WMI.
+## 🚀 Key Features
 
-## Repository Structure
+*   **Real-Time Monitoring**: Live updates via Socket.IO.
+*   **Centralized Dashboard**: View all your machines in one sleek interface.
+*   **Detailed Metrics**: Track CPU Usage, RAM, Disk Space, Network details, and Uptime.
+*   **Remote Management**: Send commands (Restart, Shutdown) to agents (Admin privileges required).
+*   **Cross-Platform Server**: Host the Admin Server on **Windows**, **Linux (Ubuntu/Debian)**, or **Docker (CasaOS)**.
+*   **Zero-Config Agents**: Pre-compiled agents can be hardcoded to your server URL.
 
-- **/agent**: Python script for collecting and sending telemetry.
-- **/server**: Node.js/Express backend with SQLite database and Socket.IO.
-- **/dashboard**: Next.js (React) frontend for visualizing data.
+---
 
-## Quick Start
+## 📂 Repository Structure
 
-### 1. Start the Server
-Navigate to the server directory and install dependencies:
+*   **/server**: Node.js Backend (Express + Socket.IO + SQLite). Handles telemetry and API.
+*   **/dashboard**: Next.js (React) Frontend. Static export is served by the backend.
+*   **/agent**: Python-based Client Agent. Collects system data and pushes to server.
+*   **/RELEASE**: (In local builds) Contains the compiled binaries and artifacts.
+*   **/.github/workflows**: CI/CD pipelines for automated Docker builds.
+
+---
+
+## 📦 Installation & Deployment
+
+### Metric 1: The "Easy Way" (Pre-built Binaries)
+Go to the [**Releases Page**](https://github.com/Redwan002117/SysTracker/releases/latest) and download the latest version.
+
+**1. Admin Server (Host)**
+*   **Windows**: Download `SysTracker_Admin.exe` and run it. Open `http://localhost:7777`.
+*   **Linux**: Download `SysTracker_Admin_Linux`. Run `chmod +x` and then execute it.
+
+**2. Agents (Clients)**
+*   **Windows (64-bit)**: Download `SysTracker_Agent.exe`.
+*   **Configuration**:
+    *   If using the "Generic" agent, create a `config.json` file next to it:
+        ```json
+        {
+          "api_url": "http://YOUR_SERVER_IP:7777/api",
+          "api_key": "YOUR_STATIC_API_KEY_HERE"
+        }
+        ```
+    *   *Pro Tip*: You can build your own agent with the IP hardcoded (see Development below).
+
+---
+
+### Metric 2: Docker / CasaOS (Recommended for Servers)
+We automatically publish Docker images to GitHub Container Registry (GHCR).
+
+**CasaOS Setup:**
+1.  **Install Custom App**.
+2.  **Image**: `ghcr.io/redwan002117/systracker:latest`
+3.  **Ports**: Map Host `7777` to Container `7777`.
+4.  **Volumes**: Map `/DATA/AppData/systracker/data` to `/app/data` (to save your database).
+
+**Docker Compose:**
+```yaml
+version: '3'
+services:
+  systracker:
+    image: ghcr.io/redwan002117/systracker:latest
+    container_name: systracker-admin
+    restart: unless-stopped
+    ports:
+      - "7777:7777"
+    volumes:
+      - ./data:/app/data
+```
+
+---
+
+## 🛠️ Development (Build from Source)
+
+### Prerequisites
+*   Node.js (v18+)
+*   Python 3.10+ (for Agent)
+*   `pip install pyinstaller` (for building Agent EXE)
+*   `npm install -g pkg` (for bundling Server EXE)
+
+### 1. Build the Dashboard
+```bash
+cd dashboard
+npm install
+npm run build
+# This creates a static export in dashboard/out
+```
+
+### 2. Build the Server
 ```bash
 cd server
+# Copy dashboard assets to server
+mkdir dashboard-dist
+cp -r ../dashboard/out/* dashboard-dist/
+
+# Install dependencies
 npm install
+
+# Run locally
 node server.js
-```
-The server runs on port **3001** (by default).
 
-### 2. Run the Dashboard
-For development:
-```bash
-cd dashboard
-npm install
-npm run dev
-```
-The dashboard runs on **localhost:3000**.
-
-For production (lower RAM usage):
-```bash
-cd dashboard
-npm run build
-# The server.js is configured to serve the 'out' directory statically
+# OR Build Executable
+pkg . --out-path dist
 ```
 
-### 3. Deploy Agents
-On each target machine (must have Python installed):
+### 3. Build the Agent
 ```bash
 cd agent
-pip install requests psutil WMI pywin32
-python agent.py
+pip install -r requirements.txt
+# Edit default API_URL in agent.py if desired
+python -m PyInstaller --onefile --noconsole --name "SysTracker_Agent" --uac-admin agent.py
 ```
-*Note: `WMI` and `pywin32` are required for Windows hardware details.*
 
-## Configuration
+---
 
-- **Agent:** Edit `agent.py` to set `SERVER_URL` (default: `http://localhost:3001`).
-- **Server:** Edit `server.js` or `.env` to configure ports and database paths.
+## 🔒 Security & Remote Access
+To access your Admin Server from outside your network securely, we recommend **Cloudflare Tunnel**.
 
-## Tech Stack
+1.  Install `cloudflared` on your Server.
+2.  Start the tunnel: `cloudflared tunnel run --url http://localhost:7777 systracker`
+3.  Point your Agents to your public domain (e.g., `https://monitor.yourdomain.com/api`).
 
-- **Agent:** Python 3, WMI, psutil
-- **Backend:** Node.js, Express, Socket.IO, SQLite
-- **Frontend:** Next.js 14, TypeScript, Tailwind CSS, Lucide React
+---
 
 ## License
-
-MIT License.
+MIT License. Free to use and modify.
