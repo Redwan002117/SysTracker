@@ -16,8 +16,17 @@ A standalone, statically-exported Next.js app for the SysTracker download/market
 
 ## Setup
 
+### 1. Clone the Portfolio App
+Since this app lives in a standalone branch of the SysTracker repo, clone it specifically:
+
 ```bash
-cd portfolio
+git clone -b Portfolio --single-branch https://github.com/Redwan002117/SysTracker.git portfolio-app
+cd portfolio-app
+```
+
+### 2. Install Dependencies (for local dev)
+
+```bash
 npm install
 ```
 
