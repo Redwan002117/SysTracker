@@ -1,6 +1,6 @@
 {
   "name": "systracker-server",
-  "version": "1.0.3",
+  "version": "1.1.58",
   "main": "server.js",
   "bin": "server.js",
   "pkg": {
