@@ -173,7 +173,7 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick }) => {
                 </div>
 
                 <div className="text-[10px] text-slate-400 font-bold bg-white/50 px-2 py-0.5 rounded border border-slate-100/80 uppercase tracking-widest">
-                    {machine.os.split(' ')[0]}
+                    {(machine.os || 'Unknown').split(' ')[0]}
                 </div>
             </div>
         </motion.div>

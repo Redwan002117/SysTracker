@@ -49,6 +49,7 @@ export interface Metrics {
     network_up_kbps: number;
     network_down_kbps: number;
     active_vpn: boolean;
+    uptime_seconds?: number;
 }
 
 export interface HardwareInfo {

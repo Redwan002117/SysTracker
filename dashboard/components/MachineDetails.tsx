@@ -277,19 +277,54 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                                                         <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">OS Version</span>
                                                         <span className="font-medium text-slate-700 text-sm">{machine.os}</span>
                                                     </div>
-                                                    <div className="col-span-2 border-t border-slate-50 pt-4">
-                                                        <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">Serial Number / UUID</span>
-                                                        <span className="font-mono text-xs text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg select-all block break-all ring-1 ring-slate-100">
-                                                            {(() => {
+                                                    <div className="col-span-2 border-t border-slate-50 pt-4 grid grid-cols-2 gap-6">
+                                                        <div>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5 flex items-center gap-1.5"><Activity size={10} /> Uptime</span>
+                                                            <span className="font-mono text-sm text-slate-700 font-medium">
+                                                                {(() => {
+                                                                    const seconds = machine.metrics?.uptime_seconds || 0;
+                                                                    const days = Math.floor(seconds / 86400);
+                                                                    const hours = Math.floor((seconds % 86400) / 3600);
+                                                                    const minutes = Math.floor((seconds % 3600) / 60);
+                                                                    const secs = Math.floor(seconds % 60);
+                                                                    return `${days}d ${hours}h ${minutes}m ${secs}s`;
+                                                                })()}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5 flex items-center gap-1.5"><Radio size={10} /> Last Saw</span>
+                                                            <span className="font-mono text-sm text-slate-700 font-medium">
+                                                                {new Date(machine.last_seen).toLocaleTimeString()}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">Boot Time</span>
+                                                            <span className="font-mono text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded">
+                                                                {machine.metrics?.uptime_seconds
+                                                                    ? new Date(Date.now() - machine.metrics.uptime_seconds * 1000).toLocaleString()
+                                                                    : 'Unknown'}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">Serial / UUID</span>
+                                                            <span className="font-mono text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded select-all block break-all truncate" title={(() => {
                                                                 const sys = hardware_info?.all_details?.system;
                                                                 const mb = hardware_info?.all_details?.motherboard;
-                                                                if (sys?.identifying_number && sys.identifying_number !== 'N/A' && sys.identifying_number !== 'To be filled by O.E.M.') return sys.identifying_number;
-                                                                if (sys?.uuid && sys.uuid !== 'N/A' && sys.uuid !== 'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF') return sys.uuid;
-                                                                const mbSerial = mb?.serial;
-                                                                if (mbSerial && mbSerial !== 'N/A' && !mbSerial.toLowerCase().includes('default string')) return mbSerial;
-                                                                return 'N/A';
-                                                            })()}
-                                                        </span>
+                                                                if (sys?.identifying_number && sys.identifying_number !== 'N/A') return sys.identifying_number;
+                                                                if (sys?.uuid && sys.uuid !== 'N/A') return sys.uuid;
+                                                                return mb?.serial || 'N/A';
+                                                            })()}>
+                                                                {(() => {
+                                                                    const sys = hardware_info?.all_details?.system;
+                                                                    const mb = hardware_info?.all_details?.motherboard;
+                                                                    if (sys?.identifying_number && sys.identifying_number !== 'N/A' && sys.identifying_number !== 'To be filled by O.E.M.') return sys.identifying_number;
+                                                                    if (sys?.uuid && sys.uuid !== 'N/A' && sys.uuid !== 'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF') return sys.uuid;
+                                                                    const mbSerial = mb?.serial;
+                                                                    if (mbSerial && mbSerial !== 'N/A' && !mbSerial.toLowerCase().includes('default string')) return mbSerial;
+                                                                    return 'N/A';
+                                                                })()}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
