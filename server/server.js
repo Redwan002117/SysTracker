@@ -175,10 +175,19 @@ function initializeDb() {
         db.run(`CREATE TABLE IF NOT EXISTS admin_users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE,
             password_hash TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`, (err) => {
             if (err) console.error('Error creating admin_users table:', err.message);
+            else {
+                // Migration: Add email column if it doesn't exist
+                db.run("ALTER TABLE admin_users ADD COLUMN email TEXT UNIQUE", (err) => {
+                    if (err && !err.message.includes("duplicate column name")) {
+                        console.error("Migration error (admin_users email):", err.message);
+                    }
+                });
+            }
         });
 
         // Auth: Create setup_tokens table (one-time first-run token)
@@ -190,158 +199,141 @@ function initializeDb() {
             if (err) console.error('Error creating setup_tokens table:', err.message);
             else ensureSetupToken();
         });
+
+        // Auth: Password Reset Tokens
+        db.run(`CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER,
+            expires_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES admin_users(id)
+        )`, (err) => {
+            if (err) console.error('Error creating password_reset_tokens table:', err.message);
+        });
+
+        // Settings: Key-Value Store
+        db.run(`CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, (err) => {
+            if (err) console.error('Error creating settings table:', err.message);
+        });
     });
 }
 
-// Generate a one-time setup token if no admin users exist
-function ensureSetupToken() {
-    db.get('SELECT COUNT(*) as count FROM admin_users', [], (err, row) => {
-        if (err || (row && row.count > 0)) return; // Already set up
+// ... methods ...
 
-        // Check for Auto-Setup via Env Vars (Docker friendly)
-        const envUser = process.env.ADMIN_USER || 'admin';
-        const envPass = process.env.ADMIN_PASSWORD;
+// Helper: Get SMTP Config (DB > Env)
+function getSmtpConfig() {
+    return new Promise((resolve) => {
+        db.all("SELECT key, value FROM settings WHERE key LIKE 'smtp_%'", [], (err, rows) => {
+            const settings = {};
+            if (rows) rows.forEach(r => settings[r.key] = r.value);
 
-        if (envPass) {
-            if (envPass.length < 8) {
-                console.error('[Setup] ADMIN_PASSWORD must be at least 8 characters. Falling back to manual setup.');
-            } else {
-                bcrypt.hash(envPass, 12, (err, hash) => {
-                    if (err) {
-                        console.error('[Setup] Error hashing env password:', err);
-                        return;
-                    }
-                    db.run('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)', [envUser.toLowerCase().trim(), hash], (err) => {
-                        if (err) console.error('[Setup] Error creating auto-admin:', err);
-                        else {
-                            console.log('\n' + '='.repeat(60));
-                            console.log('  SYSTRACKER AUTO-SETUP');
-                            console.log(`  Admin account created from environment variables.`);
-                            console.log(`  Username: ${envUser}`);
-                            console.log('='.repeat(60) + '\n');
-                        }
-                    });
-                });
-                return; // Skip token generation
-            }
-        }
-
-        // Manual Setup Token
-        const token = crypto.randomBytes(24).toString('hex');
-        db.run('DELETE FROM setup_tokens', [], () => {
-            db.run('INSERT INTO setup_tokens (token) VALUES (?)', [token], (err) => {
-                if (!err) {
-                    const PORT = process.env.PORT || 7777;
-                    console.log('\n' + '='.repeat(60));
-                    console.log('  SYSTRACKER FIRST-RUN SETUP');
-                    console.log('  No admin account found.');
-                    console.log(`  Visit: http://localhost:${PORT}/setup?token=${token}`);
-                    console.log('  This link is one-time use only.');
-                    console.log('='.repeat(60) + '\n');
-                }
+            resolve({
+                host: settings.smtp_host || process.env.SMTP_HOST || 'smtp.example.com',
+                port: parseInt(settings.smtp_port || process.env.SMTP_PORT || '587'),
+                secure: (settings.smtp_secure || process.env.SMTP_SECURE) === 'true',
+                auth: {
+                    user: settings.smtp_user || process.env.SMTP_USER || 'user',
+                    pass: settings.smtp_pass || process.env.SMTP_PASS || 'pass',
+                },
+                from: settings.smtp_from || process.env.SMTP_FROM || '"SysTracker" <no-reply@systracker.local>'
             });
         });
     });
 }
 
-// Middleware for API Key Authentication (used by agents)
-const authenticateAPI = (req, res, next) => {
-    const apiKey = req.header('X-API-Key');
-    const VALID_API_KEY = process.env.API_KEY || "YOUR_STATIC_API_KEY_HERE";
-    if (!apiKey || apiKey !== VALID_API_KEY) {
-        return res.status(401).json({ error: 'Unauthorized: Invalid API Key' });
-    }
-    next();
-};
+const nodemailer = require('nodemailer');
 
-// Middleware for Dashboard JWT Authentication
-const authenticateDashboard = (req, res, next) => {
-    const authHeader = req.header('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Unauthorized: No token provided' });
+// Helper: Send Email (Dynamic)
+async function sendEmail(to, subject, text, html) {
+    const config = await getSmtpConfig();
+
+    // Check if configured (basic check)
+    if (config.host === 'smtp.example.com' && !process.env.SMTP_HOST) {
+        console.log(`[Email Mock] To: ${to}, Subject: ${subject}\n${text}`);
+        return true;
     }
-    const token = authHeader.slice(7);
+
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.admin = decoded;
-        next();
-    } catch (err) {
-        return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+        const transporter = nodemailer.createTransport(config);
+        await transporter.sendMail({
+            from: config.from,
+            to, subject, text, html
+        });
+        console.log(`[Email] Sent to ${to}`);
+        return true;
+    } catch (error) {
+        console.error('[Email] Error:', error);
+        return false;
     }
-};
+}
 
-// ─── Auth Endpoints ───────────────────────────────────────────────────────────
+// ... auth endpoints ...
 
-// Check if setup is needed (no admin users)
-app.get('/api/auth/status', (req, res) => {
-    db.get('SELECT COUNT(*) as count FROM admin_users', [], (err, row) => {
+// --- Settings Endpoints ---
+
+// Get SMTP Settings
+app.get('/api/settings/smtp', authenticateDashboard, (req, res) => {
+    db.all("SELECT key, value FROM settings WHERE key LIKE 'smtp_%'", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ setup_required: row.count === 0 });
+
+        const settings = {};
+        if (rows) rows.forEach(r => settings[r.key] = r.value);
+
+        // Fallback to Env for display if not in DB
+        const response = {
+            host: settings.smtp_host || process.env.SMTP_HOST || '',
+            port: settings.smtp_port || process.env.SMTP_PORT || '587',
+            user: settings.smtp_user || process.env.SMTP_USER || '',
+            secure: settings.smtp_secure || process.env.SMTP_SECURE || 'false',
+            from: settings.smtp_from || process.env.SMTP_FROM || '',
+            // Do not send password back
+            has_password: !!(settings.smtp_pass || process.env.SMTP_PASS)
+        };
+        res.json(response);
     });
 });
 
-// First-run setup — create the first admin account
-app.post('/api/auth/setup', (req, res) => {
-    const { username, password, setup_token } = req.body;
-    if (!username || !password || !setup_token) {
-        return res.status(400).json({ error: 'username, password, and setup_token are required' });
+// Update SMTP Settings
+app.put('/api/settings/smtp', authenticateDashboard, (req, res) => {
+    const { host, port, user, password, secure, from } = req.body;
+
+    const updates = [
+        { key: 'smtp_host', value: host },
+        { key: 'smtp_port', value: String(port) },
+        { key: 'smtp_user', value: user },
+        { key: 'smtp_secure', value: String(secure) },
+        { key: 'smtp_from', value: from }
+    ];
+
+    if (password && password !== '********') {
+        updates.push({ key: 'smtp_pass', value: password });
     }
-    if (password.length < 8) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters' });
-    }
-    // Check no users exist
-    db.get('SELECT COUNT(*) as count FROM admin_users', [], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (row.count > 0) return res.status(403).json({ error: 'Setup already completed' });
-        // Validate setup token
-        db.get('SELECT * FROM setup_tokens WHERE token = ? AND used = 0', [setup_token], (err, tokenRow) => {
-            if (err || !tokenRow) return res.status(403).json({ error: 'Invalid or expired setup token' });
-            // Hash password and create user
-            bcrypt.hash(password, 12, (err, hash) => {
-                if (err) return res.status(500).json({ error: 'Error hashing password' });
-                db.run('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)', [username.toLowerCase().trim(), hash], function (err) {
-                    if (err) return res.status(500).json({ error: err.message });
-                    // Mark token as used
-                    db.run('UPDATE setup_tokens SET used = 1 WHERE token = ?', [setup_token]);
-                    console.log(`[Auth] Admin account created: ${username}`);
-                    res.json({ success: true, message: 'Admin account created. Please log in.' });
-                });
-            });
+
+    db.serialize(() => {
+        const stmt = db.prepare("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP");
+        updates.forEach(u => stmt.run([u.key, u.value]));
+        stmt.finalize((err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: 'Settings saved' });
         });
     });
 });
 
-// Login
-app.post('/api/auth/login', (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username and password are required' });
-    }
-    db.get('SELECT * FROM admin_users WHERE username = ?', [username.toLowerCase().trim()], (err, user) => {
+// Test SMTP Settings
+app.post('/api/settings/smtp/test', authenticateDashboard, (req, res) => {
+    // Get current user's email
+    db.get('SELECT email FROM admin_users WHERE id = ?', [req.admin.id], async (err, user) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!user) return res.status(401).json({ error: 'Invalid username or password' });
-        bcrypt.compare(password, user.password_hash, (err, match) => {
-            if (err || !match) return res.status(401).json({ error: 'Invalid username or password' });
-            const token = jwt.sign(
-                { id: user.id, username: user.username },
-                JWT_SECRET,
-                { expiresIn: JWT_EXPIRES_IN }
-            );
-            console.log(`[Auth] Login: ${user.username}`);
-            res.json({ token, username: user.username, expires_in: JWT_EXPIRES_IN });
-        });
+        if (!user || !user.email) return res.status(400).json({ error: 'Please update your profile email first to receive test emails.' });
+
+        const success = await sendEmail(user.email, 'SysTracker SMTP Test', 'If you are reading this, your SMTP settings are correct!');
+        if (success) res.json({ success: true, message: `Test email sent to ${user.email}` });
+        else res.status(500).json({ error: 'Failed to send test email. Check server logs.' });
     });
-});
-
-// Get current user (validates token)
-app.get('/api/auth/me', authenticateDashboard, (req, res) => {
-    res.json({ id: req.admin.id, username: req.admin.username });
-});
-
-// Logout (stateless — client drops token; endpoint for future blacklist)
-app.post('/api/auth/logout', authenticateDashboard, (req, res) => {
-    console.log(`[Auth] Logout: ${req.admin.username}`);
-    res.json({ success: true });
 });
 
 // Change password
@@ -367,6 +359,75 @@ app.post('/api/auth/change-password', authenticateDashboard, (req, res) => {
             });
         });
     });
+});
+
+// Update Profile (Email/Username)
+app.put('/api/auth/profile', authenticateDashboard, (req, res) => {
+    const { email, username } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    // TODO: Validate email format
+
+    db.run('UPDATE admin_users SET email = ?, username = COALESCE(?, username) WHERE id = ?',
+        [email, username || null, req.admin.id],
+        function (err) {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint failed')) {
+                    return res.status(400).json({ error: 'Email or Username already taken' });
+                }
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ success: true, message: 'Profile updated' });
+        });
+});
+
+// Forgot Password
+app.post('/api/auth/forgot-password', (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    db.get('SELECT id, username FROM admin_users WHERE email = ?', [email], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.json({ success: true, message: 'If that email exists, a reset link has been sent.' }); // Silent fail
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour
+
+        db.run('INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?, ?, ?)',
+            [token, user.id, expiresAt],
+            async (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+
+                const resetLink = `${req.protocol}://${req.get('host')}/login/reset-password?token=${token}`;
+                const text = `Hello ${user.username},\n\nClick here to reset your password: ${resetLink}\n\nLink expires in 1 hour.`;
+
+                await sendEmail(email, 'Password Reset Request', text);
+                res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+            });
+    });
+});
+
+// Reset Password
+app.post('/api/auth/reset-password', (req, res) => {
+    const { token, new_password } = req.body;
+    if (!token || !new_password) return res.status(400).json({ error: 'Token and new password required' });
+    if (new_password.length < 8) return res.status(400).json({ error: 'Password must be 8+ chars' });
+
+    db.get('SELECT * FROM password_reset_tokens WHERE token = ? AND expires_at > ?',
+        [token, new Date().toISOString()],
+        (err, tokenRow) => {
+            if (err || !tokenRow) return res.status(400).json({ error: 'Invalid or expired token' });
+
+            bcrypt.hash(new_password, 12, (err, hash) => {
+                if (err) return res.status(500).json({ error: 'Hashing error' });
+
+                db.serialize(() => {
+                    db.run('UPDATE admin_users SET password_hash = ? WHERE id = ?', [hash, tokenRow.user_id]);
+                    db.run('DELETE FROM password_reset_tokens WHERE token = ?', [token]);
+                    res.json({ success: true, message: 'Password reset successful. Please login.' });
+                });
+            });
+        });
 });
 
 // --- DEBUG ENDPOINT ---

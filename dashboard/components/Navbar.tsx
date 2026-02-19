@@ -59,6 +59,12 @@ const Navbar = () => {
                         >
                             Dashboard
                         </Link>
+                        <Link
+                            href="/dashboard/settings"
+                            className={`text-sm font-medium transition-colors hover:text-blue-600 ${pathname === '/dashboard/settings' ? 'text-blue-600' : 'text-slate-600'}`}
+                        >
+                            Settings
+                        </Link>
                     </div>
 
                     {/* Right side: logout if on dashboard + authenticated */}
@@ -66,10 +72,10 @@ const Navbar = () => {
                         {onDashboard && loggedIn && (
                             <>
                                 {username && (
-                                    <div className="hidden sm:flex items-center gap-1.5 text-sm text-slate-500">
+                                    <Link href="/dashboard/profile" className="hidden sm:flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 transition-colors">
                                         <User size={14} />
-                                        <span className="font-medium text-slate-700">{username}</span>
-                                    </div>
+                                        <span className="font-medium">{username}</span>
+                                    </Link>
                                 )}
                                 <button
                                     onClick={handleLogout}

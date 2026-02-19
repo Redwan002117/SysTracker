@@ -143,6 +143,26 @@ To access your Admin Server from outside your network securely, we recommend **C
 2.  Start the tunnel: `cloudflared tunnel run --url http://localhost:7777 systracker`
 3.  Point your Agents to your public domain (e.g., `https://monitor.yourdomain.com/api`).
 
+3.  Point your Agents to your public domain (e.g., `https://monitor.yourdomain.com/api`).
+
+---
+
+## 📧 Email Configuration (SMTP)
+
+SysTracker supports sending emails for password resets and notifications. You can configure this directly in the **Dashboard > Settings** page.
+
+### Recommended Providers (Smart Host)
+You can use any standard SMTP provider. Here are the settings for **Brevo (formerly Sendinblue)**, which has a generous free tier:
+
+*   **Host**: `smtp-relay.brevo.com`
+*   **Port**: `587`
+*   **User**: `your-email@example.com` (The email you use to login to Brevo)
+*   **Password**: `YOUR_XSmtpw_API_KEY` (Get this from Brevo Dashboard > SMTP & API > SMTP Keys)
+*   **Secure**: `false` (uses STARTTLS)
+*   **From Email**: `admin@your-domain.com` (Must be a sender authenticated in Brevo)
+
+*Note: Gmail can also be used, but requires an "App Password" and `secure: true` on port `465`.*
+
 ---
 
 ## License
