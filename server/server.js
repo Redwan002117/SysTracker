@@ -221,36 +221,19 @@ function ensureSetupToken() {
         if (err) return console.error("Error checking admin users:", err.message);
         if (row.count > 0) return; // Users exist, no setup needed
 
-        // Check if Admin Env Vars are present
-        const adminUser = process.env.ADMIN_USER;
-        const adminPass = process.env.ADMIN_PASSWORD;
-
-        if (adminUser && adminPass) {
-            console.log(`[Auth] Creating initial admin user from ENV: ${adminUser}`);
-            bcrypt.hash(adminPass, 12, (err, hash) => {
-                if (err) return console.error("Error hashing password:", err);
-                db.run("INSERT INTO admin_users (username, password_hash) VALUES (?, ?)", [adminUser, hash], (err) => {
-                    if (err) console.error("Error creating admin from ENV:", err.message);
-                    else console.log("[Auth] Admin user created successfully.");
-                });
-            });
-            return;
-        }
-
+        // No users — prompt admin to complete setup via the /setup web page
         db.get("SELECT token FROM setup_tokens WHERE used = 0", (err, row) => {
             if (err) return console.error("Error checking setup tokens:", err.message);
             if (row) {
                 console.log("---------------------------------------------------");
-                console.log("SETUP REQUIRED: Use this token to create an admin account:");
-                console.log(`Token: ${row.token}`);
+                console.log("SETUP REQUIRED: Visit /setup in your browser to create the first admin account.");
                 console.log("---------------------------------------------------");
             } else {
                 const token = crypto.randomBytes(32).toString('hex');
                 db.run("INSERT INTO setup_tokens (token) VALUES (?)", [token], (err) => {
                     if (err) return console.error("Error creating setup token:", err.message);
                     console.log("---------------------------------------------------");
-                    console.log("SETUP REQUIRED: Use this token to create an admin account:");
-                    console.log(`Token: ${token}`);
+                    console.log("SETUP REQUIRED: Visit /setup in your browser to create the first admin account.");
                     console.log("---------------------------------------------------");
                 });
             }
@@ -598,50 +581,49 @@ app.get('/api/debug/config', (req, res) => {
     });
 });
 
+// --- Setup Endpoint (first-run wizard) ---
+// Only works when no admin users exist yet; blocked once setup is complete.
+app.post('/api/setup', (req, res) => {
+    const { username, password, email } = req.body;
+
+    if (!username || !password || !email) {
+        return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    db.get("SELECT count(*) as count FROM admin_users", (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (row.count > 0) {
+            return res.status(403).json({ error: 'Setup already completed. Please login.' });
+        }
+
+        bcrypt.hash(password, 12, (err, hash) => {
+            if (err) return res.status(500).json({ error: 'Hashing error' });
+
+            db.run("INSERT INTO admin_users (username, email, password_hash) VALUES (?, ?, ?)",
+                [username, email, hash],
+                function (err) {
+                    if (err) return res.status(500).json({ error: err.message });
+
+                    // Clear setup tokens as they are no longer needed
+                    db.run("DELETE FROM setup_tokens");
+
+                    console.log(`[Setup] Admin user '${username}' created via Setup Wizard.`);
+                    res.json({ success: true, message: 'Setup complete. Redirecting to login...' });
+                }
+            );
+        });
+    });
+});
+
 // --- API Endpoints ---
 
 // Ingest Telemetry (from Python Agent)
 app.post('/api/telemetry', authenticateAPI, (req, res) => {
     const { machine, metrics, events } = req.body;
-
-    // ... (rest of telemetry logic)
-
-    // --- Setup Endpoint ---
-    app.post('/api/setup', (req, res) => {
-        const { username, password, email } = req.body;
-
-        if (!username || !password || !email) {
-            return res.status(400).json({ error: 'All fields are required' });
-        }
-
-        if (password.length < 8) {
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
-        }
-
-        db.get("SELECT count(*) as count FROM admin_users", (err, row) => {
-            if (err) return res.status(500).json({ error: err.message });
-            if (row.count > 0) {
-                return res.status(403).json({ error: 'Setup already completed. Please login.' });
-            }
-
-            bcrypt.hash(password, 12, (err, hash) => {
-                if (err) return res.status(500).json({ error: 'Hashing error' });
-
-                db.run("INSERT INTO admin_users (username, email, password_hash) VALUES (?, ?, ?)",
-                    [username, email, hash],
-                    function (err) {
-                        if (err) return res.status(500).json({ error: err.message });
-
-                        // Clear setup tokens as they are no longer needed
-                        db.run("DELETE FROM setup_tokens");
-
-                        console.log(`[Setup] Admin user '${username}' created via Wizard.`);
-                        res.json({ success: true, message: 'Setup complete. Redirecting to login...' });
-                    }
-                );
-            });
-        });
-    });
 
 
     // if (metrics) console.log('Received Metrics:', JSON.stringify(metrics)); // DEBUG LOG

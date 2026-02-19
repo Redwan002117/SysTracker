@@ -10,8 +10,6 @@ services:
           memory: 4096M
     environment:
       - PORT=7777
-      - ADMIN_USER=admin
-      - ADMIN_PASSWORD=ChangeMe123!
       - JWT_SECRET=change_me_to_a_secure_random_string
     hostname: systracker-admin
     image: ghcr.io/redwan002117/systracker:latest
