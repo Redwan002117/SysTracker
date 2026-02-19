@@ -205,5 +205,56 @@ def main():
     except KeyboardInterrupt:
         logging.info("Stopping agent...")
 
+def handle_kill_switch():
+    pid_file = "agent.pid"
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file, "r") as f:
+                pid = int(f.read().strip())
+            
+            logging.info(f"Attempting to kill process {pid}...")
+            process = psutil.Process(pid)
+            process.terminate()
+            logging.info(f"Process {pid} terminated successfully.")
+            os.remove(pid_file)
+            return True
+        except psutil.NoSuchProcess:
+            logging.warning(f"Process {pid} not found. Cleaning up PID file.")
+            os.remove(pid_file)
+            return True
+        except Exception as e:
+            logging.error(f"Error killing process: {e}")
+            return False
+    else:
+        logging.warning("No active agent found (agent.pid missing).")
+        return False
+
+def manage_pid():
+    pid = os.getpid()
+    pid_file = "agent.pid"
+    
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file, "r") as f:
+                old_pid = int(f.read().strip())
+            if psutil.pid_exists(old_pid):
+                logging.error(f"Agent already running (PID: {old_pid}). Exiting.")
+                sys.exit(1)
+            else:
+                logging.warning("Stale PID file found. Overwriting.")
+        except:
+            pass
+            
+    with open(pid_file, "w") as f:
+        f.write(str(pid))
+
 if __name__ == "__main__":
+    import sys
+    import os
+    
+    if "--kill" in sys.argv:
+        handle_kill_switch()
+        sys.exit(0)
+        
+    manage_pid()
     main()

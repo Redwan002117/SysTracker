@@ -220,7 +220,7 @@ function LoginForm() {
                     className="text-center mt-6 text-slate-500 text-xs"
                 >
                     Self-hosted · All data stays on your server ·{' '}
-                    <Link href="/" className="text-slate-400 hover:text-white transition-colors">
+                    <Link href="https://systracker.rico.bd/" className="text-slate-400 hover:text-white transition-colors">
                         Back to home
                     </Link>
                 </motion.div>

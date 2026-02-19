@@ -1,16 +1,14 @@
-# SysTracker Agent Installer
-# Usage: .\install_agent.ps1 -ServerURL "http://192.168.1.100:3001"
+# SysTracker Agent Installer (v2.4)
+# Usage: .\install_agent.ps1 -ServerURL "http://192.168.1.100:7777"
 
 param (
-    [string]$ServerURL = "http://localhost:3001"
+    [string]$ServerURL = "http://localhost:7777"
 )
 
 $InstallDir = "C:\Program Files\SysTrackerAgent"
-$NodeURL = "https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi" # Example Node.js URL (User might need to provide Node or we bundle it)
-# For simplicity, assuming Node.js is installed or we use 'pkg' to bundle it later.
-# This script assumes Node.js is available or we are just copying the script.
+$AgentExe = "SysTracker_Agent.exe"
 
-Write-Host "Installing SysTracker Agent..." -ForegroundColor Cyan
+Write-Host "Installing SysTracker Agent (v2.4 Silent Mode)..." -ForegroundColor Cyan
 
 # 1. Create Directory
 if (-not (Test-Path $InstallDir)) {
@@ -18,42 +16,40 @@ if (-not (Test-Path $InstallDir)) {
     Write-Host "Created $InstallDir"
 }
 
-# 2. Copy Files (In real scenario, download them)
-# For now, we assume this script is run from the source folder or we download from the server.
-# Let's assume we download `client_agent.js` and `package.json` from the Server.
-
+# 2. Download Agent Executable
+# Try to download from Server/release or use local file if present
 try {
-    Invoke-WebRequest -Uri "$ServerURL/agent/client_agent.js" -OutFile "$InstallDir\client_agent.js"
-    # Invoke-WebRequest -Uri "$ServerURL/agent/package.json" -OutFile "$InstallDir\package.json"
-} catch {
-    Write-Warning "Could not download agent files from $ServerURL. Ensure server is running and files are served."
-    # Fallback for local testing
-    Copy-Item ".\client_agent.js" "$InstallDir\client_agent.js" -ErrorAction SilentlyContinue
+    Write-Host "Downloading Agent from $ServerURL..."
+    # Attempt to download from server (requires server to serve static files from release folder, which it might not yet)
+    # Fallback to local copy for now if script is run from release folder
+    Copy-Item ".\$AgentExe" "$InstallDir\$AgentExe" -ErrorAction Stop
+    Write-Host "Copied $AgentExe to installation directory."
+}
+catch {
+    Write-Warning "Could not copy $AgentExe. Ensure you are running this script next to the executable."
+    exit
 }
 
 # 3. Create Config
 $Config = @{
-    SERVER_URL = $ServerURL
+    api_url = "$ServerURL/api"
+    api_key = "YOUR_STATIC_API_KEY_HERE" # User should replace this or we pass it as arg
 }
-$Config | ConvertTo-Json | Out-File "$InstallDir\agent_config.json"
+$Config | ConvertTo-Json | Out-File "$InstallDir\config.json"
 Write-Host "Configured Agent to point to $ServerURL"
 
-# 4. Install Dependencies (needs Node.js)
-if (Get-Command node -ErrorAction SilentlyContinue) {
-    Write-Host "Node.js detected. Installing dependencies..."
-    Set-Location $InstallDir
-    # Simple install for now, or just rely on global/bundled modules if packed
-    # npm install systeminformation axios 
-} else {
-    Write-Warning "Node.js not found. Please install Node.js or use the standalone executable version."
-}
+# 4. Cleanup Old Task
+Unregister-ScheduledTask -TaskName "SysTrackerAgent" -Confirm:$false -ErrorAction SilentlyContinue
 
-# 5. Setup Persistence (Scheduled Task or Service)
-# Using Scheduled Task for simplicity as it doesn't require NSSM
+# 5. Register Silent System Task
+# Runs as SYSTEM, hidden, on startup
 $Trigger = New-ScheduledTaskTrigger -AtStartup
 $User = "SYSTEM"
-$Action = New-ScheduledTaskAction -Execute "node" -Argument "$InstallDir\client_agent.js"
-Register-ScheduledTask -TaskName "SysTrackerAgent" -Trigger $Trigger -User $User -Action $Action -Force
+$Action = New-ScheduledTaskAction -Execute "$InstallDir\$AgentExe"
+Register-ScheduledTask -TaskName "SysTrackerAgent" -Trigger $Trigger -User $User -Action $Action -Force -Description "SysTracker System Monitoring Agent"
 
-Write-Host "Installation Complete! Agent will start on next boot or you can run it manually." -ForegroundColor Green
+# 6. Start the Agent
+Write-Host "Starting Agent..."
 Start-ScheduledTask -TaskName "SysTrackerAgent"
+Write-Host "Installation Complete! Agent is running in the background." -ForegroundColor Green
+Write-Host "To stop the agent, run: & '$InstallDir\$AgentExe' --kill" -ForegroundColor Yellow
