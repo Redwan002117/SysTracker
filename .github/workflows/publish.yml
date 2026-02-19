@@ -1,77 +1,141 @@
-name: Docker
+name: Publish SysTracker
 
 on:
   push:
-    branches: [ "main" ]
-    # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 env:
-  # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
-  # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
-
 jobs:
-  build:
+  # 1. Build Client Agent (Windows)
+  build-agent:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install PyInstaller and dependencies
+        run: |
+          pip install pyinstaller psutil requests socketio-client
+          
+      - name: Build Agent EXE
+        run: |
+          cd agent
+          # Use exact command specified by user
+          pyinstaller --noconfirm --onefile --windowed --icon "../server/logo.ico" --name "SysTracker_Agent" "client_agent.py"
+          
+      - name: Upload Agent Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SysTracker_Agent
+          path: agent/dist/SysTracker_Agent.exe
 
+  # 2. Build Dashboard (Linux)
+  build-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          
+      - name: Build Dashboard
+        run: |
+          cd dashboard
+          npm install
+          npm run build
+          
+      - name: Upload Dashboard Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/out/
+
+  # 3. Build Standalone Server & Release (Windows)
+  build-server-release:
+    needs: [build-agent, build-dashboard]
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          
+      - name: Download Agent Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: SysTracker_Agent
+          path: server/bin/
+          
+      - name: Download Dashboard Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: server/dashboard-dist/
+          
+      - name: Build Standalone Server (pkg)
+        run: |
+          cd server
+          npm install
+          npx pkg . --targets node18-win-x64,node18-linux-64 --output dist/SysTracker_Server
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          files: |
+            server/dist/SysTracker_Server.exe
+            server/dist/SysTracker_Server
+            server/bin/SysTracker_Agent.exe
+
+  # 4. Build & Push Docker Image (Linux)
+  docker-publish:
+    needs: [build-agent, build-dashboard]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # Install the cosign tool except on PR
-      # https://github.com/sigstore/cosign-installer
-      - name: Install cosign
-        if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@v3.5.0
+      - uses: actions/checkout@v3
+      
+      - name: Download Agent Artifact
+        uses: actions/download-artifact@v4
         with:
-          cosign-release: 'v2.2.4'
-
+          name: SysTracker_Agent
+          path: server/bin/
+          
+      - name: Download Dashboard Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: server/dashboard-dist/
+          
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
-
+        
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      # LOGIN
+        
       - name: Log into registry ${{ env.REGISTRY }}
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      # BUILD DASHBOARD
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-
-      - name: Install and Build Dashboard
-        run: |
-          cd dashboard
-          npm install
-          npm run build
-          cd ..
-          # Ensure destination exists
-          mkdir -p server/dashboard-dist
-          # Copy static export (out) to server's dist folder
-          cp -r dashboard/out/* server/dashboard-dist/
-
-      # METADATA
+          
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v4
@@ -79,98 +143,13 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-
-      # BUILD & PUSH IMAGE
+            type=raw,value=latest
+            
       - name: Build and push Docker image
-        id: build-and-push
         uses: docker/build-push-action@v4
         with:
           context: server
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-  binaries:
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-
-      - name: Build Dashboard
-        run: |
-          cd dashboard
-          npm install
-          npm run build
-          cd ..
-          mkdir -p server/dashboard-dist
-          cp -r dashboard/out/* server/dashboard-dist/
-
-      - name: Build Admin Executables (pkg)
-        run: |
-          cd server
-          npm install
-          npm install -g pkg
-          npx pkg . --targets node18-win-x64,node18-linux-x64 --output SysTracker_Admin --compress GZip
-
-      - name: Rename Output Info
-        run: |
-          cd server
-          ls -la
-
-      - name: Upload Admin Assets
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            server/SysTracker_Admin.exe
-            server/SysTracker_Admin
-
-  agent-build:
-    runs-on: windows-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Install dependencies
-        run: |
-          cd agent
-          npm install
-
-      - name: Build Agent (EXE)
-        run: |
-          cd agent
-          npx pkg . --targets node18-win-x64 --output SysTracker_Agent --compress GZip
-
-      - name: Create Config Template
-        run: |
-          echo "{\"server_url\": \"http://YOUR_SERVER_IP:3001\"}" > agent/config.json
-
-      - name: Create Zip Archive
-        run: |
-          Compress-Archive -Path agent/SysTracker_Agent.exe, agent/config.json, agent/install_agent.ps1 -DestinationPath SysTracker_Agent_Windows.zip
-
-      - name: Upload Agent Assets
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            SysTracker_Agent_Windows.zip
-            agent/SysTracker_Agent.exe
