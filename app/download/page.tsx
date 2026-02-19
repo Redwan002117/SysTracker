@@ -285,6 +285,7 @@ const SHOW_LIMIT = 10;
 
 export default function DownloadPage() {
     const [releases, setReleases] = useState<GithubRelease[]>([]);
+    const [allReleases, setAllReleases] = useState<GithubRelease[]>([]);
     const [repoStats, setRepoStats] = useState<RepoStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -301,9 +302,9 @@ export default function DownloadPage() {
         ])
             .then(([releasesData, repoData]) => {
                 if (Array.isArray(releasesData)) {
-                    // Show up to SHOW_LIMIT releases
+                    setAllReleases(releasesData); // full list for stats
                     const limited = releasesData.slice(0, SHOW_LIMIT);
-                    setReleases(limited);
+                    setReleases(limited); // latest 10 for sidebar
                     setSelectedRelease(limited.find((r: GithubRelease) => !r.prerelease) || limited[0]);
                 }
                 setRepoStats(repoData);
@@ -360,8 +361,8 @@ export default function DownloadPage() {
     const hasStructuredRelease = changelog && SECTIONS.some(s => changelog[s.key].length > 0);
 
     const latestRelease = releases.find(r => !r.prerelease) || releases[0];
-    const totalDL = useMemo(() => totalDownloads(releases), [releases]);
-    const stableCount = releases.filter(r => !r.prerelease).length;
+    const totalDL = useMemo(() => totalDownloads(allReleases), [allReleases]); // use ALL releases
+    const stableCount = allReleases.filter(r => !r.prerelease).length;
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-100 selection:text-blue-900">
@@ -408,7 +409,7 @@ export default function DownloadPage() {
                             {[
                                 { icon: <Tag size={16} className="text-blue-500" />, label: 'Latest Version', value: latestRelease.tag_name, bg: 'bg-blue-50', border: 'border-blue-100' },
                                 { icon: <CheckCircle size={16} className="text-emerald-500" />, label: 'Stable Releases', value: stableCount.toString(), bg: 'bg-emerald-50', border: 'border-emerald-100' },
-                                { icon: <Download size={16} className="text-purple-500" />, label: 'Total Downloads', value: totalDL > 0 ? totalDL.toLocaleString() : '—', bg: 'bg-purple-50', border: 'border-purple-100' },
+                                { icon: <Download size={16} className="text-purple-500" />, label: 'Total Downloads', value: totalDL.toLocaleString(), bg: 'bg-purple-50', border: 'border-purple-100' },
                                 { icon: <AlertCircle size={16} className="text-amber-500" />, label: 'Open Issues', value: repoStats.open_issues_count.toString(), bg: 'bg-amber-50', border: 'border-amber-100' },
                             ].map((s, i) => (
                                 <div key={i} className={`${s.bg} border ${s.border} rounded-2xl px-5 py-4 flex items-center gap-3`}>
