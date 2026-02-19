@@ -92,6 +92,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
         console.error('Error opening database:', err.message);
     } else {
         console.log('Connected to the SQLite database at:', dbPath);
+        db.configure('busyTimeout', 5000); // Wait up to 5s if DB is locked (fixes 500 errors on concurrent writes)
         initializeDb();
     }
 });
@@ -704,6 +705,9 @@ setInterval(() => {
 const lastMetricsDbWrite = new Map(); // machineId -> timestamp (ms)
 const METRICS_DB_THROTTLE_MS = 10_000; // persist to DB at most once per 10s per machine
 
+const lastMachineDbWrite = new Map(); // machineId -> timestamp (ms)
+const MACHINE_DB_THROTTLE_MS = 60_000; // persist machine metadata at most once per minute
+
 app.post('/api/telemetry', authenticateAPI, (req, res) => {
     const { machine, metrics, events } = req.body;
 
@@ -750,38 +754,37 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
     res.json({ success: true });
 
     // --- STEP 2: Persist to DB asynchronously (fire and forget) ---
-    // Machine upsert — runs every call to update last_seen + online status
-    const machineQuery = `
-        INSERT INTO machines (id, hostname, ip_address, os_info, os_distro, os_release, os_codename, os_serial, os_uefi, uuid, device_name, users, hardware_info, status, last_seen)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'online', CURRENT_TIMESTAMP)
-        ON CONFLICT(id) DO UPDATE 
-        SET hostname = excluded.hostname, 
-            ip_address = excluded.ip_address, 
-            os_info = excluded.os_info,
-            os_distro = excluded.os_distro,
-            os_release = excluded.os_release,
-            os_codename = excluded.os_codename,
-            os_serial = excluded.os_serial,
-            os_uefi = excluded.os_uefi,
-            uuid = excluded.uuid,
-            device_name = excluded.device_name,
-            users = excluded.users,
-            hardware_info = COALESCE(excluded.hardware_info, machines.hardware_info),
-            status = 'online',
-            last_seen = CURRENT_TIMESTAMP;
-    `;
-    db.run(machineQuery, [
-        machine.id, machine.hostname,
-        machine.ip || (metrics ? metrics.ip_address : null),
-        machine.os_info, machine.os_distro, machine.os_release,
-        machine.os_codename, machine.os_serial,
-        machine.os_uefi ? 1 : 0, machine.uuid,
-        machine.device_name, JSON.stringify(machine.users),
-        machine.hardware_info ? JSON.stringify(machine.hardware_info) : null
-    ], (err) => { if (err) console.error("Error upserting machine:", err); });
+    // Machine upsert — runs only if throttled or if critical info changed
+    // We update last_seen every 60s to reduce DB locking
+    const now = Date.now();
+    const lastMachWrite = lastMachineDbWrite.get(machine.id) || 0;
+
+    if ((now - lastMachWrite) >= MACHINE_DB_THROTTLE_MS) {
+        lastMachineDbWrite.set(machine.id, now);
+
+        const machineQuery = `
+            INSERT INTO machines (id, hostname, ip_address, os_info, os_distro, os_release, os_codename, os_serial, os_uefi, uuid, device_name, users, hardware_info, status, last_seen)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'online', CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE
+            SET hostname = excluded.hostname,
+                ip_address = excluded.ip_address,
+                os_info = excluded.os_info,
+                hardware_info = COALESCE(excluded.hardware_info, machines.hardware_info),
+                status = 'online',
+                last_seen = CURRENT_TIMESTAMP;
+        `;
+        db.run(machineQuery, [
+            machine.id, machine.hostname,
+            machine.ip || (metrics ? metrics.ip_address : null),
+            machine.os_info, machine.os_distro, machine.os_release,
+            machine.os_codename, machine.os_serial,
+            machine.os_uefi ? 1 : 0, machine.uuid,
+            machine.device_name, JSON.stringify(machine.users),
+            machine.hardware_info ? JSON.stringify(machine.hardware_info) : null
+        ], (err) => { if (err) console.error("Error upserting machine:", err); });
+    }
 
     // Throttled metrics insert — at most once per 10s per machine
-    const now = Date.now();
     const lastWrite = lastMetricsDbWrite.get(machine.id) || 0;
     if (metrics && (now - lastWrite) >= METRICS_DB_THROTTLE_MS) {
         lastMetricsDbWrite.set(machine.id, now);

@@ -30,7 +30,7 @@ const Navbar = () => {
         router.push('/login');
     };
 
-    const onDashboard = pathname === '/dashboard';
+    const onDashboard = pathname?.startsWith('/dashboard') || pathname === '/profile';
 
     return (
         <motion.nav

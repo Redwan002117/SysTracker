@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS machines (
     device_name TEXT,
     users TEXT,
     -- JSON string of logged in users
+    nickname TEXT,
+    -- User-defined nickname for the machine
     profile TEXT,
     -- JSON string of owner profile (name, role, avatar, tags, etc.)
     hardware_info TEXT,

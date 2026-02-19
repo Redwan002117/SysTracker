@@ -22,7 +22,8 @@ const columnsToAdd = [
     { table: 'machines', column: 'os_release', type: 'TEXT' },
     { table: 'machines', column: 'os_codename', type: 'TEXT' },
     { table: 'machines', column: 'os_serial', type: 'TEXT' },
-    { table: 'machines', column: 'os_uefi', type: 'BOOLEAN' }
+    { table: 'machines', column: 'os_uefi', type: 'BOOLEAN' },
+    { table: 'machines', column: 'nickname', type: 'TEXT' }
 ];
 
 db.serialize(() => {
