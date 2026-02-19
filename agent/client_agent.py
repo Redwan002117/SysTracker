@@ -22,7 +22,7 @@ DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() 
-VERSION = "2.6.6"
+VERSION = "2.6.7"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 
@@ -554,7 +554,22 @@ def get_detailed_hardware_info():
                         'form_factor': parts[4].strip() or 'N/A',
                     })
             info['ram'] = {'modules': ram_modules, 'slots_used': len(ram_modules)}
-        except: info['ram'] = {'modules': [], 'slots_used': 0}
+        except: 
+             # Fallback: Try collecting basic RAM info via systeminfo or psutil
+             try:
+                 total_ram = round(psutil.virtual_memory().total / (1024**3), 2)
+                 info['ram'] = {
+                     'modules': [{
+                         'capacity': f"{total_ram} GB",
+                         'speed': 'N/A',
+                         'manufacturer': 'System Total',
+                         'part_number': 'N/A',
+                         'form_factor': 'N/A'
+                     }], 
+                     'slots_used': 1
+                 }
+             except:
+                 info['ram'] = {'modules': [], 'slots_used': 0}
         
         # Validation: If we have NO data, return None to avoid overwriting DB with empty structs
         has_data = (
