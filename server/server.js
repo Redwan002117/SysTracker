@@ -67,15 +67,8 @@ app.use(express.json()); // Changed from app.use(express.json({ limit: '5mb' }))
 // Database Setup
 
 
-// Handle client-side routing by serving index.html for all non-API routes
-app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) {
-        return next();
-    }
-    res.sendFile(path.join(dashboardPath, 'index.html'));
-});
+// Database Setup
 
-// Database Setup (SQLite)
 // Database Setup (SQLite)
 const dbFolder = path.join(__dirname, 'data');
 if (!fs.existsSync(dbFolder)) {
@@ -890,4 +883,10 @@ setInterval(() => {
 const PORT = process.env.PORT || 7777;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
+});
+
+// Handle client-side routing by serving index.html for all non-API routes
+// MUST BE LAST
+app.get('*', (req, res) => {
+    res.sendFile(path.join(dashboardPath, 'index.html'));
 });
