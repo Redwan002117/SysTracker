@@ -14,7 +14,7 @@ DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 60 # seconds
 EVENT_POLL_INTERVAL = 300 # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() 
-VERSION = "2.4.0"
+VERSION = "2.5.5"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 
@@ -182,14 +182,32 @@ def send_payload(endpoint, data):
         "Content-Type": "application/json",
         "X-API-Key": config["api_key"]
     }
-    try:
-        response = requests.post(f"{config['api_url']}/{endpoint}", json=data, headers=headers, timeout=5)
-        response.raise_for_status()
-        logging.info(f"Successfully sent data to {endpoint}")
-        return True
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to send data to {endpoint}: {e}")
-        return False
+    url = f"{config['api_url']}/{endpoint}"
+    
+    max_retries = 3
+    retry_delay = 5 # Start with 5s
+    
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, json=data, headers=headers, timeout=10)
+            response.raise_for_status()
+            logging.info(f"Successfully sent data to {endpoint}")
+            return True
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"HTTP Error posting to {endpoint}: {e}")
+            if e.response.status_code in [401, 403]:
+                logging.error("Authentication failed. Check API Key.")
+                return False # Stop retrying on auth error
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Connection error posting to {endpoint} (Attempt {attempt+1}/{max_retries}): {e}")
+        
+        # Wait before retrying (unless it's the last attempt)
+        if attempt < max_retries - 1:
+            time.sleep(retry_delay)
+            retry_delay *= 2 # Exponential backoff: 5, 10, 20...
+            
+    logging.error(f"Failed to send payload to {endpoint} after {max_retries} attempts.")
+    return False
 
 # ... (Previous Code) ...
 

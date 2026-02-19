@@ -619,6 +619,23 @@ app.post('/api/setup', (req, res) => {
     });
 });
 
+// --- Background Jobs ---
+
+// Periodic Offline Check (every 60s)
+setInterval(() => {
+    const threshold = new Date(Date.now() - 5 * 60 * 1000).toISOString(); // 5 minutes ago
+    db.run(
+        "UPDATE machines SET status = 'offline' WHERE last_seen < ? AND status = 'online'",
+        [threshold],
+        function (err) {
+            if (err) console.error("[Job] Error updating offline status:", err.message);
+            else if (this.changes > 0) {
+                console.log(`[Job] Marked ${this.changes} machine(s) as offline.`);
+            }
+        }
+    );
+}, 60000);
+
 // --- API Endpoints ---
 
 // Ingest Telemetry (from Python Agent)

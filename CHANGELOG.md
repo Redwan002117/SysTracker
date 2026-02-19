@@ -1,5 +1,16 @@
 # SysTracker Changelog
 
+## [v2.5.5] - 2026-02-19
+
+### 🔄 Agent-Server Interconnection
+- **Agent Resilience**: Added robust retry logic with exponential backoff (up to 3 retries) for telemetry submission.
+- **Offline Detection**: Implemented a server-side background job to automatically mark machines as `offline` if no telemetry is received for 5 minutes.
+- **Improved Logging**: Agent now logs specific authentication errors (401/403) and connection failures more clearly.
+
+### 📦 Build & Release
+- **Versioning**: Bumped all components (Agent, Server, Dashboard) to v2.5.5.
+- **Standalone Agent**: Confirmed `SysTracker_Agent.exe` is a standalone ~18MB binary requiring no external dependencies.
+
 ## [v2.5.4] - 2026-02-19
 
 ### 🐛 Bug Fixes

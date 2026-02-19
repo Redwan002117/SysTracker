@@ -232,7 +232,7 @@ function SetupForm() {
                     </div>
 
                     <p className="text-center mt-8 text-slate-500 text-sm">
-                        SysTracker v2.2.1-setup
+                        SysTracker v2.5.5-setup
                     </p>
                 </motion.div>
             </div>
