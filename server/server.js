@@ -539,6 +539,46 @@ app.get('/api/debug/config', (req, res) => {
 app.post('/api/telemetry', authenticateAPI, (req, res) => {
     const { machine, metrics, events } = req.body;
 
+    // ... (rest of telemetry logic)
+
+    // --- Setup Endpoint ---
+    app.post('/api/setup', (req, res) => {
+        const { username, password, email } = req.body;
+
+        if (!username || !password || !email) {
+            return res.status(400).json({ error: 'All fields are required' });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        }
+
+        db.get("SELECT count(*) as count FROM admin_users", (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (row.count > 0) {
+                return res.status(403).json({ error: 'Setup already completed. Please login.' });
+            }
+
+            bcrypt.hash(password, 12, (err, hash) => {
+                if (err) return res.status(500).json({ error: 'Hashing error' });
+
+                db.run("INSERT INTO admin_users (username, email, password_hash) VALUES (?, ?, ?)",
+                    [username, email, hash],
+                    function (err) {
+                        if (err) return res.status(500).json({ error: err.message });
+
+                        // Clear setup tokens as they are no longer needed
+                        db.run("DELETE FROM setup_tokens");
+
+                        console.log(`[Setup] Admin user '${username}' created via Wizard.`);
+                        res.json({ success: true, message: 'Setup complete. Redirecting to login...' });
+                    }
+                );
+            });
+        });
+    });
+
+
     // if (metrics) console.log('Received Metrics:', JSON.stringify(metrics)); // DEBUG LOG
 
     if (!machine || !machine.id) {

@@ -54,8 +54,14 @@ Go to the [**Releases Page**](https://github.com/Redwan002117/SysTracker/release
 *   **Windows**: Download `SysTracker_Admin.exe` and run it. Open `http://localhost:7777`.
 *   **Linux**: Download `SysTracker_Admin_Linux`. Run `chmod +x` and then execute it.
 
-**2. Agents (Clients)**
-*   **Windows (64-bit)**: Download `SysTracker_Agent.exe`.
+**2. First-Time Setup (New in v2.3)**
+*   Open the dashboard in your browser.
+*   You will be automatically redirected to the **Setup Wizard**.
+*   Create your admin account (`username`, `email`, `password`).
+*   That's it! No manual configuration required.
+
+**3. Agents (Clients)**
+*   **Windows (64-bit)**: Download `SysTracker_Agent.exe` or `SysTracker_Agent.msix`.
 *   **Configuration**:
     *   If using the "Generic" agent, create a `config.json` file next to it:
         ```json
@@ -64,18 +70,20 @@ Go to the [**Releases Page**](https://github.com/Redwan002117/SysTracker/release
           "api_key": "YOUR_STATIC_API_KEY_HERE"
         }
         ```
-    *   *Pro Tip*: You can build your own agent with the IP hardcoded (see Development below).
 
 ---
 
-### Metric 2: Docker / CasaOS (Recommended for Servers)
-We automatically publish Docker images to GitHub Container Registry (GHCR).
+### Metric 2: Docker / CasaOS (Recommended)
+We automatically publish multi-arch Docker images (AMD64 & ARM64) to GitHub Container Registry (GHCR).
 
 **CasaOS Setup:**
 1.  **Install Custom App**.
 2.  **Image**: `ghcr.io/redwan002117/systracker:latest`
 3.  **Ports**: Map Host `7777` to Container `7777`.
-4.  **Volumes**: Map `/DATA/AppData/systracker/data` to `/app/data` (to save your database).
+4.  **Volumes**: Map `/DATA/AppData/systracker/data` to `/app/data`.
+5.  **Environment Variables (Optional for Auto-Setup)**:
+    *   `ADMIN_USER`: `admin`
+    *   `ADMIN_PASSWORD`: `secure_password`
 
 **Docker Compose:**
 ```yaml
@@ -89,6 +97,9 @@ services:
       - "7777:7777"
     volumes:
       - ./data:/app/data
+    environment:
+      - ADMIN_USER=admin          # Optional: Creates admin user automatically
+      - ADMIN_PASSWORD=ChangeMe!  # Optional: Skips Setup Wizard
 ```
 
 ---

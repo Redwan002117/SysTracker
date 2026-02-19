@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  systracker:
+    container_name: systracker-local
+    build: .
+    ports:
+      - "7777:7777"
+    environment:
+      - PORT=7777
+      # JWT_SECRET will be auto-generated and persisted to /app/data/jwt.secret if not set
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

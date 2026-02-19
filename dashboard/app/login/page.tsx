@@ -25,7 +25,11 @@ function LoginForm() {
         fetch('/api/auth/status')
             .then(r => r.json())
             .then(data => {
-                if (data.setup_required) setSetupRequired(true);
+                if (data.setup_required) {
+                    setSetupRequired(true);
+                    // Auto-redirect to setup wizard
+                    router.replace('/setup');
+                }
             })
             .catch(() => { });
     }, [router]);
