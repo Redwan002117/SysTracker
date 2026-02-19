@@ -94,8 +94,22 @@ def install_agent():
             import tkinter as tk
             from tkinter import simpledialog
             
+            # Helper to find icon
+            def resource_path(relative_path):
+                if hasattr(sys, '_MEIPASS'):
+                    return os.path.join(sys._MEIPASS, relative_path)
+                return os.path.join(os.path.abspath("."), relative_path)
+
             root = tk.Tk()
             root.withdraw() # Hide main window
+            
+            # Set Icon
+            try:
+                icon_path = resource_path("logo.ico")
+                if os.path.exists(icon_path):
+                    root.iconbitmap(icon_path)
+            except Exception as e:
+                logging.warning(f"Failed to set icon: {e}")
 
             if not args_url:
                 args_url = simpledialog.askstring("SysTracker Setup", "Enter Server URL (e.g. http://192.168.1.100:7777):")

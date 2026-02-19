@@ -322,19 +322,26 @@ const authenticateDashboard = (req, res, next) => {
 };
 
 // Middleware: Authenticate API (Agent)
-const authenticateAPI = (req, res, next) => {
+const authenticateAPI = async (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
-    const validKey = process.env.API_KEY;
+    let validKey = process.env.API_KEY || 'YOUR_STATIC_API_KEY_HERE';
+
+    // Check DB for override
+    try {
+        const row = await new Promise((resolve, reject) => {
+            db.get("SELECT value FROM settings WHERE key = 'general_api_key'", (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+        if (row && row.value) validKey = row.value;
+    } catch (e) {
+        console.error("Error fetching API Key from DB:", e);
+    }
 
     if (!validKey) {
-        // If no API key is set, log a warning but maybe allow? 
-        // Or consistent with "secure by default", deny. 
-        // Let's allow for now if validKey is not set (generic dev mode), or strictly require it.
-        // Given the user error, strict is safer but might break if they didn't set it.
-        // user has API_KEY=YOUR_STATIC_API_KEY_HERE in .env
-        if (apiKey === 'YOUR_STATIC_API_KEY_HERE') return next(); // Allow default
-        console.warn("[Security] API_KEY not set in .env, allowing request (unsafe)");
-        return next();
+        // Fallback or warning
+        console.warn("[Security] No API_KEY configured.");
     }
 
     if (apiKey && apiKey === validKey) {
@@ -387,6 +394,29 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // --- Settings Endpoints ---
+
+// Get General Settings (API Key)
+app.get('/api/settings/general', authenticateDashboard, (req, res) => {
+    db.get("SELECT value FROM settings WHERE key = 'general_api_key'", (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const apiKey = row ? row.value : (process.env.API_KEY || 'YOUR_STATIC_API_KEY_HERE');
+        res.json({ api_key: apiKey });
+    });
+});
+
+// Update General Settings (API Key)
+app.put('/api/settings/general', authenticateDashboard, (req, res) => {
+    const { api_key } = req.body;
+    if (!api_key) return res.status(400).json({ error: 'API Key is required' });
+
+    db.run("INSERT INTO settings (key, value, updated_at) VALUES ('general_api_key', ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+        [api_key],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: 'API Key updated' });
+        }
+    );
+});
 
 // Get SMTP Settings
 app.get('/api/settings/smtp', authenticateDashboard, (req, res) => {

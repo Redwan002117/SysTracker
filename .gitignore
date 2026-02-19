@@ -12,3 +12,11 @@ __pycache__/
 systracker.db
 systracker.db-journal
 config.json
+
+# Build Artifacts
+server/dashboard-dist/
+release/
+agent/dist/
+agent/build/
+agent/SysTracker_Agent.spec
+*.pyc

@@ -6,17 +6,31 @@ export const metadata: Metadata = {
     description: 'Download SysTracker, the self-hosted real-time system monitoring tool for Windows. Monitor CPU, RAM, disk, network, and more across your entire fleet.',
     keywords: ['system monitoring', 'RMM', 'Windows monitoring', 'self-hosted', 'SysTracker'],
     authors: [{ name: 'Redwan002117' }],
+    icons: {
+        icon: '/favicon.ico',
+        shortcut: '/favicon.ico',
+        apple: '/logo.png', // Using logo.png
+    },
     openGraph: {
         title: 'SysTracker — Real-Time System Monitoring',
         description: 'Self-hosted real-time monitoring for your entire fleet. Download for Windows or deploy with Docker.',
         type: 'website',
-        url: 'https://redwan002117.github.io/SysTracker',
+        url: 'https://systracker.rico.bd/',
         siteName: 'SysTracker',
+        images: [
+            {
+                url: '/banner.svg',
+                width: 1200,
+                height: 630,
+                alt: 'SysTracker Banner',
+            },
+        ],
     },
     twitter: {
         card: 'summary_large_image',
         title: 'SysTracker — Real-Time System Monitoring',
         description: 'Self-hosted real-time monitoring for your entire fleet.',
+        images: ['/banner.svg'],
     },
 };
 

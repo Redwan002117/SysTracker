@@ -59,7 +59,7 @@ The Agent is a **Single Standalone Application**. It installs itself as a Window
 ## 📦 Installation & Deployment
 
 ### Metric 1: The "Easy Way" (Pre-built Binaries)
-Go to the [**Releases Page**](https://github.com/Redwan002117/SysTracker/releases/latest) and download the latest version.
+Go to the [**Releases Page**](https://github.com/Redwan002117/SysTracker/releases/latest) and download the latest version (**v2.5.3**).
 
 **1. Admin Server (Host)**
 *   **Windows**: Download `SysTracker_Admin.exe` and run it. Open `http://localhost:7777`.
