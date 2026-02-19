@@ -363,9 +363,14 @@ app.get('/api/auth/status', (req, res) => {
 
         if (!token) return res.json({ authenticated: false, setup_required: setupRequired });
 
-        jwt.verify(token, JWT_SECRET, (err, user) => {
+        jwt.verify(token, JWT_SECRET, (err, decoded) => {
             if (err) return res.json({ authenticated: false, setup_required: setupRequired });
-            res.json({ authenticated: true, user: user, setup_required: setupRequired });
+
+            // Fetch full user details (email) from DB
+            db.get("SELECT id, username, email FROM admin_users WHERE id = ?", [decoded.id], (err, user) => {
+                if (err || !user) return res.json({ authenticated: false, setup_required: setupRequired });
+                res.json({ authenticated: true, user: user, setup_required: setupRequired });
+            });
         });
     });
 });

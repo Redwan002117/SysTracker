@@ -15,12 +15,20 @@ export default function Profile() {
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     useEffect(() => {
-        // Fetch current user details (mocked for now as /api/auth/me only returns username)
-        // We might need to update /api/auth/me to return email too
-        const user = getUsername();
-        if (user) setUsername(user);
-
-        // Ideally fetch email from API if available
+        // Fetch current user details including email
+        const fetchProfile = async () => {
+            try {
+                const res = await fetchWithAuth('/api/auth/status');
+                const data = await res.json();
+                if (data.authenticated && data.user) {
+                    setUsername(data.user.username || '');
+                    setEmail(data.user.email || '');
+                }
+            } catch (err) {
+                console.error('Failed to fetch profile:', err);
+            }
+        };
+        fetchProfile();
     }, []);
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
