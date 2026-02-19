@@ -222,7 +222,48 @@ function initializeDb() {
     });
 }
 
-// ... methods ...
+// Helper: Ensure Setup Token or Create Admin from Env
+function ensureSetupToken() {
+    db.get("SELECT count(*) as count FROM admin_users", (err, row) => {
+        if (err) return console.error("Error checking admin users:", err.message);
+        if (row.count > 0) return; // Users exist, no setup needed
+
+        // Check if Admin Env Vars are present
+        const adminUser = process.env.ADMIN_USER;
+        const adminPass = process.env.ADMIN_PASSWORD;
+
+        if (adminUser && adminPass) {
+            console.log(`[Auth] Creating initial admin user from ENV: ${adminUser}`);
+            bcrypt.hash(adminPass, 12, (err, hash) => {
+                if (err) return console.error("Error hashing password:", err);
+                db.run("INSERT INTO admin_users (username, password_hash) VALUES (?, ?)", [adminUser, hash], (err) => {
+                    if (err) console.error("Error creating admin from ENV:", err.message);
+                    else console.log("[Auth] Admin user created successfully.");
+                });
+            });
+            return;
+        }
+
+        db.get("SELECT token FROM setup_tokens WHERE used = 0", (err, row) => {
+            if (err) return console.error("Error checking setup tokens:", err.message);
+            if (row) {
+                console.log("---------------------------------------------------");
+                console.log("SETUP REQUIRED: Use this token to create an admin account:");
+                console.log(`Token: ${row.token}`);
+                console.log("---------------------------------------------------");
+            } else {
+                const token = crypto.randomBytes(32).toString('hex');
+                db.run("INSERT INTO setup_tokens (token) VALUES (?)", [token], (err) => {
+                    if (err) return console.error("Error creating setup token:", err.message);
+                    console.log("---------------------------------------------------");
+                    console.log("SETUP REQUIRED: Use this token to create an admin account:");
+                    console.log(`Token: ${token}`);
+                    console.log("---------------------------------------------------");
+                });
+            }
+        });
+    });
+}
 
 // Helper: Get SMTP Config (DB > Env)
 function getSmtpConfig() {
