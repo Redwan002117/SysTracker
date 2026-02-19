@@ -12,6 +12,7 @@ export default function Settings() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
+    const [testEmail, setTestEmail] = useState('');
     const [downloading, setDownloading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -103,7 +104,10 @@ export default function Settings() {
         setTesting(true);
         setMessage(null);
         try {
-            const res = await fetchWithAuth('/api/settings/smtp/test', { method: 'POST' });
+            const res = await fetchWithAuth('/api/settings/smtp/test', {
+                method: 'POST',
+                body: JSON.stringify({ email: testEmail })
+            });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             setMessage({ type: 'success', text: data.message });
@@ -351,16 +355,34 @@ export default function Settings() {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4">
-                                        <button
-                                            type="button"
-                                            onClick={handleTestSmtp}
-                                            disabled={testing || loading}
-                                            className="px-4 py-2 text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
-                                        >
-                                            {testing ? 'Sending...' : <><Send size={18} /> Test Connection</>}
-                                        </button>
+                                    <div className="mt-8 pt-8 border-t border-slate-100 italic">
+                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Diagnostic Tool</h4>
+                                        <div className="flex flex-col sm:flex-row gap-3 items-end">
+                                            <div className="flex-1 w-full">
+                                                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Test Recipient</label>
+                                                <input
+                                                    type="email"
+                                                    value={testEmail}
+                                                    onChange={e => setTestEmail(e.target.value)}
+                                                    placeholder="Enter recipient email..."
+                                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleTestSmtp}
+                                                disabled={testing || loading}
+                                                className="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                            >
+                                                {testing ? 'Sending...' : <><Send size={14} /> Send Test</>}
+                                            </button>
+                                        </div>
+                                        <p className="text-[10px] text-slate-400 mt-2">
+                                            Specify a recipient to verify connection. SMTP settings must be <strong>saved</strong> before testing.
+                                        </p>
+                                    </div>
 
+                                    <div className="flex items-center justify-end pt-6 border-t border-slate-100 mt-6">
                                         <button
                                             type="submit"
                                             disabled={saving || loading}

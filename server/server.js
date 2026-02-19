@@ -465,17 +465,26 @@ app.put('/api/settings/smtp', authenticateDashboard, (req, res) => {
 
 // Test SMTP Settings
 app.post('/api/settings/smtp/test', authenticateDashboard, (req, res) => {
-    // Get current user's email
+    const { email: testToEmail } = req.body;
+
+    // Get current user's email as fallback
     db.get('SELECT email FROM admin_users WHERE id = ?', [req.admin.id], async (err, user) => {
         if (err) return res.status(500).json({ error: err.message });
-        if (!user || !user.email) return res.status(400).json({ error: 'Please update your profile email first to receive test emails.' });
 
-        const htmlContent = emailTemplates.testEmail(user.email);
+        const recipient = testToEmail || (user ? user.email : null);
+
+        if (!recipient) {
+            return res.status(400).json({
+                error: 'Recipient email required. Please provide a "test to" email or update your profile email first.'
+            });
+        }
+
+        const htmlContent = emailTemplates.testEmail(recipient);
         const textContent = 'If you are reading this, your SMTP settings are correct!';
 
-        const success = await sendEmail(user.email, 'SysTracker SMTP Test', textContent, htmlContent);
-        if (success) res.json({ success: true, message: `Test email sent to ${user.email}` });
-        else res.status(500).json({ error: 'Failed to send test email. Check server logs.' });
+        const success = await sendEmail(recipient, 'SysTracker SMTP Test', textContent, htmlContent);
+        if (success) res.json({ success: true, message: `Test email sent to ${recipient}` });
+        else res.status(500).json({ error: 'Failed to send test email. Check server logs for details.' });
     });
 });
 
