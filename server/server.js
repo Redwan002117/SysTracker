@@ -1,19 +1,32 @@
-require('dotenv').config();
+// ---------------------------------------------------------------------------
+// pkg-safe path resolution — MUST be first, before dotenv
+// When bundled with pkg, __dirname is the read-only virtual snapshot.
+// Writable files live next to the real EXE on disk.
+// ---------------------------------------------------------------------------
+const path = require('path');
+const IS_PKG = typeof process.pkg !== 'undefined';
+const BASE_DIR = IS_PKG ? path.dirname(process.execPath) : __dirname;
+const ASSETS_DIR = __dirname; // snapshot dir (dashboard-dist lives here)
+
+// Load .env from the EXE's real directory (or project root in dev)
+require('dotenv').config({ path: path.join(BASE_DIR, '.env') });
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const fs = require('fs');
-const path = require('path');
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const emailTemplates = require('./emailTemplates');
+
+
 
 // JWT secret — use env var in production, auto-generate otherwise
-// JWT Secret Persistence (Prevent session invalidation on restart)
 let JWT_SECRET = process.env.JWT_SECRET;
-const secretFilePath = path.join(__dirname, 'data', 'jwt.secret');
+const secretFilePath = path.join(BASE_DIR, 'data', 'jwt.secret');
 
 if (!JWT_SECRET) {
     if (fs.existsSync(secretFilePath)) {
@@ -47,9 +60,8 @@ const io = new Server(server, {
     }
 });
 
-// Serve the static dashboard files
-// In 'pkg', __dirname points to the virtual filesystem inside the snapshot
-const dashboardPath = path.join(__dirname, 'dashboard-dist');
+// Serve the static dashboard (embedded read-only asset inside the pkg snapshot)
+const dashboardPath = path.join(ASSETS_DIR, 'dashboard-dist');
 
 // Middleware to check if assets exist (debugging)
 app.use((req, res, next) => {
@@ -62,15 +74,15 @@ app.use(express.static(dashboardPath, { extensions: ['html'] }));
 
 app.set('trust proxy', 1); // Trust Nginx proxy headers
 app.use(cors());
-app.use(express.json()); // Changed from app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '5mb' })); // Enough for hardware_info payloads
 
 // Database Setup
 
 
 // Database Setup
 
-// Database Setup (SQLite)
-const dbFolder = path.join(__dirname, 'data');
+// Database Setup (SQLite) — data folder lives next to the EXE, not in snapshot
+const dbFolder = path.join(BASE_DIR, 'data');
 if (!fs.existsSync(dbFolder)) {
     fs.mkdirSync(dbFolder, { recursive: true });
 }
@@ -265,6 +277,7 @@ function getSmtpConfig() {
 const nodemailer = require('nodemailer');
 
 // Helper: Send Email (Dynamic)
+// Helper: Send Email (Dynamic)
 async function sendEmail(to, subject, text, html) {
     const config = await getSmtpConfig();
 
@@ -276,10 +289,11 @@ async function sendEmail(to, subject, text, html) {
 
     try {
         const transporter = nodemailer.createTransport(config);
-        await transporter.sendMail({
+        const mailOptions = {
             from: config.from,
-            to, subject, text, html
-        });
+            to, subject, text, html // Pass html
+        };
+        await transporter.sendMail(mailOptions);
         console.log(`[Email] Sent to ${to}`);
         return true;
     } catch (error) {
@@ -456,7 +470,10 @@ app.post('/api/settings/smtp/test', authenticateDashboard, (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!user || !user.email) return res.status(400).json({ error: 'Please update your profile email first to receive test emails.' });
 
-        const success = await sendEmail(user.email, 'SysTracker SMTP Test', 'If you are reading this, your SMTP settings are correct!');
+        const htmlContent = emailTemplates.testEmail(user.email);
+        const textContent = 'If you are reading this, your SMTP settings are correct!';
+
+        const success = await sendEmail(user.email, 'SysTracker SMTP Test', textContent, htmlContent);
         if (success) res.json({ success: true, message: `Test email sent to ${user.email}` });
         else res.status(500).json({ error: 'Failed to send test email. Check server logs.' });
     });
@@ -524,10 +541,12 @@ app.post('/api/auth/forgot-password', (req, res) => {
             async (err) => {
                 if (err) return res.status(500).json({ error: err.message });
 
-                const resetLink = `${req.protocol}://${req.get('host')}/login/reset-password?token=${token}`;
-                const text = `Hello ${user.username},\n\nClick here to reset your password: ${resetLink}\n\nLink expires in 1 hour.`;
+                const confirmLink = `${req.protocol}://${req.get('host')}/login/reset-password?token=${token}`;
+                const htmlContent = emailTemplates.forgotPassword(user.username, confirmLink);
+                // Fallback text
+                const textContent = `Hello ${user.username},\n\nClick here to reset your password: ${confirmLink}\n\nLink expires in 1 hour.`;
 
-                await sendEmail(email, 'Password Reset Request', text);
+                await sendEmail(email, 'Password Reset Request', textContent, htmlContent);
                 res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
             });
     });
@@ -558,7 +577,7 @@ app.post('/api/auth/reset-password', (req, res) => {
 
 // --- Upload Handling (Multer) ---
 const multer = require('multer');
-const uploadDir = path.join(process.cwd(), 'uploads');
+const uploadDir = path.join(BASE_DIR, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -580,27 +599,36 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     res.json({ url: `/uploads/${req.file.filename}` });
 });
 
+// --- Standalone Download Endpoints ---
+app.get('/api/download/agent', authenticateDashboard, (req, res) => {
+    const agentPath = path.join(ASSETS_DIR, 'bin', 'SysTracker_Agent.exe');
+    if (fs.existsSync(agentPath)) {
+        res.download(agentPath, 'SysTracker_Agent.exe');
+    } else {
+        res.status(404).json({ error: 'Agent binary not bundled in this server. Check pkg configuration.' });
+    }
+});
+
 // --- DEBUG ENDPOINT ---
 app.get('/api/debug/config', (req, res) => {
-    const dbFolder = path.join(__dirname, 'data');
-    const dbFile = path.join(dbFolder, 'systracker.db');
+    const resolvedDbFolder = path.join(BASE_DIR, 'data');
+    const resolvedDbFile = path.join(resolvedDbFolder, 'systracker.db');
 
-    let folderContents = [];
+    let snapshotContents = [];
     try {
-        if (fs.existsSync(dbFolder)) {
-            folderContents = fs.readdirSync(dbFolder);
-        }
-    } catch (e) { folderContents = [`Error: ${e.message}`]; }
+        snapshotContents = fs.readdirSync(ASSETS_DIR);
+    } catch (e) { snapshotContents = [`Error: ${e.message}`]; }
 
     res.json({
         cwd: process.cwd(),
-        dirname: __dirname,
-        dbFolder: dbFolder,
-        dbFolderExists: fs.existsSync(dbFolder),
-        dbFile: dbFile,
-        dbFileExists: fs.existsSync(dbFile),
-        folderContents: folderContents,
-        envPort: process.env.PORT,
+        is_pkg: IS_PKG,
+        base_dir: BASE_DIR,
+        assets_dir: ASSETS_DIR,
+        snapshotContents,
+        dbFolder: resolvedDbFolder,
+        dbFolderExists: fs.existsSync(resolvedDbFolder),
+        dbFile: resolvedDbFile,
+        dbFileExists: fs.existsSync(resolvedDbFile),
         isDocker: fs.existsSync('/.dockerenv')
     });
 });
@@ -663,148 +691,124 @@ setInterval(() => {
 // --- API Endpoints ---
 
 // Ingest Telemetry (from Python Agent)
+// Track last DB-persist time per machine — we emit to socket every call but only write to DB every ~10s
+const lastMetricsDbWrite = new Map(); // machineId -> timestamp (ms)
+const METRICS_DB_THROTTLE_MS = 10_000; // persist to DB at most once per 10s per machine
+
 app.post('/api/telemetry', authenticateAPI, (req, res) => {
     const { machine, metrics, events } = req.body;
-
-
-    // if (metrics) console.log('Received Metrics:', JSON.stringify(metrics)); // DEBUG LOG
 
     if (!machine || !machine.id) {
         return res.status(400).json({ error: 'Invalid payload: Machine ID required' });
     }
 
-    db.serialize(() => {
-        // 1. Update/Insert Machine
-        const machineQuery = `
-            INSERT INTO machines (id, hostname, ip_address, os_info, os_distro, os_release, os_codename, os_serial, os_uefi, uuid, device_name, users, hardware_info, status, last_seen)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'online', CURRENT_TIMESTAMP)
-            ON CONFLICT(id) DO UPDATE 
-            SET hostname = excluded.hostname, 
-                ip_address = excluded.ip_address, 
-                os_info = excluded.os_info,
-                os_distro = excluded.os_distro,
-                os_release = excluded.os_release,
-                os_codename = excluded.os_codename,
-                os_serial = excluded.os_serial,
-                os_uefi = excluded.os_uefi,
-                uuid = excluded.uuid,
-                device_name = excluded.device_name,
-                users = excluded.users,
-                hardware_info = COALESCE(excluded.hardware_info, machines.hardware_info),
-                status = 'online',
-                last_seen = CURRENT_TIMESTAMP;
-        `;
+    // --- STEP 1: Emit to Dashboard IMMEDIATELY (zero-wait) ---
+    // Build mappings first so the dashboard gets notified before any DB work begins.
+    const mappedMetrics = metrics ? {
+        cpu: metrics.cpu_usage,
+        ram: metrics.ram_usage,
+        disk: metrics.disk_total_gb ? Math.round(((metrics.disk_total_gb - metrics.disk_free_gb) / metrics.disk_total_gb) * 100) : 0,
+        disk_details: metrics.disk_details,
+        processes: metrics.processes,
+        network_up_kbps: metrics.network_up_kbps,
+        network_down_kbps: metrics.network_down_kbps,
+        uptime_seconds: metrics.uptime_seconds,
+        active_vpn: metrics.active_vpn
+    } : {};
 
-        db.run(machineQuery, [
-            machine.id,
-            machine.hostname,
-            machine.ip || (metrics ? metrics.ip_address : null),
-            machine.os_info,
-            machine.os_distro,
-            machine.os_release,
-            machine.os_codename,
-            machine.os_serial,
-            machine.os_uefi ? 1 : 0,
-            machine.uuid,
-            machine.device_name,
-            JSON.stringify(machine.users),
-            machine.hardware_info ? JSON.stringify(machine.hardware_info) : null
-        ], function (err) {
-            if (err) console.error("Error upserting machine:", err, this);
-        });
+    let emittedHardwareInfo = null;
+    if (machine.hardware_info) {
+        const raw = machine.hardware_info;
+        const details = raw.all_details || raw;
+        if (metrics && metrics.network_interfaces) {
+            details.network = metrics.network_interfaces;
+        }
+        emittedHardwareInfo = { all_details: details };
+    } else if (metrics && metrics.network_interfaces && metrics.network_interfaces.length > 0) {
+        emittedHardwareInfo = { all_details: { network: metrics.network_interfaces } };
+    }
 
-        // 2. Insert Metrics
-        if (metrics) {
-            const metricsQuery = `
-                INSERT INTO metrics (machine_id, cpu_usage, ram_usage, disk_total_gb, disk_free_gb, network_up_kbps, network_down_kbps, active_vpn, disk_details, processes, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);
-            `;
-            const diskDetailsStr = metrics.disk_details ? JSON.stringify(metrics.disk_details) : null;
-            const processesStr = metrics.processes ? JSON.stringify(metrics.processes) : null;
+    io.emit('machine_update', {
+        id: machine.id,
+        hostname: machine.hostname,
+        status: 'online',
+        last_seen: new Date(),
+        metrics: mappedMetrics,
+        hardware_info: emittedHardwareInfo
+    });
 
-            db.run(metricsQuery, [
-                machine.id,
-                metrics.cpu_usage,
-                metrics.ram_usage,
-                metrics.disk_total_gb,
-                metrics.disk_free_gb,
-                metrics.network_up_kbps || 0,
-                metrics.network_down_kbps || 0,
-                metrics.active_vpn ? 1 : 0,
-                diskDetailsStr,
-                processesStr
-            ], (err) => {
-                if (err) console.error("Error inserting metrics:", err);
+    // Respond to agent immediately so it doesn't wait for DB writes
+    res.json({ success: true });
 
-                // --- ALERTING ENGINE ---
+    // --- STEP 2: Persist to DB asynchronously (fire and forget) ---
+    // Machine upsert — runs every call to update last_seen + online status
+    const machineQuery = `
+        INSERT INTO machines (id, hostname, ip_address, os_info, os_distro, os_release, os_codename, os_serial, os_uefi, uuid, device_name, users, hardware_info, status, last_seen)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'online', CURRENT_TIMESTAMP)
+        ON CONFLICT(id) DO UPDATE 
+        SET hostname = excluded.hostname, 
+            ip_address = excluded.ip_address, 
+            os_info = excluded.os_info,
+            os_distro = excluded.os_distro,
+            os_release = excluded.os_release,
+            os_codename = excluded.os_codename,
+            os_serial = excluded.os_serial,
+            os_uefi = excluded.os_uefi,
+            uuid = excluded.uuid,
+            device_name = excluded.device_name,
+            users = excluded.users,
+            hardware_info = COALESCE(excluded.hardware_info, machines.hardware_info),
+            status = 'online',
+            last_seen = CURRENT_TIMESTAMP;
+    `;
+    db.run(machineQuery, [
+        machine.id, machine.hostname,
+        machine.ip || (metrics ? metrics.ip_address : null),
+        machine.os_info, machine.os_distro, machine.os_release,
+        machine.os_codename, machine.os_serial,
+        machine.os_uefi ? 1 : 0, machine.uuid,
+        machine.device_name, JSON.stringify(machine.users),
+        machine.hardware_info ? JSON.stringify(machine.hardware_info) : null
+    ], (err) => { if (err) console.error("Error upserting machine:", err); });
+
+    // Throttled metrics insert — at most once per 10s per machine
+    const now = Date.now();
+    const lastWrite = lastMetricsDbWrite.get(machine.id) || 0;
+    if (metrics && (now - lastWrite) >= METRICS_DB_THROTTLE_MS) {
+        lastMetricsDbWrite.set(machine.id, now);
+
+        const diskDetailsStr = metrics.disk_details ? JSON.stringify(metrics.disk_details) : null;
+        const processesStr = metrics.processes ? JSON.stringify(metrics.processes) : null;
+        db.run(
+            `INSERT INTO metrics (machine_id, cpu_usage, ram_usage, disk_total_gb, disk_free_gb, network_up_kbps, network_down_kbps, active_vpn, disk_details, processes, timestamp)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+            [machine.id, metrics.cpu_usage, metrics.ram_usage, metrics.disk_total_gb, metrics.disk_free_gb,
+            metrics.network_up_kbps || 0, metrics.network_down_kbps || 0, metrics.active_vpn ? 1 : 0,
+                diskDetailsStr, processesStr],
+            (err) => {
+                if (err) { console.error("Error inserting metrics:", err); return; }
+
+                // Alerting engine (only runs on DB-persisted samples to avoid alert spam)
                 const alerts = [];
-                // CPU Alert (> 95%)
-                if (metrics.cpu_usage > 95) {
-                    alerts.push({ type: 'CPU', message: `High CPU Usage: ${metrics.cpu_usage}%` });
-                }
-                // Disk Alert (< 10% free)
-                if (metrics.disk_total_gb > 0 && (metrics.disk_free_gb / metrics.disk_total_gb) < 0.10) {
+                if (metrics.cpu_usage > 95) alerts.push({ type: 'CPU', message: `High CPU Usage: ${metrics.cpu_usage}%` });
+                if (metrics.disk_total_gb > 0 && (metrics.disk_free_gb / metrics.disk_total_gb) < 0.10)
                     alerts.push({ type: 'DISK', message: `Low Disk Space: ${metrics.disk_free_gb}GB free` });
-                }
-
-                // Trigger Webhook/Log for Alerts
                 if (alerts.length > 0) {
                     console.log(`[ALERT] Machine ${machine.id}:`, alerts);
-                    // TODO: Send to Slack/Discord via axios.post(WEBHOOK_URL, ...)
-                    // For now, we'll just log it to the 'events' table as a system alert? 
-                    // Or ideally a separate 'alerts' table, but 'events' works for now if we use a special source.
-
                     const alertStmt = db.prepare(`INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, 9999, 'SysTracker-Alert', ?, 'Warning', CURRENT_TIMESTAMP)`);
-                    alerts.forEach(a => {
-                        alertStmt.run([machine.id, a.message]);
-                    });
+                    alerts.forEach(a => alertStmt.run([machine.id, a.message]));
                     alertStmt.finalize();
                 }
-            });
-        }
+            }
+        );
+    }
 
-        // 3. Insert Events
-        if (events && Array.isArray(events) && events.length > 0) {
-            const eventQuery = `
-                INSERT INTO events (machine_id, event_id, source, message, severity, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?);
-            `;
-            const stmt = db.prepare(eventQuery);
-            events.forEach(event => {
-                stmt.run([
-                    machine.id,
-                    event.event_id,
-                    event.source,
-                    event.message,
-                    event.severity,
-                    event.timestamp
-                ]);
-            });
-            stmt.finalize();
-        }
-
-        // Notify Dashboard via Socket.IO
-        const mappedMetrics = {
-            cpu: metrics.cpu_usage,
-            ram: metrics.ram_usage,
-            disk: metrics.disk_total_gb ? Math.round(((metrics.disk_total_gb - metrics.disk_free_gb) / metrics.disk_total_gb) * 100) : 0,
-            disk_details: metrics.disk_details,
-            processes: metrics.processes,
-            network_up_kbps: metrics.network_up_kbps,
-            network_down_kbps: metrics.network_down_kbps,
-            active_vpn: metrics.active_vpn
-        };
-
-        io.emit('machine_update', {
-            id: machine.id,
-            status: 'online',
-            last_seen: new Date(),
-            metrics: mappedMetrics,
-            hardware_info: machine.hardware_info
-        });
-
-        res.json({ success: true });
-    });
+    // Events insert (always persist — events are sparse and important)
+    if (events && Array.isArray(events) && events.length > 0) {
+        const stmt = db.prepare(`INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, ?, ?, ?, ?, ?)`);
+        events.forEach(event => stmt.run([machine.id, event.event_id, event.source, event.message, event.severity, event.timestamp]));
+        stmt.finalize();
+    }
 });
 
 // Ingest Logs (from Agents)
@@ -829,8 +833,8 @@ app.post('/api/logs', authenticateAPI, (req, res) => {
     });
 });
 
-// Update Machine Profile
-app.put('/api/machines/:id/profile', authenticateAPI, (req, res) => {
+// Update Machine Profile (Dashboard uses JWT, not Agent API key)
+app.put('/api/machines/:id/profile', authenticateDashboard, (req, res) => {
     const { id } = req.params;
     const { profile } = req.body; // Expects full profile object
     console.log(`Updating profile for ${id}`);
@@ -874,7 +878,11 @@ app.get('/api/machines', authenticateDashboard, (req, res) => {
             let processes = [];
             let profile = null;
             try {
-                if (row.hardware_info) hwInfo = JSON.parse(row.hardware_info);
+                if (row.hardware_info) {
+                    const parsed = JSON.parse(row.hardware_info);
+                    // Wrap in all_details if not already — dashboard reads hardware_info.all_details.*
+                    hwInfo = parsed.all_details ? parsed : { all_details: parsed };
+                }
                 if (row.disk_details) diskDetails = JSON.parse(row.disk_details);
                 if (row.processes) processes = JSON.parse(row.processes);
                 if (row.profile) profile = JSON.parse(row.profile);
@@ -927,7 +935,10 @@ app.get('/api/machines/:id', authenticateDashboard, (req, res) => {
 
         const machine = row;
         try {
-            if (machine.hardware_info) machine.hardware_info = JSON.parse(machine.hardware_info);
+            if (machine.hardware_info) {
+                const parsed = JSON.parse(machine.hardware_info);
+                machine.hardware_info = parsed.all_details ? parsed : { all_details: parsed };
+            }
         } catch (e) { }
 
         const historyQuery = 'SELECT * FROM metrics WHERE machine_id = ? ORDER BY timestamp DESC LIMIT 50';

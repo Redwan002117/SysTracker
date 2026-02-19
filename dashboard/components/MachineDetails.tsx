@@ -64,9 +64,13 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
 
     const handleSaveNickname = async () => {
         try {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('systracker_token') : null;
             await fetch(`/api/machines/${machine.id}/nickname`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify({ nickname })
             });
             setIsEditing(false);
@@ -78,19 +82,17 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
 
     const handleProfileUpdate = async (newProfile: Machine['profile']) => {
         try {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('systracker_token') : null;
             const res = await fetch(`/api/machines/${machine.id}/profile`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-Key': 'YOUR_STATIC_API_KEY_HERE'
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
                 body: JSON.stringify({ profile: newProfile })
             });
             if (!res.ok) throw new Error('Failed to update profile');
-
-            // Optimistic update handled by local state in MachineDetails or reload
-            // But since we pass machine down, we might need to update local machine state? 
-            // Better to rely on the socket update which will refresh the machine list/details
+            // Socket will update the UI
         } catch (err) {
             console.error(err);
         }

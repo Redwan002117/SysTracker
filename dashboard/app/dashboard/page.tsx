@@ -94,11 +94,12 @@ export default function Dashboard() {
     });
 
     socket.on('refresh_request', () => {
-      fetch('/api/machines')
+      fetchWithAuth('/api/machines')
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) setMachines(data);
-        });
+        })
+        .catch(err => console.error('Refresh failed:', err));
     });
 
     return () => {

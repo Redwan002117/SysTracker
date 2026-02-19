@@ -5,7 +5,10 @@
   "bin": "server.js",
   "pkg": {
     "assets": [
-      "dashboard-dist/**/*"
+      "dashboard-dist/**/*",
+      "schema_sqlite.sql",
+      "emailTemplates.js",
+      "bin/**/*"
     ],
     "targets": [
       "node18-win-x64",

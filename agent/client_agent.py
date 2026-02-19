@@ -11,8 +11,8 @@ import datetime
 # Configuration
 DEFAULT_API_URL = "https://monitor.rico.bd/api"
 DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
-TELEMETRY_INTERVAL = 60 # seconds
-EVENT_POLL_INTERVAL = 300 # seconds (5 minutes)
+TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
+EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() 
 VERSION = "2.6.0"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
@@ -24,6 +24,16 @@ retry_delay = 5
 # Global State for Delta Calculation
 last_net_io = None
 last_net_time = None
+
+# CPU Primer: psutil.cpu_percent(interval=None) returns 0.0 on first call per process.
+# We prime it once at startup (non-blocking). All subsequent calls use interval=None.
+_cpu_primed = False
+
+def _prime_cpu():
+    """Call cpu_percent with a short interval once at startup, then signal ready."""
+    global _cpu_primed
+    psutil.cpu_percent(interval=0.5)  # One-time 0.5s warm-up in background thread
+    _cpu_primed = True
 
 # Global Config
 config = {
@@ -345,25 +355,30 @@ def send_payload(endpoint, data):
 
 def get_system_metrics():
     try:
-        cpu = psutil.cpu_percent(interval=1)
+        # Non-blocking CPU read (accurate after _prime_cpu() has run once)
+        cpu = psutil.cpu_percent(interval=None) if _cpu_primed else psutil.cpu_percent(interval=0.5)
         ram = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
         
-        # Active Processes (Top 10 by CPU)
+        # Active Processes (Top 15 by CPU)
+        # Dashboard expects: { name, cpu (float), mem (float %), mem_mb (float) }
+        total_ram = psutil.virtual_memory().total
         processes = []
         for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_info']):
             try:
                 pinfo = proc.info
-                # Convert active percent to something readable if needed, usually just raw float
-                # Convert memory to MB
-                if pinfo['memory_info']:
-                    pinfo['mem_mb'] = round(pinfo['memory_info'].rss / (1024 * 1024), 2)
-                processes.append(pinfo)
+                mem_bytes = pinfo['memory_info'].rss if pinfo['memory_info'] else 0
+                processes.append({
+                    'name': pinfo['name'],
+                    'pid': pinfo['pid'],
+                    'cpu': round(pinfo['cpu_percent'] or 0, 1),          # Dashboard reads p.cpu
+                    'mem': round((mem_bytes / total_ram * 100), 1) if total_ram else 0,  # Dashboard reads p.mem
+                    'mem_mb': round(mem_bytes / (1024 * 1024), 1),        # Dashboard reads p.mem_mb
+                })
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
-        
-    # Sort by CPU
-        processes.sort(key=lambda p: p['cpu_percent'] or 0, reverse=True)
+
+        processes.sort(key=lambda p: p['cpu'], reverse=True)
         top_processes = processes[:15]
         
         # Disk Details
@@ -386,29 +401,49 @@ def get_system_metrics():
                 except: pass
         except: pass
 
+        # Network Interfaces — dashboard reads hardware_info.all_details.network
+        # Keys expected: interface, ip_address, mac, speed_mbps, type
+        network_interfaces = []
+        try:
+            addrs = psutil.net_if_addrs()
+            stats = psutil.net_if_stats()
+            for nic, snic_list in addrs.items():
+                if nic.lower() in ('lo', 'loopback') or nic.lower().startswith('loop'):
+                    continue
+                ip = 'N/A'
+                mac = 'N/A'
+                for snic in snic_list:
+                    if snic.family == socket.AF_INET:
+                        ip = snic.address
+                    elif hasattr(psutil, 'AF_LINK') and snic.family == psutil.AF_LINK:
+                        mac = snic.address
+                if ip == 'N/A':
+                    continue  # Skip interfaces with no IPv4
+                nic_stats = stats.get(nic)
+                network_interfaces.append({
+                    'interface': nic,
+                    'ip_address': ip,
+                    'mac': mac,
+                    'speed_mbps': nic_stats.speed if nic_stats else 0,
+                    'type': 'Wi-Fi' if 'wi-fi' in nic.lower() or 'wlan' in nic.lower() or 'wireless' in nic.lower() else 'Ethernet',
+                    'is_up': nic_stats.isup if nic_stats else False,
+                })
+        except Exception as e:
+            logging.error(f"Error collecting network interfaces: {e}")
+
         # Network Throughput
         global last_net_io, last_net_time
         net_up = 0
         net_down = 0
         current_net_io = psutil.net_io_counters()
         current_time = time.time()
-        
+
         if last_net_io and last_net_time:
             time_diff = current_time - last_net_time
             if time_diff > 0:
-                # bytes per sec -> kbps (kilobits) or KBps (Kilobytes)? 
-                # Dashboard usually expects kbps (kilobits) or KBps. 
-                # Let's assume KB/s for human readability or kbps for network standard.
-                # Types.ts says 'network_up_kbps'. kBps = kilobytes per second. kbps = kilobits.
-                # Usually standard internet speed is bits. File transfer is bytes.
-                # Let's send KB/s (KiloBytes) as it's more useful for system monitoring.
-                # Wait, 'kbps' usually means Kilobits. 'KBps' means Kilobytes.
-                # I'll send Kilobytes per second (KB/s) but label is kbps... I should check dashboard usage.
-                # Standard psutil gives bytes.
-                # I will calculate Kilobytes per Second.
                 net_up = (current_net_io.bytes_sent - last_net_io.bytes_sent) / time_diff / 1024
                 net_down = (current_net_io.bytes_recv - last_net_io.bytes_recv) / time_diff / 1024
-        
+
         last_net_io = current_net_io
         last_net_time = current_time
 
@@ -420,6 +455,7 @@ def get_system_metrics():
             "ip_address": socket.gethostbyname(socket.gethostname()),
             "processes": top_processes,
             "disk_details": disk_details,
+            "network_interfaces": network_interfaces,   # New: for hardware_info.all_details.network
             "network_up_kbps": round(net_up, 2),
             "network_down_kbps": round(net_down, 2),
             "uptime_seconds": int(time.time() - psutil.boot_time())
@@ -428,102 +464,79 @@ def get_system_metrics():
         logging.error(f"Error collecting metrics: {e}")
         return None
 
+def run_wmic(command):
+    try:
+        # Run wmic command and return output as list of lines
+        result = subprocess.check_output(command, shell=True).decode('utf-8', errors='ignore')
+        lines = [line.strip() for line in result.split('\n') if line.strip()]
+        if len(lines) > 1:
+            return lines[1:] # Skip header
+        return []
+    except:
+        return []
+
 def get_detailed_hardware_info():
     """
-    Collects static hardware info using WMI (Windows Management Instrumentation).
+    Collects static hardware info using WMIC (subprocess) to avoid WMI module issues in frozen builds.
     """
+    info = {
+        'motherboard': {},
+        'cpu': {},
+        'ram': []
+    }
+    
     try:
-        import wmi
-        c = wmi.WMI()
-        
-        info = {}
-        
         # Motherboard
         try:
-            board = c.Win32_BaseBoard()[0]
-            info['motherboard'] = {
-                'manufacturer': board.Manufacturer,
-                'product': board.Product,
-                'serial': board.SerialNumber,
-                'version': board.Version
-            }
-        except: info['motherboard'] = "Unknown"
+            mb_data = run_wmic("wmic baseboard get Manufacturer,Product,SerialNumber,Version /format:csv")
+            if mb_data:
+                parts = mb_data[0].split(',') # Node,Manufacturer,Product,SerialNumber,Version
+                # CSV format from wmic usually puts Node name first
+                if len(parts) >= 5:
+                    info['motherboard'] = {
+                        'manufacturer': parts[1],
+                        'product': parts[2],
+                        'serial': parts[3],
+                        'version': parts[4]
+                    }
+        except Exception as e: 
+            logging.error(f"MB Error: {e}")
+            info['motherboard'] = "Unknown"
 
-        # RAM Sticks
+        # CPU
         try:
-            ram_sticks = []
-            for stick in c.Win32_PhysicalMemory():
-                ram_sticks.append({
-                    'capacity_gb': round(int(stick.Capacity) / (1024**3), 2),
-                    'speed': stick.Speed,
-                    'manufacturer': stick.Manufacturer,
-                    'part_number': stick.PartNumber.strip()
-                })
-            info['ram'] = ram_sticks
-        except: info['ram'] = []
+            cpu_data = run_wmic("wmic cpu get Name,NumberOfCores,NumberOfLogicalProcessors /format:csv")
+            if cpu_data:
+                parts = cpu_data[0].split(',')
+                if len(parts) >= 4:
+                    info['cpu'] = {
+                        'name': parts[1].strip(),
+                        'cores': parts[2].strip(),
+                        'logical': parts[3].strip(),  # Dashboard reads cpu.logical (not threads)
+                        'socket': 'N/A',
+                        'virtualization': 'N/A'
+                    }
+        except: info['cpu'] = {}
 
-        # GPU
+        # RAM — Dashboard reads all_details.ram.modules[] with {capacity, speed, form_factor, manufacturer, part_number}
         try:
-            gpus = []
-            for gpu in c.Win32_VideoController():
-                gpus.append({
-                    'name': gpu.Name,
-                    'driver_version': gpu.DriverVersion
-                })
-            info['gpu'] = gpus
-        except: info['gpu'] = []
-
-        # Physical Disks (Smart status, Model)
-        try:
-            disks = []
-            for disk in c.Win32_DiskDrive():
-                disks.append({
-                    'model': disk.Model,
-                    'serial': disk.SerialNumber.strip(),
-                    'size_gb': round(int(disk.Size) / (1024**3), 2),
-                    'interface': disk.InterfaceType,
-                    'media_type': disk.MediaType
-                })
-            info['disks'] = disks
-        except: info['disks'] = []
+            ram_modules = []
+            ram_data = run_wmic("wmic memorychip get Capacity,Speed,Manufacturer,PartNumber,FormFactor /format:csv")
+            for line in ram_data:
+                parts = line.split(',')
+                if len(parts) >= 6:
+                    try: cap_gb = f"{int(parts[1].strip()) // (1024**3)} GB"
+                    except: cap_gb = parts[1].strip()
+                    ram_modules.append({
+                        'capacity': cap_gb,
+                        'speed': f"{parts[5].strip()} MHz" if parts[5].strip() else 'N/A',
+                        'manufacturer': parts[2].strip(),
+                        'part_number': parts[3].strip(),
+                        'form_factor': parts[4].strip() or 'N/A',
+                    })
+            info['ram'] = {'modules': ram_modules, 'slots_used': len(ram_modules)}
+        except: info['ram'] = {'modules': [], 'slots_used': 0}
         
-
-        try:
-            net_if = []
-            addrs = psutil.net_if_addrs()
-            stats = psutil.net_if_stats()
-            # Net IO for speed calculation - wait, speed is in stats (Link Speed)
-            # Throughput is in get_system_metrics usually
-            
-            for nic, snics in addrs.items():
-                # Skip loopback
-                if nic == 'lo' or nic.lower().startswith('loop'): continue
-                
-                nic_info = {
-                    'interface': nic, # Dashboard expects 'interface' not 'name' in HardwareInfo.network
-                    'speed_mbps': stats[nic].speed if nic in stats else 0,
-                    'is_up': stats[nic].isup if nic in stats else False,
-                }
-                # Dashboard HardwareInfo.network structure: { interface, ip_address, mac, type, speed_mbps }
-                # We need to flatten address info or pick IPv4
-                ip = "N/A"
-                mac = "N/A"
-                for snic in snics:
-                    if snic.family == socket.AF_INET:
-                        ip = snic.address
-                    elif snic.family == psutil.AF_LINK:
-                        mac = snic.address
-                
-                nic_info['ip_address'] = ip
-                nic_info['mac'] = mac
-                nic_info['type'] = "Unknown" # psutil doesn't give type easily (wired/wireless)
-                
-                net_if.append(nic_info)
-            info['network'] = net_if # Dashboard uses 'network' not 'network_interfaces'
-        except Exception as e:
-            logging.error(f"Error collecting network info: {e}")
-            info['network'] = []
-
         return info
     except Exception as e:
         logging.error(f"Error collecting hardware info: {e}")
@@ -591,6 +604,10 @@ def main():
     
     manage_pid()
     logging.info(f"Starting SysTracker Agent on {MACHINE_ID}")
+
+    # Prime CPU measurement in background so first reads are accurate without blocking
+    import threading
+    threading.Thread(target=_prime_cpu, daemon=True).start()
     
     last_event_check = datetime.datetime.now() - datetime.timedelta(minutes=5)
     
@@ -608,18 +625,34 @@ def main():
         sys_info["hardware_info"] = hw_info
     
     try:
+        # Full machine info with hardware — sent on first boot and refreshed every 5min
+        HARDWARE_RESEND_INTERVAL = 300  # seconds
+        last_hardware_sent = 0  # force send on first loop
+
         while True:
             # 1. Collect Telemetry
             metrics = get_system_metrics()
             if metrics:
-                # Update sys_info with dynamic data if needed, or just send minimal
-                # For now, we resend sys_info to keep 'last_seen' and other metadata fresh on the server Upsert
+                now_ts = time.time()
+                send_hw = (now_ts - last_hardware_sent) >= HARDWARE_RESEND_INTERVAL
+
+                # Lightweight machine stub sent every cycle (just id + hostname for last_seen upsert)
+                machine_payload = {
+                    "id": sys_info["id"],
+                    "hostname": sys_info["hostname"],
+                    "os_info": sys_info["os_info"],
+                    "version": sys_info["version"],
+                }
+
+                # Only attach hardware_info when it's time to refresh
+                if send_hw:
+                    machine_payload["hardware_info"] = sys_info.get("hardware_info")
+                    last_hardware_sent = now_ts
+
                 payload = {
-                    "machine": sys_info,
+                    "machine": machine_payload,
                     "metrics": metrics
                 }
-                # Check for events every 5 loops (approx 5 mins if interval is 60s) 
-                # Or just check time diff
                 if (datetime.datetime.now() - last_event_check).total_seconds() >= EVENT_POLL_INTERVAL:
                     events = get_event_logs(last_event_check)
                     if events:
