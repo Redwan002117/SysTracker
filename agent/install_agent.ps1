@@ -53,3 +53,7 @@ Write-Host "Starting Agent..."
 Start-ScheduledTask -TaskName "SysTrackerAgent"
 Write-Host "Installation Complete! Agent is running in the background." -ForegroundColor Green
 Write-Host "To stop the agent, run: & '$InstallDir\$AgentExe' --kill" -ForegroundColor Yellow
+
+# 7. Success Popup
+Add-Type -AssemblyName System.Windows.Forms
+[System.Windows.Forms.MessageBox]::Show("SysTracker Agent has been successfully installed and is running in the background.", "Installation Complete", "OK", "Information")

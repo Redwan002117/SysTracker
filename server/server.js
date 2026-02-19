@@ -344,6 +344,48 @@ const authenticateAPI = (req, res, next) => {
     }
 };
 
+// --- Auth Endpoints ---
+
+// Check Auth Status (for frontend redirect)
+app.get('/api/auth/status', (req, res) => {
+    // Check if setup is required
+    db.get("SELECT count(*) as count FROM admin_users", (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const setupRequired = row.count === 0;
+
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+
+        if (!token) return res.json({ authenticated: false, setup_required: setupRequired });
+
+        jwt.verify(token, JWT_SECRET, (err, user) => {
+            if (err) return res.json({ authenticated: false, setup_required: setupRequired });
+            res.json({ authenticated: true, user: user, setup_required: setupRequired });
+        });
+    });
+});
+
+// Login Endpoint
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body;
+    db.get("SELECT * FROM admin_users WHERE username = ?", [username], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+        bcrypt.compare(password, user.password_hash, (err, match) => {
+            if (err || !match) return res.status(401).json({ error: 'Invalid credentials' });
+
+            const token = jwt.sign(
+                { id: user.id, username: user.username },
+                JWT_SECRET,
+                { expiresIn: JWT_EXPIRES_IN }
+            );
+
+            res.json({ token, username: user.username });
+        });
+    });
+});
+
 // --- Settings Endpoints ---
 
 // Get SMTP Settings
