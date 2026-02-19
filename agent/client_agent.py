@@ -5,8 +5,16 @@ import psutil
 import requests
 import json
 import logging
-import win32evtlog
 import datetime
+
+# Try initializing Windows Event Log modules
+try:
+    import win32evtlog
+    import win32con
+    import win32api
+    WIN32_AVAILABLE = True
+except ImportError:
+    WIN32_AVAILABLE = False
 
 # Configuration
 DEFAULT_API_URL = "https://monitor.rico.bd/api"
@@ -14,7 +22,7 @@ DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() 
-VERSION = "2.6.5"
+VERSION = "2.6.6"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 
@@ -516,7 +524,18 @@ def get_detailed_hardware_info():
                         'socket': 'N/A',
                         'virtualization': 'N/A'
                     }
-        except: info['cpu'] = {}
+        except: 
+            # Fallback to platform for CPU Name if wmic fails
+            try:
+                info['cpu'] = {
+                    'name': platform.processor() or "Unknown CPU",
+                    'cores': psutil.cpu_count(logical=False) or "N/A",
+                    'logical': psutil.cpu_count(logical=True) or "N/A",
+                    'socket': 'N/A', 
+                    'virtualization': 'N/A'
+                }
+            except:
+                info['cpu'] = {}
 
         # RAM — Dashboard reads all_details.ram.modules[] with {capacity, speed, form_factor, manufacturer, part_number}
         try:
@@ -537,6 +556,16 @@ def get_detailed_hardware_info():
             info['ram'] = {'modules': ram_modules, 'slots_used': len(ram_modules)}
         except: info['ram'] = {'modules': [], 'slots_used': 0}
         
+        # Validation: If we have NO data, return None to avoid overwriting DB with empty structs
+        has_data = (
+            info.get('motherboard') or 
+            (info.get('cpu') and info['cpu'].get('name') != "Unknown CPU") or 
+            (info.get('ram') and info['ram'].get('modules'))
+        )
+        
+        if not has_data:
+            return None
+
         return info
     except Exception as e:
         logging.error(f"Error collecting hardware info: {e}")
@@ -547,6 +576,9 @@ def get_event_logs(last_check_time):
     Query Windows Event Logs for specific critical events since last_check_time.
     Target Event IDs: 41 (Kernel-Power), 1001 (BugCheck), 7 (Disk), 55 (Ntfs), 1000 (App Error), 1002 (App Hang)
     """
+    if not WIN32_AVAILABLE:
+        return []
+
     events = []
     target_ids = {41, 1001, 7, 55, 1000, 1002}
     log_types = ["System", "Application"]

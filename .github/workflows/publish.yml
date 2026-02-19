@@ -23,7 +23,7 @@ jobs:
           
       - name: Install PyInstaller and dependencies
         run: |
-          pip install pyinstaller psutil requests socketio-client
+          pip install pyinstaller psutil requests socketio-client pywin32
           
       - name: Build Agent EXE
         run: |
