@@ -527,7 +527,7 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                                                                 <td className="px-4 py-2.5 text-right font-mono text-slate-600">
                                                                     <div className="flex flex-col items-end leading-tight">
                                                                         <span>{p.mem}%</span>
-                                                                        {p.mem_mb && <span className="text-[10px] text-slate-400 group-hover:text-slate-500">{p.mem_mb.toFixed(0)} MB</span>}
+                                                                        {p.mem_mb && <span className="text-[10px] text-slate-400 group-hover:text-slate-500">{p.mem_mb.toFixed(1)} MB</span>}
                                                                     </div>
                                                                 </td>
                                                             </tr>

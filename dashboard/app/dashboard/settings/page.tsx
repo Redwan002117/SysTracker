@@ -4,16 +4,15 @@ import { useState, useEffect } from 'react';
 import Navbar from '../../../components/Navbar';
 import AuthGuard from '../../../components/AuthGuard';
 import { fetchWithAuth } from '../../../lib/auth';
-import { Mail, Save, Server, Shield, User, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw, Monitor, Download } from 'lucide-react';
+import { Mail, Save, Server, Shield, User, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Settings() {
-    const [activeTab, setActiveTab] = useState<'general' | 'smtp' | 'downloads'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'smtp'>('general');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
     const [testEmail, setTestEmail] = useState('');
-    const [downloading, setDownloading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     // API Key State
@@ -118,28 +117,6 @@ export default function Settings() {
         }
     };
 
-    const handleDownloadAgent = async () => {
-        setDownloading(true);
-        try {
-            const res = await fetchWithAuth('/api/download/agent');
-            if (!res.ok) throw new Error('Failed to download agent. Was it bundled?');
-
-            const blob = await res.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'SysTracker_Agent.exe';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
-        } finally {
-            setDownloading(false);
-        }
-    };
-
     const generateNewKey = () => {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = 'sk_live_';
@@ -194,13 +171,6 @@ export default function Settings() {
                                 }`}
                         >
                             <Mail size={16} /> SMTP Configuration
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('downloads')}
-                            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'downloads' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                                }`}
-                        >
-                            <Monitor size={16} /> Deployment & Downloads
                         </button>
                     </div>
 
@@ -394,72 +364,7 @@ export default function Settings() {
                                 </form>
                             </motion.div>
                         )}
-
-                        {activeTab === 'downloads' && (
-                            <motion.div
-                                key="downloads"
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                                transition={{ duration: 0.2 }}
-                                className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
-                            >
-                                <div className="p-6 border-b border-slate-100">
-                                    <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                                        <Monitor size={18} className="text-slate-400" /> Deployment Assets
-                                    </h2>
-                                    <p className="text-sm text-slate-500 mt-1">Download the agent binaries and get connection information.</p>
-                                </div>
-
-                                <div className="p-6 space-y-8">
-                                    <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                                        <div className="bg-blue-600 p-4 rounded-2xl text-white shadow-lg shadow-blue-500/20">
-                                            <Monitor size={48} />
-                                        </div>
-                                        <div className="flex-1 text-center md:text-left">
-                                            <h3 className="text-lg font-bold text-slate-900">SysTracker Agent for Windows</h3>
-                                            <p className="text-sm text-slate-500 mt-1">
-                                                Self-contained executable for monitoring Windows machines. No Python required on host.
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={handleDownloadAgent}
-                                            disabled={downloading}
-                                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2 disabled:opacity-50 active:scale-95 whitespace-nowrap"
-                                        >
-                                            {downloading ? <RefreshCw className="animate-spin" size={20} /> : <><Copy size={20} /> Download Agent EXE</>}
-                                        </button>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider px-1">Quick Setup Info</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="p-4 bg-white border border-slate-200 rounded-xl">
-                                                <p className="text-xs font-semibold text-slate-400 mb-1 tracking-tight">SERVER API URL</p>
-                                                <code className="text-sm font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                                    {typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}${window.location.port ? ':' + window.location.port : ''}` : 'http://your-server:7777'}
-                                                </code>
-                                            </div>
-                                            <div className="p-4 bg-white border border-slate-200 rounded-xl">
-                                                <p className="text-xs font-semibold text-slate-400 mb-1 tracking-tight">TELEMETRY PORT</p>
-                                                <code className="text-sm font-mono text-slate-600 bg-slate-100 px-2 py-1 rounded">
-                                                    {typeof window !== 'undefined' ? (window.location.port || (window.location.protocol === 'https:' ? '443' : '80')) : '7777'}
-                                                </code>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-3">
-                                        <AlertCircle className="text-amber-500 flex-shrink-0 mt-0.5" size={18} />
-                                        <p className="text-xs text-amber-800 leading-normal">
-                                            <strong>Deployment Tip:</strong> After downloading the Agent EXE, place it on the target machine. When running for the first time, it will ask for the Server API URL and the API Key (found in General tab). Ensure the target machine can reach this server over the network.
-                                        </p>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
                     </AnimatePresence>
-
                 </main>
             </div>
         </AuthGuard>

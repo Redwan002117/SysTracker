@@ -14,7 +14,7 @@ DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() 
-VERSION = "2.6.0"
+VERSION = "2.6.4"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 
@@ -371,9 +371,9 @@ def get_system_metrics():
                 processes.append({
                     'name': pinfo['name'],
                     'pid': pinfo['pid'],
-                    'cpu': round(pinfo['cpu_percent'] or 0, 1),          # Dashboard reads p.cpu
-                    'mem': round((mem_bytes / total_ram * 100), 1) if total_ram else 0,  # Dashboard reads p.mem
-                    'mem_mb': round(mem_bytes / (1024 * 1024), 1),        # Dashboard reads p.mem_mb
+                    'cpu': round((pinfo['cpu_percent'] or 0) / psutil.cpu_count(), 1),          # Normalized by core count
+                    'mem': round((mem_bytes / total_ram * 100), 1) if total_ram else 0,
+                    'mem_mb': round(mem_bytes / (1024 * 1024), 1),
                 })
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
@@ -501,7 +501,7 @@ def get_detailed_hardware_info():
                     }
         except Exception as e: 
             logging.error(f"MB Error: {e}")
-            info['motherboard'] = "Unknown"
+            # Do not set to "Unknown" string, keep empty dict to signal failure
 
         # CPU
         try:
@@ -644,8 +644,8 @@ def main():
                     "version": sys_info["version"],
                 }
 
-                # Only attach hardware_info when it's time to refresh
-                if send_hw:
+                # Only attach hardware_info when it's time to refresh AND if we have data
+                if send_hw and sys_info.get("hardware_info"):
                     machine_payload["hardware_info"] = sys_info.get("hardware_info")
                     last_hardware_sent = now_ts
 

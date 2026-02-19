@@ -845,17 +845,33 @@ app.post('/api/logs', authenticateAPI, (req, res) => {
 // Update Machine Profile (Dashboard uses JWT, not Agent API key)
 app.put('/api/machines/:id/profile', authenticateDashboard, (req, res) => {
     const { id } = req.params;
-    const { profile } = req.body; // Expects full profile object
-    console.log(`Updating profile for ${id}`);
+    const { profile } = req.body;
 
-    // Extract nickname from profile.name for backward compatibility/search if needed
-    const nickname = profile?.name || null;
+    if (!profile) {
+        return res.status(400).json({ error: 'Profile data is required' });
+    }
 
-    db.run('UPDATE machines SET nickname = ?, profile = ? WHERE id = ?', [nickname, JSON.stringify(profile), id], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
+    console.log(`[Profile] Updating for ${id}`);
+
+    // Extract nickname from profile.name for backward compatibility
+    const nickname = profile.name || null;
+    let profileBinary = null;
+
+    try {
+        profileBinary = JSON.stringify(profile);
+    } catch (e) {
+        console.error('[Profile] JSON Stringify Error:', e);
+        return res.status(400).json({ error: 'Invalid profile format' });
+    }
+
+    db.run('UPDATE machines SET nickname = ?, profile = ? WHERE id = ?', [nickname, profileBinary, id], function (err) {
+        if (err) {
+            console.error(`[Profile] DB Error for ${id}:`, err.message);
+            return res.status(500).json({ error: err.message });
+        }
         if (this.changes === 0) return res.status(404).json({ error: 'Machine not found' });
 
-        io.emit('machine_update', { id, nickname, profile }); // Notify clients
+        io.emit('machine_update', { id, nickname, profile });
         res.json({ success: true });
     });
 });
