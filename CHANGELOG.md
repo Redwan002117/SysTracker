@@ -1,6 +1,27 @@
 # SysTracker Changelog
 
-# SysTracker Changelog
+## [v2.5.4] - 2026-02-19
+
+### 🐛 Bug Fixes
+- **Server — Setup Wizard**: Fixed critical bug where `/api/setup` was nested inside the `/api/telemetry` callback and was therefore never reachable as an Express route. Fresh installs and containers with no admin users now correctly redirect to `/setup` and the account creation form actually works.
+- **Server — Authentication**: Removed `ADMIN_USER` / `ADMIN_PASSWORD` environment variable bypass that silently created a hardcoded admin account on startup, bypassing the setup wizard entirely.
+
+### ✨ New Features
+- **Server — First-Run Wizard**: On a fresh install with no admin users, visiting the app now redirects to `/setup` where you choose your own username, email, and password. The `/setup` route is blocked (403) once any admin user exists.
+- **Portfolio — Releases Hub (`/download`)**: Redesigned as a full Releases Hub:
+  - Sidebar limited to the **latest 10 releases** with a "View all" link to GitHub for older versions.
+  - **Source code downloads** (`.zip` and `.tar.gz`) always shown via GitHub's `zipball_url` / `tarball_url`.
+  - **Commit-based changelog fallback** — when a release has no notes, commits between that tag and the previous one are fetched and parsed using conventional commit prefixes (`feat:`, `fix:`, `perf:`, `refactor:`, `chore:`, etc.) into colour-coded sections.
+  - **Total downloads** stat now counts across all fetched releases (not just the displayed 10) and always shows the real number.
+  - Pre-releases are now labelled **Beta** in the sidebar.
+
+### 🔧 Improvements
+- **docker-compose.yml**: Removed hardcoded `ADMIN_USER` and `ADMIN_PASSWORD` env vars — credentials are now set only through the first-run wizard.
+- **Portfolio — Root Page**: Landing page moved to `/` (was previously a redirect to `/download`). The Releases Hub is now a standalone dedicated page.
+- **Portfolio — Navbar**: Logo links to `/`; mobile hamburger menu added.
+
+### 📝 Documentation
+- Server console now prints `SETUP REQUIRED: Visit /setup in your browser` instead of exposing a raw token.
 
 ## [v1.1.16] - 2026-02-18
 ### Changed
