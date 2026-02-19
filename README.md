@@ -31,19 +31,30 @@
 
 The Agent runs as a **Windows Service** (starts automatically, runs in background).
 
-1.  **Download** the `SysTracker_Agent_Windows.zip` from the [Latest Release](https://github.com/Redwan002117/SysTracker/releases/latest).
-2.  **Extract** the zip file to a folder (e.g., Downloads).
-3.  Right-click `install_agent.ps1` and select **Run with PowerShell**.
-    *   *Note: If prompted about Execution Policy, type `Y` to allow.*
-4.  Enter your **Server URL** when prompted (e.g., `http://192.168.1.10:7777`).
-5.  The script will:
-    *   Install the agent to `C:\Program Files\SysTracker Agent`.
-    *   Register and Start the Background Service.
+### 3. Install the Agent (Single Standalone App)
+You can install the agent on any Windows machine using the standalone executable.
+The Agent is a **Single Standalone Application**. It installs itself as a Windows Service.
 
-### Manual Service Control
-- **Start**: `Start-Service SysTrackerAgent`
-- **Stop**: `Stop-Service SysTrackerAgent`
-- **Logs**: Check `agent.log` in the installation directory.
+1.  **Download** `SysTracker_Agent.exe` from the Release.
+2.  Open **PowerShell** or **Command Prompt** as Administrator.
+3.  Run the install command:
+    ```powershell
+    .\SysTracker_Agent.exe --install
+    ```
+    *You can also pass `--url` and `--key` arguments to skip prompts.*
+
+4.  The agent will:
+    *   **Prompt you for Server URL and API Key** (if not provided).
+    *   **Test the connection** to the server.
+    *   Copy itself to `C:\Program Files\SysTrackerAgent`.
+    *   Create a `config.json` with your settings.
+    *   Register a background Scheduled Task (`SysTrackerAgent`).
+    *   Start automatically.
+
+### Management
+- **Stop/Uninstall**: `.\SysTracker_Agent.exe --uninstall`
+- **Kill Switch**: `.\SysTracker_Agent.exe --kill`
+- **Logs**: Check `agent.log` in `C:\Program Files\SysTrackerAgent`.
 
 ## 📦 Installation & Deployment
 
@@ -140,9 +151,12 @@ pkg . --out-path dist
 ### 3. Build the Agent
 ```bash
 cd agent
-npm install
-# Build executable
-npx pkg . --targets node18-win-x64 --output SysTracker_Agent
+pip install -r requirements.txt
+pip install pyinstaller
+
+# Build standalone executable (Silent Mode)
+pyinstaller SysTracker_Agent.spec
+# Output will be in dist/SysTracker_Agent.exe
 ```
 
 ---
