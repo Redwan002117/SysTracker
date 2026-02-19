@@ -43,7 +43,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
             <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl group-hover:bg-purple-500/30 transition-colors pointer-events-none"></div>
 
             <div className="relative z-10 flex flex-col items-center text-center p-8 lg:p-10">
-                <div className="flex justify-between w-full mb-2 absolute top-4 right-4">
+                <div className="flex justify-between w-full mb-2 absolute top-4 right-4 z-50">
                     {!isEditing && (
                         <button
                             onClick={() => setIsEditing(true)}
@@ -116,8 +116,22 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
 
                         {/* New Fields Grid */}
                         <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 mt-6">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block text-left px-1">Location & Asset</label>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block text-left px-1">Location & Contact</label>
                             <div className="grid grid-cols-2 gap-3">
+                                <input
+                                    type="text"
+                                    value={tempProfile.email || ''}
+                                    onChange={e => setTempProfile({ ...tempProfile, email: e.target.value })}
+                                    className="col-span-2 w-full text-center text-sm bg-white rounded-lg px-2 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    placeholder="Email Address"
+                                />
+                                <input
+                                    type="text"
+                                    value={tempProfile.department || ''}
+                                    onChange={e => setTempProfile({ ...tempProfile, department: e.target.value })}
+                                    className="col-span-2 w-full text-center text-sm bg-white rounded-lg px-2 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    placeholder="Department"
+                                />
                                 <input
                                     type="text"
                                     value={tempProfile.floor_name || ''}
@@ -232,11 +246,38 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
                         </button>
                     </div>
                 ) : (
-                    <div className="flex gap-3 w-full">
-                        <button className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg shadow-slate-900/20 active:scale-[0.98] flex items-center justify-center gap-2 group/btn text-base">
-                            <span>Contact User</span>
+                    <div className="w-full space-y-3">
+                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 text-left space-y-3">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contact User</h4>
+
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-500">
+                                    <User size={16} />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-xs text-slate-400">Email Address</div>
+                                    <div className="text-sm font-medium text-slate-700 truncate">{profile.email || 'No email set'}</div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white rounded-lg border border-slate-200 text-slate-500">
+                                    <Briefcase size={16} />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-xs text-slate-400">Department</div>
+                                    <div className="text-sm font-medium text-slate-700 truncate">{profile.department || 'General'}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a
+                            href={`mailto:${profile.email}`}
+                            className={`flex w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg shadow-slate-900/20 active:scale-[0.98] items-center justify-center gap-2 group/btn text-base ${!profile.email ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
+                        >
+                            <span>Send Email</span>
                             <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
-                        </button>
+                        </a>
                     </div>
                 )}
             </div>

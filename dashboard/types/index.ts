@@ -27,6 +27,8 @@ export interface Machine {
         floor_name?: string;
         desk_name?: string;
         pc_number?: string;
+        email?: string;
+        department?: string;
     };
 }
 
