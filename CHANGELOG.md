@@ -1,5 +1,32 @@
 # SysTracker Changelog
 
+## [v2.6.2] - 2026-02-19
+### 🐛 Bug Fixes
+- **CI/CD**: Fixed typo in GitHub Actions where the Linux build target was incorrectly specified as `node18-linux-64` instead of `node18-linux-x64`.
+
+## [v2.6.1] - 2026-02-19
+### 🐛 Bug Fixes
+- **Docker**: Resolved critical `MODULE_NOT_FOUND` error for `./emailTemplates` by updating the Dockerfile to correctly copy required assets.
+- **CI/CD**: Overhauled `publish.yml` to perfectly synchronize GitHub Release builds with validated local standalone build methods.
+
+## [v2.6.0] - 2026-02-19
+### 🚀 Speed & Performance
+- **3s Telemetry**: Reduced telemetry interval from 60s to **3s** for near-instant dashboard feedback.
+- **Socket Latency**: Optimized server event loop to emit dashboard updates *before* database writes.
+- **Non-blocking Agent**: Replaced blocking `psutil.cpu_percent` with a background priming thread, ensuring the agent loop never stalls.
+- **Payload Optimization**: Reduced network bandwidth usage by ~90% by batching `hardware_info` updates to once per 5 minutes.
+
+### 📦 All-in-One Standalone Architecture
+- **Unified Binary**: `SysTracker_Server.exe` now bundles the entire Web Dashboard and the Agent installer inside the binary.
+- **Zero-Dependency Deploy**: No more managing external static asset folders; the server is a single, portable file.
+- **Dual-Path Resolution**: Implemented `BASE_DIR` vs `ASSETS_DIR` logic to allow the server to run from read-only locations (like pkg snapshots) while safely persisting data to disk.
+
+### ✨ UI/UX & Quality of Life
+- **Deployment & Downloads**: Added a dedicated tab in Settings to download the pre-configured Agent EXE directly from the dashboard.
+- **Auth Stability**: Fixed hard-to-track 401/403 errors during nickname updates and session refreshes.
+- **Email Overhaul**: New professional Pro-Max HTML notification templates.
+- **Scaling Fix**: Resolved "Giant UI" layout issues on smaller screens.
+
 ## [v2.5.5] - 2026-02-19
 
 ### 🔄 Agent-Server Interconnection

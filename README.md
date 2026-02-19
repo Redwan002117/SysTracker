@@ -8,22 +8,21 @@
 
 ## 🚀 Key Features
 
-*   **Real-Time Monitoring**: Live updates via Socket.IO.
-*   **Centralized Dashboard**: View all your machines in one sleek interface.
+*   **Real-Time Monitoring**: Live 3-second updates via optimized Socket.IO.
+*   **All-in-One Standalone**: The server is a single EXE containing the Dashboard and Agent.
+*   **Centralized Dashboard**: View all your machines in one sleek, updated interface.
 *   **Detailed Metrics**: Track CPU Usage, RAM, Disk Space, Network details, and Uptime.
-*   **Remote Management**: Send commands (Restart, Shutdown) to agents (Admin privileges required).
-*   **Cross-Platform Server**: Host the Admin Server on **Windows**, **Linux (Ubuntu/Debian)**, or **Docker (CasaOS)**.
-*   **Zero-Config Agents**: Pre-compiled agents can be hardcoded to your server URL.
+*   **Remote Management**: Send commands (Restart, Shutdown) to agents.
+*   **Zero-Dependency Agents**: Download pre-configured agents directly from your dashboard.
 
 ---
 
 ## 📂 Repository Structure
 
-*   **/server**: Node.js Backend (Express + Socket.IO + SQLite). Handles telemetry and API.
-*   **/dashboard**: Next.js (React) Frontend. Static export is served by the backend.
-*   **/agent**: Python-based Client Agent. Collects system data and pushes to server.
-*   **/RELEASE**: (In local builds) Contains the compiled binaries and artifacts.
-*   **/.github/workflows**: CI/CD pipelines for automated Docker builds.
+*   **/server**: Node.js Standalone Backend. Serves both the API and the embedded Dashboard.
+*   **/dashboard**: Next.js (React) Frontend. Bundled into the server binary.
+*   **/agent**: Python-based Client Agent. Optimized for minimal payload size.
+*   **/Release**: Contains the latest compiled v2.6.2 binaries.
 
 ---
 
@@ -58,29 +57,18 @@ The Agent is a **Single Standalone Application**. It installs itself as a Window
 
 ## 📦 Installation & Deployment
 
-### Metric 1: The "Easy Way" (Pre-built Binaries)
-Go to the [**Releases Page**](https://github.com/Redwan002117/SysTracker/releases/latest) and download the latest version (**v2.5.3**).
+### Quick Start (The "Easy Way")
+Go to the [**Releases Page**](https://github.com/Redwan002117/SysTracker/releases/latest) and download the latest version (**v2.6.2**).
 
-**1. Admin Server (Host)**
-*   **Windows**: Download `SysTracker_Admin.exe` and run it. Open `http://localhost:7777`.
-*   **Linux**: Download `SysTracker_Admin_Linux`. Run `chmod +x` and then execute it.
+**1. Run the Admin Server**
+*   **Windows**: Download `SysTracker_Server.exe`. Run it.
+*   **Linux**: Download `SysTracker_Server`. Run `chmod +x` and then execute it.
+*   **Access**: Open `http://localhost:7777` in your browser.
 
-**2. First-Time Setup (New in v2.3)**
-*   Open the dashboard in your browser.
-*   You will be automatically redirected to the **Setup Wizard**.
-*   Create your admin account (`username`, `email`, `password`).
-*   That's it! No manual configuration required.
-
-**3. Agents (Clients)**
-*   **Windows (64-bit)**: Download `SysTracker_Agent.exe` or `SysTracker_Agent.msix`.
-*   **Configuration**:
-    *   If using the "Generic" agent, create a `config.json` file next to it:
-        ```json
-        {
-          "api_url": "http://YOUR_SERVER_IP:7777/api",
-          "api_key": "YOUR_STATIC_API_KEY_HERE"
-        }
-        ```
+**2. Setup & Deployment**
+*   Create your admin account through the setup wizard.
+*   Go to **Settings > Deployment & Downloads**.
+*   Download the **Agent EXE** and run it on machines you want to monitor. It's already configured to talk to your server!
 
 ---
 
