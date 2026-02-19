@@ -90,7 +90,7 @@ jobs:
         run: |
           cd server
           npm install
-          npx pkg . --targets node18-win-x64,node18-linux-64 --output dist/SysTracker_Server
+          npx pkg . --targets node18-win-x64,node18-linux-x64 --output dist/SysTracker_Server
           
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
