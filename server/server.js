@@ -21,6 +21,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const emailTemplates = require('./emailTemplates');
+const nodemailer = require('nodemailer');
 
 
 
@@ -275,9 +276,6 @@ function getSmtpConfig() {
     });
 }
 
-const nodemailer = require('nodemailer');
-
-// Helper: Send Email (Dynamic)
 // Helper: Send Email (Dynamic)
 async function sendEmail(to, subject, text, html) {
     const config = await getSmtpConfig();
@@ -805,17 +803,12 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
             (err) => {
                 if (err) { console.error("Error inserting metrics:", err); return; }
 
-                // Alerting engine (only runs on DB-persisted samples to avoid alert spam)
-                const alerts = [];
-                if (metrics.cpu_usage > 95) alerts.push({ type: 'CPU', message: `High CPU Usage: ${metrics.cpu_usage}%` });
-                if (metrics.disk_total_gb > 0 && (metrics.disk_free_gb / metrics.disk_total_gb) < 0.10)
-                    alerts.push({ type: 'DISK', message: `Low Disk Space: ${metrics.disk_free_gb}GB free` });
-                if (alerts.length > 0) {
-                    console.log(`[ALERT] Machine ${machine.id}:`, alerts);
-                    const alertStmt = db.prepare(`INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, 9999, 'SysTracker-Alert', ?, 'Warning', CURRENT_TIMESTAMP)`);
-                    alerts.forEach(a => alertStmt.run([machine.id, a.message]));
-                    alertStmt.finalize();
-                }
+                // --- DYNAMIC ALERT EVALUATION ---
+                evaluateAlerts(machine.id, {
+                    cpu: metrics.cpu_usage,
+                    ram: metrics.ram_usage,
+                    disk: metrics.disk_total_gb > 0 ? ((metrics.disk_total_gb - metrics.disk_free_gb) / metrics.disk_total_gb) * 100 : 0
+                });
             }
         );
     }
@@ -994,10 +987,314 @@ app.get('/api/machines/:id', authenticateDashboard, (req, res) => {
 });
 
 
+// Get Machine History (Metrics)
+app.get('/api/machines/:id/history', authenticateDashboard, (req, res) => {
+    const { id } = req.params;
+    const { range = '24h' } = req.query;
+
+    let timeFilter = "datetime('now', '-24 hours')";
+    let groupBy = ""; // Default: no grouping (raw data)
+    let select = "*"; // Default: select all columns
+
+    if (range === '1h') {
+        timeFilter = "datetime('now', '-1 hour')";
+    } else if (range === '7d') {
+        timeFilter = "datetime('now', '-7 days')";
+        // Group by hour to reduce data points
+        groupBy = "GROUP BY strftime('%Y-%m-%d %H', timestamp)";
+        select = "MAX(id) as id, machine_id, AVG(cpu_usage) as cpu_usage, AVG(ram_usage) as ram_usage, AVG(disk_total_gb) as disk_total_gb, AVG(disk_free_gb) as disk_free_gb, AVG(network_up_kbps) as network_up_kbps, AVG(network_down_kbps) as network_down_kbps, MAX(timestamp) as timestamp";
+    } else if (range === '30d') {
+        timeFilter = "datetime('now', '-30 days')";
+        // Group by 4-hour buckets approx or just hour is fine for 30d ~ 720 points
+        groupBy = "GROUP BY strftime('%Y-%m-%d %H', timestamp)";
+        select = "MAX(id) as id, machine_id, AVG(cpu_usage) as cpu_usage, AVG(ram_usage) as ram_usage, AVG(disk_total_gb) as disk_total_gb, AVG(disk_free_gb) as disk_free_gb, AVG(network_up_kbps) as network_up_kbps, AVG(network_down_kbps) as network_down_kbps, MAX(timestamp) as timestamp";
+    }
+
+    const query = `
+        SELECT ${select}
+        FROM metrics 
+        WHERE machine_id = ? AND timestamp > ${timeFilter}
+        ${groupBy}
+        ORDER BY timestamp ASC
+    `;
+
+    db.all(query, [id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Get Global System Load History
+app.get('/api/history/global', authenticateDashboard, (req, res) => {
+    const { range = '24h' } = req.query;
+
+    let timeFilter = "datetime('now', '-24 hours')";
+    let groupBy = "strftime('%Y-%m-%d %H', timestamp)"; // Default group by hour
+
+    // For global, we ALWAYS group to avoid returning millions of rows
+    if (range === '1h') {
+        timeFilter = "datetime('now', '-1 hour')";
+        groupBy = "strftime('%Y-%m-%d %H:%M', timestamp)"; // Minute resolution for 1h
+    } else if (range === '7d') {
+        timeFilter = "datetime('now', '-7 days')";
+        groupBy = "strftime('%Y-%m-%d %H', timestamp)";
+    } else if (range === '30d') {
+        timeFilter = "datetime('now', '-30 days')";
+        groupBy = "strftime('%Y-%m-%d %H', timestamp)"; // Still hourly avg is fine
+    }
+
+    const query = `
+        SELECT 
+            ${range === '1h' ? "strftime('%Y-%m-%d %H:%M', timestamp)" : "strftime('%Y-%m-%d %H:00', timestamp)"} as time_label,
+            AVG(cpu_usage) as avg_cpu,
+            AVG(ram_usage) as avg_ram,
+            MAX(timestamp) as timestamp
+        FROM metrics 
+        WHERE timestamp > ${timeFilter}
+        GROUP BY ${groupBy}
+        ORDER BY timestamp ASC
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
 // Socket.io for Real-time Dashboard
 io.on('connection', (socket) => {
     // console.log('Dashboard connected:', socket.id);
+    // Identify if client is an agent or dashboard
+    const isAgent = socket.handshake.query.role === 'agent';
+    const machineId = socket.handshake.query.id;
+
+    if (isAgent && machineId) {
+        socket.join(`agent_${machineId}`);
+        // console.log(`[Socket] Agent joined room: agent_${machineId}`);
+    }
+
+    // Listen for Command Results from Agent
+    socket.on('command_result', (data) => {
+        const { id, output, status } = data; // command id
+        console.log(`[Command] Result for ${id}: ${status}`);
+
+        db.run('UPDATE commands SET output = ?, status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [output, status, id],
+            (err) => {
+                if (err) console.error('[Command] DB Update Error:', err.message);
+
+                // Notify Dashboard
+                io.emit('command_updated', {
+                    id,
+                    output,
+                    status,
+                    completed_at: new Date()
+                });
+            }
+        );
+    });
+
     socket.on('disconnect', () => { });
+});
+
+// --- REMOTE COMMAND EXECUTION ---
+app.post('/api/machines/:id/command', authenticateDashboard, (req, res) => {
+    const { id } = req.params;
+    const { command } = req.body;
+
+    if (!command) return res.status(400).json({ error: 'Command is required' });
+
+    const commandId = crypto.randomUUID();
+    const cmd = {
+        id: commandId,
+        machine_id: id,
+        command,
+        status: 'pending',
+        created_at: new Date()
+    };
+
+    const stmt = db.prepare('INSERT INTO commands (id, machine_id, command, status, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)');
+    stmt.run([commandId, id, command], function (err) {
+        if (err) {
+            console.error('[Command] DB Error:', err.message);
+            return res.status(500).json({ error: 'Failed to save command' });
+        }
+
+        // Emit to specific agent room
+        io.to(`agent_${id}`).emit('exec_command', {
+            id: commandId,
+            command
+        });
+
+        res.json({ success: true, commandId, status: 'pending' });
+    });
+    stmt.finalize();
+});
+
+app.get('/api/machines/:id/commands', authenticateDashboard, (req, res) => {
+    const { id } = req.params;
+    db.all('SELECT * FROM commands WHERE machine_id = ? ORDER BY created_at DESC LIMIT 50', [id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// --- SCRIPT LIBRARY ---
+// Get All Scripts
+app.get('/api/scripts', authenticateDashboard, (req, res) => {
+    db.all('SELECT * FROM saved_scripts ORDER BY name ASC', (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Save Script
+app.post('/api/scripts', authenticateDashboard, (req, res) => {
+    const { name, command, platform } = req.body;
+    if (!name || !command) return res.status(400).json({ error: 'Name and Command required' });
+
+    const id = crypto.randomUUID();
+    db.run('INSERT INTO saved_scripts (id, name, command, platform) VALUES (?, ?, ?, ?)',
+        [id, name, command, platform || 'all'],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id, name, command, platform: platform || 'all' });
+        }
+    );
+});
+
+// Delete Script
+app.delete('/api/scripts/:id', authenticateDashboard, (req, res) => {
+    const { id } = req.params;
+    db.run('DELETE FROM saved_scripts WHERE id = ?', [id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, deleted: this.changes });
+    });
+});
+
+// --- ALERTING SYSTEM ---
+const evaluateAlerts = (machineId, metrics) => {
+    db.all('SELECT * FROM alert_policies WHERE enabled = 1', (err, policies) => {
+        if (err || !policies) return;
+
+        policies.forEach(policy => {
+            let value = null;
+            if (policy.metric === 'cpu') value = metrics.cpu;
+            else if (policy.metric === 'ram') value = metrics.ram;
+            else if (policy.metric === 'disk') value = metrics.disk;
+
+            if (value !== null) {
+                let triggered = false;
+                if (policy.operator === '>') triggered = value > policy.threshold;
+                else if (policy.operator === '<') triggered = value < policy.threshold;
+                else if (policy.operator === '=') triggered = value == policy.threshold; // loose equality for string/number mix
+
+                if (triggered) {
+                    // Check if already active
+                    db.get('SELECT id FROM alerts WHERE machine_id = ? AND policy_id = ? AND status = "active"',
+                        [machineId, policy.id],
+                        (err, existing) => {
+                            if (!existing) {
+                                // Create New Alert
+                                const alertId = crypto.randomUUID();
+                                console.log(`[Alert] Triggered: ${policy.name} on ${machineId} (Value: ${value})`);
+                                db.run('INSERT INTO alerts (id, machine_id, policy_id, value, status, created_at) VALUES (?, ?, ?, ?, "active", CURRENT_TIMESTAMP)',
+                                    [alertId, machineId, policy.id, value]);
+
+                                // Insert into Events for Audit Log
+                                db.run('INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, 9999, "Alert System", ?, "Warning", CURRENT_TIMESTAMP)',
+                                    [machineId, `Triggered: ${policy.name} (${value} ${policy.operator} ${policy.threshold})`]);
+
+                                // Send Email Notification
+                                db.get('SELECT hostname FROM machines WHERE id = ?', [machineId], (err, machineParams) => {
+                                    if (machineParams) {
+                                        // Get Admin Email (Simplifiction: Get first admin)
+                                        db.get('SELECT email FROM admin_users LIMIT 1', (err, admin) => {
+                                            if (admin && admin.email) {
+                                                const alertsList = [{ type: policy.name, message: `Value: ${value} (Threshold: ${policy.threshold})` }];
+                                                const html = emailTemplates.alertEmail(machineParams.hostname, alertsList);
+                                                sendEmail(admin.email, `[Alert] ${policy.name} on ${machineParams.hostname}`,
+                                                    `Machine ${machineParams.hostname} triggered ${policy.name}. Value: ${value}`, html);
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                } else {
+                    // Resolve if active
+                    db.run('UPDATE alerts SET status = "resolved", resolved_at = CURRENT_TIMESTAMP WHERE machine_id = ? AND policy_id = ? AND status = "active"',
+                        [machineId, policy.id],
+                        function (err) {
+                            if (this.changes > 0) {
+                                console.log(`[Alert] Resolved: ${policy.name} on ${machineId}`);
+                                // Insert Resolution Event
+                                db.run('INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, 9998, "Alert System", ?, "Info", CURRENT_TIMESTAMP)',
+                                    [machineId, `Resolved: ${policy.name}`]);
+                            }
+                        }
+                    );
+                }
+            }
+        });
+    });
+};
+
+// Delete Script
+app.delete('/api/scripts/:id', authenticateDashboard, (req, res) => {
+    const { id } = req.params;
+    db.run('DELETE FROM saved_scripts WHERE id = ?', [id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, deleted: this.changes });
+    });
+});
+
+// --- ALERT POLICIES API ---
+app.get('/api/alerts/policies', authenticateDashboard, (req, res) => {
+    db.all('SELECT * FROM alert_policies ORDER BY created_at DESC', (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/alerts/policies', authenticateDashboard, (req, res) => {
+    const { name, metric, operator, threshold, duration_minutes, priority, enabled } = req.body;
+    if (!name || !metric || !operator || threshold === undefined) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const id = crypto.randomUUID();
+    db.run(
+        `INSERT INTO alert_policies (id, name, metric, operator, threshold, duration_minutes, priority, enabled) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, name, metric, operator, threshold, duration_minutes || 1, priority || 'high', enabled ? 1 : 0],
+        (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, id });
+        }
+    );
+});
+
+app.delete('/api/alerts/policies/:id', authenticateDashboard, (req, res) => {
+    const { id } = req.params;
+    db.run('DELETE FROM alert_policies WHERE id = ?', [id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, deleted: this.changes });
+    });
+});
+
+app.get('/api/alerts/active', authenticateDashboard, (req, res) => {
+    db.all(`
+        SELECT a.*, p.name as policy_name, p.priority, m.hostname 
+        FROM alerts a
+        JOIN alert_policies p ON a.policy_id = p.id
+        JOIN machines m ON a.machine_id = m.id
+        WHERE a.status = 'active'
+        ORDER BY a.created_at DESC
+    `, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
 });
 
 // Periodic Offset Check (mark offline if > 2 mins)

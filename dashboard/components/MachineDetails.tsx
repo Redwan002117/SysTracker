@@ -2,9 +2,11 @@
 
 import React from 'react';
 import { Machine } from '../types';
-import { X, Server, Cpu, HardDrive, CircuitBoard, Layers, Monitor, Activity, Radio, Shield, Globe } from 'lucide-react';
+import { X, Server, Cpu, HardDrive, CircuitBoard, Layers, Monitor, Activity, Radio, Shield, Globe, Terminal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileCard from './ProfileCard';
+import TerminalTab from './TerminalTab';
+import PerformanceHistory from './PerformanceHistory';
 
 interface MachineDetailsProps {
     machine: Machine | null;
@@ -27,6 +29,7 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
     const isOnline = machine.status === 'online';
     const { hardware_info } = machine;
 
+    const [activeTab, setActiveTab] = React.useState<'overview' | 'terminal' | 'history'>('overview');
     const [isEditing, setIsEditing] = React.useState(false);
     const [nickname, setNickname] = React.useState(machine.nickname || '');
     const [sortConfig, setSortConfig] = React.useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'cpu', direction: 'desc' });
@@ -207,346 +210,381 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-                                {/* Metrics Summary Cards */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors hover:bg-blue-50/30 group">
-                                        <div className="text-slate-500 mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"><Cpu size={14} /> CPU</div>
-                                        <div className="text-3xl font-bold text-slate-800 tabular-nums tracking-tight">{machine.metrics?.cpu || 0}%</div>
-                                        <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
-                                            <motion.div
-                                                initial={{ width: 0 }} animate={{ width: `${machine.metrics?.cpu || 0}%` }} transition={{ duration: 1 }}
-                                                className="bg-blue-500 h-full rounded-full"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 hover:border-purple-200 transition-colors hover:bg-purple-50/30">
-                                        <div className="text-slate-500 mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"><Layers size={14} /> RAM</div>
-                                        <div className="text-3xl font-bold text-slate-800 tabular-nums tracking-tight">{machine.metrics?.ram || 0}%</div>
-                                        <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
-                                            <motion.div
-                                                initial={{ width: 0 }} animate={{ width: `${machine.metrics?.ram || 0}%` }} transition={{ duration: 1, delay: 0.1 }}
-                                                className="bg-purple-500 h-full rounded-full"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 hover:border-amber-200 transition-colors hover:bg-amber-50/30">
-                                        <div className="text-slate-500 mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"><HardDrive size={14} /> Disk</div>
-                                        <div className="text-3xl font-bold text-slate-800 tabular-nums tracking-tight">{machine.metrics?.disk || 0}%</div>
-                                        <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
-                                            <motion.div
-                                                initial={{ width: 0 }} animate={{ width: `${machine.metrics?.disk || 0}%` }} transition={{ duration: 1, delay: 0.2 }}
-                                                className="bg-amber-500 h-full rounded-full"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 hover:border-emerald-200 transition-colors hover:bg-emerald-50/30">
-                                        <div className="text-slate-500 mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"><Activity size={14} /> Network</div>
-                                        <div className="mt-1 space-y-1.5">
-                                            <div className="flex items-center justify-between text-xs">
-                                                <span className="flex items-center gap-1.5 text-slate-400 font-medium"><Activity size={10} className="rotate-180 text-blue-500" /> Down</span>
-                                                <span className="font-bold text-slate-700 font-mono">{formatNetworkSpeed(machine.metrics?.network_down_kbps)}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between text-xs">
-                                                <span className="flex items-center gap-1.5 text-slate-400 font-medium"><Activity size={10} className="text-emerald-500" /> Up</span>
-                                                <span className="font-bold text-slate-700 font-mono">{formatNetworkSpeed(machine.metrics?.network_up_kbps)}</span>
+                            {/* Tab Navigation */}
+                            <div className="flex bg-slate-50 border-b border-slate-200">
+                                <button
+                                    onClick={() => setActiveTab('overview')}
+                                    className={`flex-1 p-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors border-b-2 ${activeTab === 'overview' ? 'text-blue-600 bg-white border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'}`}
+                                >
+                                    <Activity size={16} />
+                                    <span>Overview</span>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('terminal')}
+                                    className={`flex-1 p-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors border-b-2 ${activeTab === 'terminal' ? 'text-purple-600 bg-white border-purple-600' : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'}`}
+                                >
+                                    <Terminal size={16} />
+                                    <span>Terminal</span>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('history')}
+                                    className={`flex-1 p-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors border-b-2 ${activeTab === 'history' ? 'text-emerald-600 bg-white border-emerald-600' : 'text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-100'}`}
+                                >
+                                    <Activity size={16} />
+                                    <span>History</span>
+                                </button>
+                            </div>
+
+                            {activeTab === 'overview' ? (
+                                <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+                                    {/* Metrics Summary Cards */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors hover:bg-blue-50/30 group">
+                                            <div className="text-slate-500 mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"><Cpu size={14} /> CPU</div>
+                                            <div className="text-3xl font-bold text-slate-800 tabular-nums tracking-tight">{machine.metrics?.cpu || 0}%</div>
+                                            <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
+                                                <motion.div
+                                                    initial={{ width: 0 }} animate={{ width: `${machine.metrics?.cpu || 0}%` }} transition={{ duration: 1 }}
+                                                    className="bg-blue-500 h-full rounded-full"
+                                                />
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                    {/* Left Column: System & Hardware */}
-                                    <div className="space-y-8">
-
-                                        {/* Mobile Profile Card */}
-                                        <div className="xl:hidden">
-                                            <ProfileCard machine={machine} onUpdate={handleProfileUpdate} />
+                                        <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 hover:border-purple-200 transition-colors hover:bg-purple-50/30">
+                                            <div className="text-slate-500 mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"><Layers size={14} /> RAM</div>
+                                            <div className="text-3xl font-bold text-slate-800 tabular-nums tracking-tight">{machine.metrics?.ram || 0}%</div>
+                                            <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
+                                                <motion.div
+                                                    initial={{ width: 0 }} animate={{ width: `${machine.metrics?.ram || 0}%` }} transition={{ duration: 1, delay: 0.1 }}
+                                                    className="bg-purple-500 h-full rounded-full"
+                                                />
+                                            </div>
                                         </div>
+                                        <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 hover:border-amber-200 transition-colors hover:bg-amber-50/30">
+                                            <div className="text-slate-500 mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"><HardDrive size={14} /> Disk</div>
+                                            <div className="text-3xl font-bold text-slate-800 tabular-nums tracking-tight">{machine.metrics?.disk || 0}%</div>
+                                            <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 overflow-hidden">
+                                                <motion.div
+                                                    initial={{ width: 0 }} animate={{ width: `${machine.metrics?.disk || 0}%` }} transition={{ duration: 1, delay: 0.2 }}
+                                                    className="bg-amber-500 h-full rounded-full"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 hover:border-emerald-200 transition-colors hover:bg-emerald-50/30">
+                                            <div className="text-slate-500 mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest"><Activity size={14} /> Network</div>
+                                            <div className="mt-1 space-y-1.5">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="flex items-center gap-1.5 text-slate-400 font-medium"><Activity size={10} className="rotate-180 text-blue-500" /> Down</span>
+                                                    <span className="font-bold text-slate-700 font-mono">{formatNetworkSpeed(machine.metrics?.network_down_kbps)}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className="flex items-center gap-1.5 text-slate-400 font-medium"><Activity size={10} className="text-emerald-500" /> Up</span>
+                                                    <span className="font-bold text-slate-700 font-mono">{formatNetworkSpeed(machine.metrics?.network_up_kbps)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                        {/* System Details */}
-                                        <section>
-                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                <Shield size={14} /> System Info
-                                            </h3>
-                                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5 hover:shadow-md transition-shadow">
-                                                <div className="grid grid-cols-2 gap-y-6 gap-x-6">
-                                                    <div>
-                                                        <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">Hostname</span>
-                                                        <span className="font-semibold text-slate-700 bg-slate-50 px-2 py-1 rounded select-all">{machine.hostname}</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">OS Version</span>
-                                                        <span className="font-medium text-slate-700 text-sm">{machine.os}</span>
-                                                    </div>
-                                                    <div className="col-span-2 border-t border-slate-50 pt-4 grid grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                        {/* Left Column: System & Hardware */}
+                                        <div className="space-y-8">
+
+                                            {/* Mobile Profile Card */}
+                                            <div className="xl:hidden">
+                                                <ProfileCard machine={machine} onUpdate={handleProfileUpdate} />
+                                            </div>
+
+                                            {/* System Details */}
+                                            <section>
+                                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                    <Shield size={14} /> System Info
+                                                </h3>
+                                                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5 hover:shadow-md transition-shadow">
+                                                    <div className="grid grid-cols-2 gap-y-6 gap-x-6">
                                                         <div>
-                                                            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5 flex items-center gap-1.5"><Activity size={10} /> Uptime</span>
-                                                            <span className="font-mono text-sm text-slate-700 font-medium">
-                                                                {(() => {
-                                                                    const seconds = machine.metrics?.uptime_seconds || 0;
-                                                                    const days = Math.floor(seconds / 86400);
-                                                                    const hours = Math.floor((seconds % 86400) / 3600);
-                                                                    const minutes = Math.floor((seconds % 3600) / 60);
-                                                                    const secs = Math.floor(seconds % 60);
-                                                                    return `${days}d ${hours}h ${minutes}m ${secs}s`;
-                                                                })()}
-                                                            </span>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">Hostname</span>
+                                                            <span className="font-semibold text-slate-700 bg-slate-50 px-2 py-1 rounded select-all">{machine.hostname}</span>
                                                         </div>
                                                         <div>
-                                                            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5 flex items-center gap-1.5"><Radio size={10} /> Last Saw</span>
-                                                            <span className="font-mono text-sm text-slate-700 font-medium">
-                                                                {new Date(machine.last_seen).toLocaleTimeString()}
-                                                            </span>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">OS Version</span>
+                                                            <span className="font-medium text-slate-700 text-sm">{machine.os}</span>
                                                         </div>
-                                                        <div>
-                                                            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">Boot Time</span>
-                                                            <span className="font-mono text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded">
-                                                                {machine.metrics?.uptime_seconds
-                                                                    ? new Date(Date.now() - machine.metrics.uptime_seconds * 1000).toLocaleString()
-                                                                    : 'Unknown'}
-                                                            </span>
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">Serial / UUID</span>
-                                                            <span className="font-mono text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded select-all block break-all truncate" title={(() => {
-                                                                const sys = hardware_info?.all_details?.system;
-                                                                const mb = hardware_info?.all_details?.motherboard;
-                                                                if (sys?.identifying_number && sys.identifying_number !== 'N/A') return sys.identifying_number;
-                                                                if (sys?.uuid && sys.uuid !== 'N/A') return sys.uuid;
-                                                                return mb?.serial || 'N/A';
-                                                            })()}>
-                                                                {(() => {
+                                                        <div className="col-span-2 border-t border-slate-50 pt-4 grid grid-cols-2 gap-6">
+                                                            <div>
+                                                                <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5 flex items-center gap-1.5"><Activity size={10} /> Uptime</span>
+                                                                <span className="font-mono text-sm text-slate-700 font-medium">
+                                                                    {(() => {
+                                                                        const seconds = machine.metrics?.uptime_seconds || 0;
+                                                                        const days = Math.floor(seconds / 86400);
+                                                                        const hours = Math.floor((seconds % 86400) / 3600);
+                                                                        const minutes = Math.floor((seconds % 3600) / 60);
+                                                                        const secs = Math.floor(seconds % 60);
+                                                                        return `${days}d ${hours}h ${minutes}m ${secs}s`;
+                                                                    })()}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5 flex items-center gap-1.5"><Radio size={10} /> Last Saw</span>
+                                                                <span className="font-mono text-sm text-slate-700 font-medium">
+                                                                    {new Date(machine.last_seen).toLocaleTimeString()}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">Boot Time</span>
+                                                                <span className="font-mono text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded">
+                                                                    {machine.metrics?.uptime_seconds
+                                                                        ? new Date(Date.now() - machine.metrics.uptime_seconds * 1000).toLocaleString()
+                                                                        : 'Unknown'}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">Serial / UUID</span>
+                                                                <span className="font-mono text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded select-all block break-all truncate" title={(() => {
                                                                     const sys = hardware_info?.all_details?.system;
                                                                     const mb = hardware_info?.all_details?.motherboard;
-                                                                    if (sys?.identifying_number && sys.identifying_number !== 'N/A' && sys.identifying_number !== 'To be filled by O.E.M.') return sys.identifying_number;
-                                                                    if (sys?.uuid && sys.uuid !== 'N/A' && sys.uuid !== 'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF') return sys.uuid;
-                                                                    const mbSerial = mb?.serial;
-                                                                    if (mbSerial && mbSerial !== 'N/A' && !mbSerial.toLowerCase().includes('default string')) return mbSerial;
-                                                                    return 'N/A';
-                                                                })()}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </section>
-
-                                        {/* Hardware Specs */}
-                                        <section>
-                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                <CircuitBoard size={14} /> Hardware Specs
-                                            </h3>
-                                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50 hover:shadow-md transition-shadow">
-
-                                                {/* Motherboard */}
-                                                <div className="p-5">
-                                                    <div className="flex items-center gap-3 mb-3">
-                                                        <div className="bg-indigo-50 text-indigo-600 p-1.5 rounded-lg ring-1 ring-indigo-100"><CircuitBoard size={16} /></div>
-                                                        <h4 className="font-semibold text-slate-800 text-sm">Motherboard</h4>
-                                                    </div>
-                                                    {hardware_info?.all_details?.motherboard ? (
-                                                        <div className="text-sm space-y-1 ml-11">
-                                                            <div className="text-slate-800 font-medium">{formatValue(hardware_info.all_details.motherboard.manufacturer)}</div>
-                                                            <div className="text-slate-500">{formatValue(hardware_info.all_details.motherboard.product)}</div>
-                                                            <div className="text-xs text-slate-400 font-mono mt-1">Ver: {formatValue(hardware_info.all_details.motherboard.version)}</div>
-                                                        </div>
-                                                    ) : <span className="text-slate-400 italic text-sm ml-11">Unknown</span>}
-                                                </div>
-
-                                                {/* CPU Details */}
-                                                <div className="p-5">
-                                                    <div className="flex items-center gap-3 mb-3">
-                                                        <div className="bg-orange-50 text-orange-600 p-1.5 rounded-lg ring-1 ring-orange-100"><Cpu size={16} /></div>
-                                                        <h4 className="font-semibold text-slate-800 text-sm">Processor</h4>
-                                                    </div>
-                                                    {hardware_info?.all_details?.cpu?.name ? (
-                                                        <div className="text-sm space-y-2 ml-11">
-                                                            <div className="text-slate-800 font-medium leading-tight">{hardware_info.all_details.cpu.name}</div>
-                                                            <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
-                                                                <div className="bg-slate-50 px-2 py-1 rounded">Cores: <span className="text-slate-700 font-semibold">{hardware_info.all_details.cpu.cores}</span></div>
-                                                                <div className="bg-slate-50 px-2 py-1 rounded">Threads: <span className="text-slate-700 font-semibold">{hardware_info.all_details.cpu.logical}</span></div>
-                                                                <div>Socket: <span className="text-slate-700">{hardware_info.all_details.cpu.socket}</span></div>
-                                                                <div>Virt: <span className="text-slate-700">{hardware_info.all_details.cpu.virtualization}</span></div>
+                                                                    if (sys?.identifying_number && sys.identifying_number !== 'N/A') return sys.identifying_number;
+                                                                    if (sys?.uuid && sys.uuid !== 'N/A') return sys.uuid;
+                                                                    return mb?.serial || 'N/A';
+                                                                })()}>
+                                                                    {(() => {
+                                                                        const sys = hardware_info?.all_details?.system;
+                                                                        const mb = hardware_info?.all_details?.motherboard;
+                                                                        if (sys?.identifying_number && sys.identifying_number !== 'N/A' && sys.identifying_number !== 'To be filled by O.E.M.') return sys.identifying_number;
+                                                                        if (sys?.uuid && sys.uuid !== 'N/A' && sys.uuid !== 'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF') return sys.uuid;
+                                                                        const mbSerial = mb?.serial;
+                                                                        if (mbSerial && mbSerial !== 'N/A' && !mbSerial.toLowerCase().includes('default string')) return mbSerial;
+                                                                        return 'N/A';
+                                                                    })()}
+                                                                </span>
                                                             </div>
                                                         </div>
-                                                    ) : <span className="text-slate-400 italic text-sm ml-11">Unknown CPU</span>}
+                                                    </div>
                                                 </div>
+                                            </section>
 
-                                                {/* GPU Details */}
-                                                {hardware_info?.all_details?.gpu && hardware_info.all_details.gpu.length > 0 && (
+                                            {/* Hardware Specs */}
+                                            <section>
+                                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                    <CircuitBoard size={14} /> Hardware Specs
+                                                </h3>
+                                                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden divide-y divide-slate-50 hover:shadow-md transition-shadow">
+
+                                                    {/* Motherboard */}
                                                     <div className="p-5">
                                                         <div className="flex items-center gap-3 mb-3">
-                                                            <div className="bg-red-50 text-red-600 p-1.5 rounded-lg ring-1 ring-red-100"><Monitor size={16} /></div>
-                                                            <h4 className="font-semibold text-slate-800 text-sm">Graphics</h4>
+                                                            <div className="bg-indigo-50 text-indigo-600 p-1.5 rounded-lg ring-1 ring-indigo-100"><CircuitBoard size={16} /></div>
+                                                            <h4 className="font-semibold text-slate-800 text-sm">Motherboard</h4>
                                                         </div>
-                                                        <div className="space-y-4 ml-11">
-                                                            {hardware_info.all_details.gpu.map((gpu, i) => (
-                                                                <div key={i} className="text-sm">
-                                                                    <div className="text-slate-800 font-medium">{gpu.name}</div>
-                                                                    <div className="grid grid-cols-2 gap-1 text-xs text-slate-500 mt-1">
-                                                                        <div>Mem: <span className="text-slate-700">{gpu.memory}</span></div>
-                                                                        <div className="truncate" title={gpu.driver_version}>Driver: <span className="text-slate-700">{gpu.driver_version}</span></div>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
+                                                        {hardware_info?.all_details?.motherboard ? (
+                                                            <div className="text-sm space-y-1 ml-11">
+                                                                <div className="text-slate-800 font-medium">{formatValue(hardware_info.all_details.motherboard.manufacturer)}</div>
+                                                                <div className="text-slate-500">{formatValue(hardware_info.all_details.motherboard.product)}</div>
+                                                                <div className="text-xs text-slate-400 font-mono mt-1">Ver: {formatValue(hardware_info.all_details.motherboard.version)}</div>
+                                                            </div>
+                                                        ) : <span className="text-slate-400 italic text-sm ml-11">Unknown</span>}
                                                     </div>
-                                                )}
 
-                                                {/* Memory Details */}
-                                                <div className="p-5">
-                                                    <div className="flex items-center gap-3 mb-3">
-                                                        <div className="bg-pink-50 text-pink-600 p-1.5 rounded-lg ring-1 ring-pink-100"><Layers size={16} /></div>
-                                                        <h4 className="font-semibold text-slate-800 text-sm">Memory Modules</h4>
-                                                    </div>
-                                                    {hardware_info?.all_details?.ram?.modules && hardware_info.all_details.ram.modules.length > 0 ? (
-                                                        <div className="space-y-2 ml-11">
-                                                            {hardware_info.all_details.ram.modules.map((stick, i) => (
-                                                                <div key={i} className="flex flex-col text-xs bg-slate-50/80 p-2.5 rounded-lg border border-slate-100">
-                                                                    <div className="flex justify-between items-center mb-1">
-                                                                        <span className="font-semibold text-slate-700">{stick.capacity} <span className="text-slate-400 font-normal">@ {stick.speed}</span></span>
-                                                                        <span className="text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-100 shadow-sm">{stick.form_factor}</span>
-                                                                    </div>
-                                                                    <div className="text-slate-400 flex justify-between items-center">
-                                                                        <span>{stick.manufacturer}</span>
-                                                                        <span className="font-mono opacity-80">{stick.part_number}</span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                            <div className="text-xs text-slate-400 text-right mt-1 font-medium">Slots Used: {hardware_info.all_details.ram.slots_used}</div>
+                                                    {/* CPU Details */}
+                                                    <div className="p-5">
+                                                        <div className="flex items-center gap-3 mb-3">
+                                                            <div className="bg-orange-50 text-orange-600 p-1.5 rounded-lg ring-1 ring-orange-100"><Cpu size={16} /></div>
+                                                            <h4 className="font-semibold text-slate-800 text-sm">Processor</h4>
                                                         </div>
+                                                        {hardware_info?.all_details?.cpu?.name ? (
+                                                            <div className="text-sm space-y-2 ml-11">
+                                                                <div className="text-slate-800 font-medium leading-tight">{hardware_info.all_details.cpu.name}</div>
+                                                                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
+                                                                    <div className="bg-slate-50 px-2 py-1 rounded">Cores: <span className="text-slate-700 font-semibold">{hardware_info.all_details.cpu.cores}</span></div>
+                                                                    <div className="bg-slate-50 px-2 py-1 rounded">Threads: <span className="text-slate-700 font-semibold">{hardware_info.all_details.cpu.logical}</span></div>
+                                                                    <div>Socket: <span className="text-slate-700">{hardware_info.all_details.cpu.socket}</span></div>
+                                                                    <div>Virt: <span className="text-slate-700">{hardware_info.all_details.cpu.virtualization}</span></div>
+                                                                </div>
+                                                            </div>
+                                                        ) : <span className="text-slate-400 italic text-sm ml-11">Unknown CPU</span>}
+                                                    </div>
+
+                                                    {/* GPU Details */}
+                                                    {hardware_info?.all_details?.gpu && hardware_info.all_details.gpu.length > 0 && (
+                                                        <div className="p-5">
+                                                            <div className="flex items-center gap-3 mb-3">
+                                                                <div className="bg-red-50 text-red-600 p-1.5 rounded-lg ring-1 ring-red-100"><Monitor size={16} /></div>
+                                                                <h4 className="font-semibold text-slate-800 text-sm">Graphics</h4>
+                                                            </div>
+                                                            <div className="space-y-4 ml-11">
+                                                                {hardware_info.all_details.gpu.map((gpu, i) => (
+                                                                    <div key={i} className="text-sm">
+                                                                        <div className="text-slate-800 font-medium">{gpu.name}</div>
+                                                                        <div className="grid grid-cols-2 gap-1 text-xs text-slate-500 mt-1">
+                                                                            <div>Mem: <span className="text-slate-700">{gpu.memory}</span></div>
+                                                                            <div className="truncate" title={gpu.driver_version}>Driver: <span className="text-slate-700">{gpu.driver_version}</span></div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Memory Details */}
+                                                    <div className="p-5">
+                                                        <div className="flex items-center gap-3 mb-3">
+                                                            <div className="bg-pink-50 text-pink-600 p-1.5 rounded-lg ring-1 ring-pink-100"><Layers size={16} /></div>
+                                                            <h4 className="font-semibold text-slate-800 text-sm">Memory Modules</h4>
+                                                        </div>
+                                                        {hardware_info?.all_details?.ram?.modules && hardware_info.all_details.ram.modules.length > 0 ? (
+                                                            <div className="space-y-2 ml-11">
+                                                                {hardware_info.all_details.ram.modules.map((stick, i) => (
+                                                                    <div key={i} className="flex flex-col text-xs bg-slate-50/80 p-2.5 rounded-lg border border-slate-100">
+                                                                        <div className="flex justify-between items-center mb-1">
+                                                                            <span className="font-semibold text-slate-700">{stick.capacity} <span className="text-slate-400 font-normal">@ {stick.speed}</span></span>
+                                                                            <span className="text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-100 shadow-sm">{stick.form_factor}</span>
+                                                                        </div>
+                                                                        <div className="text-slate-400 flex justify-between items-center">
+                                                                            <span>{stick.manufacturer}</span>
+                                                                            <span className="font-mono opacity-80">{stick.part_number}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                                <div className="text-xs text-slate-400 text-right mt-1 font-medium">Slots Used: {hardware_info.all_details.ram.slots_used}</div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-slate-400 italic text-sm ml-11">Unknown RAM</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </section>
+                                        </div>
+
+                                        {/* Right Column: Dynamic Data */}
+                                        <div className="space-y-8">
+
+                                            {/* Network Adapters */}
+                                            <section>
+                                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                    <Globe size={14} /> Interfaces
+                                                </h3>
+                                                <div className="space-y-3">
+                                                    {hardware_info?.all_details?.network && hardware_info.all_details.network.length > 0 ? (
+                                                        hardware_info.all_details.network.map((net, i) => (
+                                                            <div key={i} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2 hover:border-blue-100 transition-colors">
+                                                                <div className="flex justify-between items-center">
+                                                                    <div className="flex items-center gap-2.5">
+                                                                        <div className={`p-1.5 rounded-lg text-xs ${net.type === 'Wi-Fi' ? 'bg-sky-50 text-sky-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                                            {net.type === 'Wi-Fi' ? <Radio size={14} /> : <CircuitBoard size={14} />}
+                                                                        </div>
+                                                                        <span className="font-semibold text-slate-700 text-xs truncate max-w-[150px]" title={net.interface}>{net.interface}</span>
+                                                                    </div>
+                                                                    {net.speed_mbps ? <span className="text-[10px] font-bold bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-100">{formatLinkSpeed(net.speed_mbps)}</span> : null}
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 bg-slate-50 p-2 rounded-lg font-mono">
+                                                                    <div title={net.ip_address} className="truncate">{net.ip_address}</div>
+                                                                    <div className="text-right truncate" title={net.mac}>{net.mac}</div>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    ) : <p className="text-slate-400 text-sm italic">No network interfaces.</p>}
+                                                </div>
+                                            </section>
+
+                                            {/* Storage */}
+                                            <section>
+                                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                    <HardDrive size={14} /> Storage
+                                                </h3>
+                                                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-5 hover:shadow-md transition-shadow">
+                                                    {machine.metrics?.disk_details && machine.metrics.disk_details.length > 0 ? (
+                                                        machine.metrics.disk_details.map((disk, i) => (
+                                                            <div key={i}>
+                                                                <div className="flex justify-between items-center mb-1.5">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="font-semibold text-slate-700 text-sm">
+                                                                            {disk.label ? `${disk.label} (${disk.mount})` : disk.mount}
+                                                                        </span>
+                                                                        <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.5 bg-slate-50 rounded uppercase">{disk.type}</span>
+                                                                    </div>
+                                                                    <span className="text-sm font-bold text-slate-600">{disk.percent}%</span>
+                                                                </div>
+
+                                                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-1.5">
+                                                                    <motion.div
+                                                                        initial={{ width: 0 }}
+                                                                        animate={{ width: `${disk.percent}%` }}
+                                                                        transition={{ duration: 0.8, delay: 0.2 }}
+                                                                        className={`h-full rounded-full ${disk.percent > 90 ? 'bg-rose-500' : disk.percent > 75 ? 'bg-amber-500' : 'bg-teal-500'}`}
+                                                                    />
+                                                                </div>
+
+                                                                <div className="flex justify-between text-xs text-slate-500">
+                                                                    <span>Used: <span className="font-medium text-slate-700">{disk.used_gb} GB</span></span>
+                                                                    <span>Total: {disk.total_gb} GB</span>
+                                                                </div>
+                                                            </div>
+                                                        ))
                                                     ) : (
-                                                        <span className="text-slate-400 italic text-sm ml-11">Unknown RAM</span>
+                                                        <p className="text-slate-400 text-sm italic">No storage usage data.</p>
                                                     )}
                                                 </div>
-                                            </div>
-                                        </section>
-                                    </div>
+                                            </section>
 
-                                    {/* Right Column: Dynamic Data */}
-                                    <div className="space-y-8">
-
-                                        {/* Network Adapters */}
-                                        <section>
-                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                <Globe size={14} /> Interfaces
-                                            </h3>
-                                            <div className="space-y-3">
-                                                {hardware_info?.all_details?.network && hardware_info.all_details.network.length > 0 ? (
-                                                    hardware_info.all_details.network.map((net, i) => (
-                                                        <div key={i} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2 hover:border-blue-100 transition-colors">
-                                                            <div className="flex justify-between items-center">
-                                                                <div className="flex items-center gap-2.5">
-                                                                    <div className={`p-1.5 rounded-lg text-xs ${net.type === 'Wi-Fi' ? 'bg-sky-50 text-sky-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                                        {net.type === 'Wi-Fi' ? <Radio size={14} /> : <CircuitBoard size={14} />}
+                                            {/* Processes Table */}
+                                            <section>
+                                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                    <Activity size={14} className="text-rose-400" /> Hot Processes
+                                                </h3>
+                                                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                                                    <table className="w-full text-left text-xs">
+                                                        <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-100">
+                                                            <tr>
+                                                                <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
+                                                                    Name {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                                                </th>
+                                                                <th className="px-4 py-3 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('cpu')}>
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span>CPU% {sortConfig?.key === 'cpu' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
                                                                     </div>
-                                                                    <span className="font-semibold text-slate-700 text-xs truncate max-w-[150px]" title={net.interface}>{net.interface}</span>
-                                                                </div>
-                                                                {net.speed_mbps ? <span className="text-[10px] font-bold bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-100">{formatLinkSpeed(net.speed_mbps)}</span> : null}
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 bg-slate-50 p-2 rounded-lg font-mono">
-                                                                <div title={net.ip_address} className="truncate">{net.ip_address}</div>
-                                                                <div className="text-right truncate" title={net.mac}>{net.mac}</div>
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : <p className="text-slate-400 text-sm italic">No network interfaces.</p>}
-                                            </div>
-                                        </section>
-
-                                        {/* Storage */}
-                                        <section>
-                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                <HardDrive size={14} /> Storage
-                                            </h3>
-                                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-5 hover:shadow-md transition-shadow">
-                                                {machine.metrics?.disk_details && machine.metrics.disk_details.length > 0 ? (
-                                                    machine.metrics.disk_details.map((disk, i) => (
-                                                        <div key={i}>
-                                                            <div className="flex justify-between items-center mb-1.5">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="font-semibold text-slate-700 text-sm">
-                                                                        {disk.label ? `${disk.label} (${disk.mount})` : disk.mount}
-                                                                    </span>
-                                                                    <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.5 bg-slate-50 rounded uppercase">{disk.type}</span>
-                                                                </div>
-                                                                <span className="text-sm font-bold text-slate-600">{disk.percent}%</span>
-                                                            </div>
-
-                                                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-1.5">
-                                                                <motion.div
-                                                                    initial={{ width: 0 }}
-                                                                    animate={{ width: `${disk.percent}%` }}
-                                                                    transition={{ duration: 0.8, delay: 0.2 }}
-                                                                    className={`h-full rounded-full ${disk.percent > 90 ? 'bg-rose-500' : disk.percent > 75 ? 'bg-amber-500' : 'bg-teal-500'}`}
-                                                                />
-                                                            </div>
-
-                                                            <div className="flex justify-between text-xs text-slate-500">
-                                                                <span>Used: <span className="font-medium text-slate-700">{disk.used_gb} GB</span></span>
-                                                                <span>Total: {disk.total_gb} GB</span>
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <p className="text-slate-400 text-sm italic">No storage usage data.</p>
-                                                )}
-                                            </div>
-                                        </section>
-
-                                        {/* Processes Table */}
-                                        <section>
-                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                <Activity size={14} className="text-rose-400" /> Hot Processes
-                                            </h3>
-                                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                                                <table className="w-full text-left text-xs">
-                                                    <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-100">
-                                                        <tr>
-                                                            <th className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('name')}>
-                                                                Name {sortConfig?.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                                                            </th>
-                                                            <th className="px-4 py-3 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('cpu')}>
-                                                                <div className="flex flex-col items-end">
-                                                                    <span>CPU% {sortConfig?.key === 'cpu' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
-                                                                </div>
-                                                            </th>
-                                                            <th className="px-4 py-3 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('mem')}>
-                                                                <div className="flex flex-col items-end">
-                                                                    <span>Mem {sortConfig?.key === 'mem' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
-                                                                </div>
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-50">
-                                                        {sortedProcesses.slice(0, 10).map((p, i) => (
-                                                            <tr key={i} className="hover:bg-blue-50/30 transition-colors group">
-                                                                <td className="px-4 py-2.5 font-medium text-slate-700 truncate max-w-[140px]" title={p.name}>{p.name}</td>
-                                                                <td className={`px-4 py-2.5 text-right font-mono ${p.cpu > 10 ? 'text-rose-600 font-bold bg-rose-50' : 'text-slate-600'}`}>{p.cpu}%</td>
-                                                                <td className="px-4 py-2.5 text-right font-mono text-slate-600">
-                                                                    <div className="flex flex-col items-end leading-tight">
-                                                                        <span>{p.mem}%</span>
-                                                                        {p.mem_mb && <span className="text-[10px] text-slate-400 group-hover:text-slate-500">{p.mem_mb.toFixed(1)} MB</span>}
+                                                                </th>
+                                                                <th className="px-4 py-3 text-right cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => handleSort('mem')}>
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span>Mem {sortConfig?.key === 'mem' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
                                                                     </div>
-                                                                </td>
+                                                                </th>
                                                             </tr>
-                                                        ))}
-                                                        {sortedProcesses.length === 0 && (
-                                                            <tr><td colSpan={3} className="px-4 py-6 text-center text-slate-400 italic">No active process data available</td></tr>
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </section>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-50">
+                                                            {sortedProcesses.slice(0, 10).map((p, i) => (
+                                                                <tr key={i} className="hover:bg-blue-50/30 transition-colors group">
+                                                                    <td className="px-4 py-2.5 font-medium text-slate-700 truncate max-w-[140px]" title={p.name}>{p.name}</td>
+                                                                    <td className={`px-4 py-2.5 text-right font-mono ${p.cpu > 10 ? 'text-rose-600 font-bold bg-rose-50' : 'text-slate-600'}`}>{p.cpu}%</td>
+                                                                    <td className="px-4 py-2.5 text-right font-mono text-slate-600">
+                                                                        <div className="flex flex-col items-end leading-tight">
+                                                                            <span>{p.mem}%</span>
+                                                                            {p.mem_mb && <span className="text-[10px] text-slate-400 group-hover:text-slate-500">{p.mem_mb.toFixed(1)} MB</span>}
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                            {sortedProcesses.length === 0 && (
+                                                                <tr><td colSpan={3} className="px-4 py-6 text-center text-slate-400 italic">No active process data available</td></tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </section>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            ) : activeTab === 'terminal' ? (
+                                <div className="flex-1 overflow-hidden p-0 bg-slate-950">
+                                    <TerminalTab machine={machine} />
+                                </div>
+                            ) : (
+                                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-slate-50/50">
+                                    <PerformanceHistory machineId={machine.id} />
+                                </div>
+                            )}
                         </motion.div>
                     </div>
                 </>
             )}
-        </AnimatePresence>
+        </AnimatePresence >
     );
 };
 

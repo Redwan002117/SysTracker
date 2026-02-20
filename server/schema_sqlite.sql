@@ -65,6 +65,55 @@ CREATE TABLE IF NOT EXISTS logs (
     stack_trace TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Remote Commands Table
+CREATE TABLE IF NOT EXISTS commands (
+    id TEXT PRIMARY KEY,
+    machine_id TEXT NOT NULL,
+    command TEXT NOT NULL,
+    status TEXT DEFAULT 'pending', -- pending, sent, running, completed, failed
+    output TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY(machine_id) REFERENCES machines(id)
+);
+
+-- Saved Scripts Table
+CREATE TABLE IF NOT EXISTS saved_scripts (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    command TEXT NOT NULL,
+    platform TEXT DEFAULT 'all', -- windows, linux, all
+    tags TEXT, -- JSON array of tags
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Alert Policies
+CREATE TABLE IF NOT EXISTS alert_policies (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    metric TEXT NOT NULL, -- cpu, ram, disk, offline
+    operator TEXT NOT NULL, -- >, <, =
+    threshold REAL NOT NULL,
+    duration_minutes INTEGER DEFAULT 1,
+    priority TEXT DEFAULT 'high', -- low, medium, high
+    enabled BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Alerts History
+CREATE TABLE IF NOT EXISTS alerts (
+    id TEXT PRIMARY KEY,
+    machine_id TEXT NOT NULL,
+    policy_id TEXT NOT NULL,
+    value REAL,
+    status TEXT DEFAULT 'active', -- active, resolved
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME,
+    FOREIGN KEY(machine_id) REFERENCES machines(id),
+    FOREIGN KEY(policy_id) REFERENCES alert_policies(id)
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_metrics_machine_id_timestamp ON metrics(machine_id, timestamp);
 CREATE INDEX IF NOT EXISTS idx_events_machine_id_timestamp ON events(machine_id, timestamp);

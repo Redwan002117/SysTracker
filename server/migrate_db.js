@@ -9,6 +9,58 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
+const createCommandsTable = `
+CREATE TABLE IF NOT EXISTS commands (
+    id TEXT PRIMARY KEY,
+    machine_id TEXT NOT NULL,
+    command TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    output TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY(machine_id) REFERENCES machines(id)
+);
+`;
+
+const createScriptsTable = `
+CREATE TABLE IF NOT EXISTS saved_scripts (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    command TEXT NOT NULL,
+    platform TEXT DEFAULT 'all',
+    tags TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+`;
+
+const createAlertPoliciesTable = `
+CREATE TABLE IF NOT EXISTS alert_policies (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    operator TEXT NOT NULL,
+    threshold REAL NOT NULL,
+    duration_minutes INTEGER DEFAULT 1,
+    priority TEXT DEFAULT 'high',
+    enabled BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+`;
+
+const createAlertsTable = `
+CREATE TABLE IF NOT EXISTS alerts (
+    id TEXT PRIMARY KEY,
+    machine_id TEXT NOT NULL,
+    policy_id TEXT NOT NULL,
+    value REAL,
+    status TEXT DEFAULT 'active',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resolved_at DATETIME,
+    FOREIGN KEY(machine_id) REFERENCES machines(id),
+    FOREIGN KEY(policy_id) REFERENCES alert_policies(id)
+);
+`;
+
 const columnsToAdd = [
     { table: 'metrics', column: 'disk_details', type: 'TEXT' },
     { table: 'metrics', column: 'processes', type: 'TEXT' },
@@ -27,6 +79,26 @@ const columnsToAdd = [
 ];
 
 db.serialize(() => {
+    db.run(createCommandsTable, (err) => {
+        if (err) console.error("Failed to create commands table:", err);
+        else console.log("Commands table ensured.");
+    });
+
+    db.run(createScriptsTable, (err) => {
+        if (err) console.error("Failed to create scripts table:", err);
+        else console.log("Scripts table ensured.");
+    });
+
+    db.run(createAlertPoliciesTable, (err) => {
+        if (err) console.error("Failed to create alert_policies table:", err);
+        else console.log("Alert Policies table ensured.");
+    });
+
+    db.run(createAlertsTable, (err) => {
+        if (err) console.error("Failed to create alerts table:", err);
+        else console.log("Alerts table ensured.");
+    });
+
     columnsToAdd.forEach(({ table, column, type }) => {
         db.all(`PRAGMA table_info(${table})`, (err, rows) => {
             if (err) {

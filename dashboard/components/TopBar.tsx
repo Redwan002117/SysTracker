@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Zap, LogOut, User, ChevronDown, Monitor } from 'lucide-react';
+import { Zap, LogOut, User, ChevronDown, Monitor, Bell } from 'lucide-react';
 import { clearToken, getUsername, isAuthenticated } from '../lib/auth';
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -86,6 +86,14 @@ const TopBar = () => {
                                 >
                                     <Monitor size={16} />
                                     Dashboard
+                                </Link>
+                                <Link
+                                    href="/dashboard/alerts"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                >
+                                    <Bell size={16} />
+                                    Alerts
                                 </Link>
                                 <Link
                                     href="/dashboard/profile"

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { io } from 'socket.io-client';
 import MachineCard from '../../components/MachineCard';
 import MachineDetails from '../../components/MachineDetails';
+import SystemLoadChart from '../../components/SystemLoadChart';
 import { Machine } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Search, Cpu, Wifi, Server } from 'lucide-react';
@@ -212,6 +213,10 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="mb-8">
+          <SystemLoadChart />
         </div>
 
         <motion.div
