@@ -31,7 +31,7 @@ DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() 
-VERSION = "2.8.1"
+VERSION = "2.8.2"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 
@@ -240,6 +240,7 @@ def install_agent(setup_url=None, setup_key=None):
     logging.info("Stopping any existing agent services...")
     os.system('schtasks /end /tn "SysTrackerAgent" >nul 2>&1')
     handle_kill_switch()
+    os.system('taskkill /f /im SysTracker_Agent.exe >nul 2>&1')
     time.sleep(2) # Grace period for process termination
         
     current_exe = sys.executable
@@ -783,7 +784,7 @@ def main():
         logging.info("Stopping agent...")
 
 def handle_kill_switch():
-    pid_file = "agent.pid"
+    pid_file = os.path.join(INSTALL_DIR, "agent.pid")
     if os.path.exists(pid_file):
         try:
             with open(pid_file, "r") as f:
@@ -792,6 +793,10 @@ def handle_kill_switch():
             logging.info(f"Attempting to kill process {pid}...")
             process = psutil.Process(pid)
             process.terminate()
+            try:
+                process.wait(timeout=3)
+            except psutil.TimeoutExpired:
+                process.kill()
             logging.info(f"Process {pid} terminated successfully.")
             os.remove(pid_file)
             return True
@@ -807,8 +812,13 @@ def handle_kill_switch():
         return False
 
 def manage_pid():
+    if not os.path.exists(INSTALL_DIR):
+        try:
+            os.makedirs(INSTALL_DIR)
+        except:
+            pass
     pid = os.getpid()
-    pid_file = "agent.pid"
+    pid_file = os.path.join(INSTALL_DIR, "agent.pid")
     
     if os.path.exists(pid_file):
         try:

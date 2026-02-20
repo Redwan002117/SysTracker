@@ -28,8 +28,8 @@ jobs:
       - name: Build Agent EXE
         run: |
           cd agent
-          # Use exact command specified by user
-          pyinstaller --noconfirm --onefile --windowed --icon "../server/logo.ico" --name "SysTracker_Agent" "client_agent.py"
+          # Use the customized spec file to ensure all hidden imports are bundled.
+          pyinstaller --clean SysTracker_Agent.spec
           
       - name: Upload Agent Artifact
         uses: actions/upload-artifact@v4
