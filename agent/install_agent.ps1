@@ -5,7 +5,8 @@ param (
     [string]$ServerURL = "http://localhost:7777"
 )
 
-$InstallDir = "C:\Program Files\SysTrackerAgent"
+# Standardized installation directory (no spaces to avoid path issues)
+$InstallDir = "C:\Program Files\SysTracker Agent"
 $AgentExe = "SysTracker_Agent.exe"
 
 Write-Host "Installing SysTracker Agent (v2.4 Silent Mode)..." -ForegroundColor Cyan

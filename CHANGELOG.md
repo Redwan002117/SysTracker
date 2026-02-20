@@ -1,5 +1,34 @@
 # SysTracker Changelog
 
+## [v3.1.1] - 2026-02-20
+### 🔧 Agent Installation & Troubleshooting Fixes (Patch)
+
+### 🐛 Bug Fixes
+- **Agent Installation Path Inconsistency**: Fixed conflicting installation paths across installer scripts
+  - Standardized to: `C:\Program Files\SysTracker Agent\`
+  - Previously: Some scripts used `C:\Program Files\SysTrackerAgent` (no space)
+  - Resolves issue where agents couldn't find their installation directory
+
+### ✨ New Tools & Documentation
+- **FIND_APP_INSTALLATION.ps1**: Comprehensive diagnostic script to locate SysTracker installations
+  - Searches all possible installation locations (standard, legacy, MSIX packages)
+  - Checks scheduled tasks, Windows services, and running processes
+  - Provides detailed diagnostic information and troubleshooting suggestions
+  - Helps users quickly identify where the agent is installed
+
+- **AGENT_INSTALLATION_TROUBLESHOOTING.md**: Complete troubleshooting guide
+  - Documents all possible installation locations
+  - Provides manual installation steps
+  - Includes verification commands and common issues/solutions
+  - Unified installation path documentation
+
+### 🔧 Technical Changes
+- [agent/install_agent.ps1](agent/install_agent.ps1): Updated to use standardized path
+- [agent/legacy/install.ps1](agent/legacy/install.ps1): Updated to use standardized path
+- Added installation path comments for clarity
+
+---
+
 ## [v3.1.0] - 2026-02-20
 ### 🚀 System Integration & Production Robustness
 

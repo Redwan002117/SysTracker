@@ -8,6 +8,7 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
     Exit
 }
 
+# STANDARDIZED: All versions now install to the same location
 $InstallDir = "C:\Program Files\SysTracker Agent"
 $ExeName = "SysTracker_Agent.exe"
 $ConfigName = "config.json"
