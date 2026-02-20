@@ -14,7 +14,8 @@ config.json
 
 # Build Artifacts
 server/dashboard-dist/
-release/
+Release/
+RELEASE/
 agent/dist/
 agent/build/
 *.pyc
