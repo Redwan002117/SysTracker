@@ -37,12 +37,12 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
     };
 
     return (
-        <div className="relative overflow-hidden rounded-3xl bg-white/60 backdrop-blur-xl border border-white/60 shadow-xl transition-all duration-300 hover:shadow-2xl group w-full">
+        <div className="relative overflow-hidden rounded-3xl bg-white/60 backdrop-blur-xl border border-white/60 shadow-xl transition-all duration-300 hover:shadow-2xl group w-full" style={{ minHeight: '520px' }}>
             {/* Gradient Background Effect */}
             <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl group-hover:bg-blue-500/30 transition-colors pointer-events-none"></div>
             <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl group-hover:bg-purple-500/30 transition-colors pointer-events-none"></div>
 
-            <div className="relative z-10 flex flex-col items-center text-center p-6 lg:p-8">
+            <div className="relative z-10 flex flex-col items-center text-center p-6 lg:p-8 h-full">
                 <div className="absolute top-4 right-4 z-50">
                     {!isEditing && (
                         <button

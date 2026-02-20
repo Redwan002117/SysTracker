@@ -374,13 +374,13 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                                                             <div className="bg-indigo-50 text-indigo-600 p-1.5 rounded-lg ring-1 ring-indigo-100"><CircuitBoard size={16} /></div>
                                                             <h4 className="font-semibold text-slate-800 text-sm">Motherboard</h4>
                                                         </div>
-                                                        {hardware_info?.all_details?.motherboard ? (
+                                                        {hardware_info?.all_details?.motherboard && Object.keys(hardware_info.all_details.motherboard).length > 0 ? (
                                                             <div className="text-sm space-y-1 ml-11">
-                                                                <div className="text-slate-800 font-medium">{formatValue(hardware_info.all_details.motherboard.manufacturer)}</div>
-                                                                <div className="text-slate-500">{formatValue(hardware_info.all_details.motherboard.product)}</div>
-                                                                <div className="text-xs text-slate-400 font-mono mt-1">Ver: {formatValue(hardware_info.all_details.motherboard.version)}</div>
+                                                                <div className="text-slate-800 font-medium">{formatValue(hardware_info.all_details.motherboard.manufacturer || 'Unknown')}</div>
+                                                                <div className="text-slate-500">{formatValue(hardware_info.all_details.motherboard.product || 'Unknown Model')}</div>
+                                                                <div className="text-xs text-slate-400 font-mono mt-1">Ver: {formatValue(hardware_info.all_details.motherboard.version || 'N/A')}</div>
                                                             </div>
-                                                        ) : <span className="text-slate-400 italic text-sm ml-11">Unknown</span>}
+                                                        ) : <span className="text-slate-400 italic text-sm ml-11">Unknown Motherboard</span>}
                                                     </div>
 
                                                     {/* CPU Details */}
@@ -393,13 +393,13 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                                                             <div className="text-sm space-y-2 ml-11">
                                                                 <div className="text-slate-800 font-medium leading-tight">{hardware_info.all_details.cpu.name}</div>
                                                                 <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
-                                                                    <div className="bg-slate-50 px-2 py-1 rounded">Cores: <span className="text-slate-700 font-semibold">{hardware_info.all_details.cpu.cores}</span></div>
-                                                                    <div className="bg-slate-50 px-2 py-1 rounded">Threads: <span className="text-slate-700 font-semibold">{hardware_info.all_details.cpu.logical}</span></div>
-                                                                    <div>Socket: <span className="text-slate-700">{hardware_info.all_details.cpu.socket}</span></div>
-                                                                    <div>Virt: <span className="text-slate-700">{hardware_info.all_details.cpu.virtualization}</span></div>
+                                                                    <div className="bg-slate-50 px-2 py-1 rounded">Cores: <span className="text-slate-700 font-semibold">{hardware_info.all_details.cpu.cores || 'N/A'}</span></div>
+                                                                    <div className="bg-slate-50 px-2 py-1 rounded">Threads: <span className="text-slate-700 font-semibold">{hardware_info.all_details.cpu.logical || 'N/A'}</span></div>
+                                                                    <div>Socket: <span className="text-slate-700">{hardware_info.all_details.cpu.socket || 'N/A'}</span></div>
+                                                                    <div>Virt: <span className="text-slate-700">{hardware_info.all_details.cpu.virtualization || 'N/A'}</span></div>
                                                                 </div>
                                                             </div>
-                                                        ) : <span className="text-slate-400 italic text-sm ml-11">Unknown CPU</span>}
+                                                        ) : <span className="text-slate-400 italic text-sm ml-11">Unknown CPU - Waiting for data update</span>}
                                                     </div>
 
                                                     {/* GPU Details */}

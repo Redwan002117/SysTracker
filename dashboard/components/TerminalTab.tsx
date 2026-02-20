@@ -27,6 +27,8 @@ const TerminalTab: React.FC<TerminalTabProps> = ({ machine }) => {
     const [command, setCommand] = useState('');
     const [history, setHistory] = useState<Command[]>([]);
     const [loading, setLoading] = useState(false);
+    const [commandTimeout, setCommandTimeout] = useState<NodeJS.Timeout | null>(null);
+    const [isExecuting, setIsExecuting] = useState(false);
 
     // Script Library State
     const [scripts, setScripts] = useState<Script[]>([]);
@@ -51,7 +53,7 @@ const TerminalTab: React.FC<TerminalTabProps> = ({ machine }) => {
                 if (resScripts.ok) setScripts(await resScripts.json());
 
             } catch (err) {
-                console.error(err);
+                console.error('Error fetching terminal data:', err);
             }
         };
         fetchData();
@@ -68,12 +70,16 @@ const TerminalTab: React.FC<TerminalTabProps> = ({ machine }) => {
                 }
                 return prev;
             });
+            if (data.status === 'completed' || data.status === 'failed') {
+                setIsExecuting(false);
+            }
         });
 
         return () => {
             socket.disconnect();
+            if (commandTimeout) clearTimeout(commandTimeout);
         };
-    }, [machine.id]);
+    }, [machine.id, commandTimeout]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -83,8 +89,14 @@ const TerminalTab: React.FC<TerminalTabProps> = ({ machine }) => {
     const handleSend = async (e?: React.FormEvent) => {
         e?.preventDefault();
         if (!command.trim()) return;
+        if (isExecuting) {
+            alert('A command is already executing. Please wait for it to complete.');
+            return;
+        }
 
         setLoading(true);
+        setIsExecuting(true);
+        
         try {
             const token = localStorage.getItem('systracker_token');
             const headers: HeadersInit = {
@@ -92,11 +104,22 @@ const TerminalTab: React.FC<TerminalTabProps> = ({ machine }) => {
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             };
 
+            // Create AbortController with 30 second timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+                setIsExecuting(false);
+                alert('Command execution timed out after 30 seconds');
+            }, 30000);
+
             const res = await fetch(`/api/machines/${machine.id}/command`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ command })
+                body: JSON.stringify({ command }),
+                signal: controller.signal
             });
+
+            clearTimeout(timeoutId);
 
             if (res.ok) {
                 const newCmd = await res.json();
@@ -109,9 +132,16 @@ const TerminalTab: React.FC<TerminalTabProps> = ({ machine }) => {
                     completed_at: null
                 }]);
                 setCommand('');
+            } else {
+                console.error('Command submission failed:', res.statusText);
+                setIsExecuting(false);
             }
         } catch (err) {
-            console.error(err);
+            console.error('Command execution error:', err);
+            if (err instanceof Error && err.name !== 'AbortError') {
+                alert('Failed to execute command');
+            }
+            setIsExecuting(false);
         } finally {
             setLoading(false);
         }

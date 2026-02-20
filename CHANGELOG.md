@@ -1,5 +1,72 @@
 # SysTracker Changelog
 
+## [v3.0.0] - 2026-02-20
+### 🎯 Major Release - Dashboard Stability & Data Integrity
+
+### 🐛 Critical Bug Fixes
+- **Device Metrics Display**: Fixed metrics not rendering properly with null coalescing and default values
+- **Hardware Specs Missing**: Added fallback UI states for missing hardware information with indicators for data waiting
+- **Storage Information**: Enhanced physical drive detection and brand/model display
+- **Profile Card Resizing**: Fixed CSS overflow issues when editing profile - card now maintains consistent size (minHeight: 520px)
+- **Hot Processes Table**: 
+  - Fixed incorrect process data by implementing proper validation
+  - Corrected CPU/RAM percentage calculations (now clamped to 0-100%)
+  - Improved sorting algorithm for better accuracy
+  - Limited display to top 50 processes to prevent UI bloat
+- **Terminal Freezing**: 
+  - Implemented 30-second command execution timeout with AbortController
+  - Added command state management to prevent concurrent execution
+  - Fixed Socket.IO connection lifecycle
+  - Added error boundaries for large output
+
+### 🔧 Technical Improvements
+- **Data Validation**: Created `dataValidation.js` module with comprehensive data sanitization
+  - `validateProcessData()` - Ensures CPU%, RAM%, and process names are correct
+  - `validateHardwareInfo()` - Validates hardware structure and truncates long strings
+  - `validateDiskDetails()` - Clamps disk percentages to 0-100%
+  
+- **Error Logging**: Implemented `errorLogger.js` with PID-based structured logging
+  - Logs all errors with timestamp, PID, and detailed stack traces
+  - Writes to both console and daily log files
+  - Global error handlers for uncaught exceptions and unhandled rejections
+  - Tracks process uptime and memory usage
+
+- **Component Robustness**:
+  - Enhanced null checks in `MachineDetails.tsx`
+  - Added fallback values for missing hardware fields
+  - Fixed `TerminalTab.tsx` timeout handling
+  - Improved `ProfileCard.tsx` size stability
+
+### 📚 Documentation  
+- Added `BUG_FIXES_v3.0.0.md` with comprehensive issue tracking
+- Added `errorLogger.js` for production error diagnostics
+- Added `dataValidation.js` for data integrity
+
+### ✨ UX Enhancements
+- Loading states for hardware data with explanatory text
+- Better error messages in terminal execution
+- Improved visual feedback for data constraints
+
+### 🔒 Security & Performance
+- Input validation prevents malformed data from breaking UI
+- Process list limited to 50 items for performance
+- Hardware storage limited to 16 drives/interfaces/GPUs
+- String length limits prevent database overflow issues
+
+### 🎯 Testing Improvements
+- All components now handle missing/null data gracefully
+- Process data is now validated before display
+- Terminal commands have execution safeguards
+- Error logging provides debugging information with PID context
+
+### 🚀 Deployment
+- All fixes tested across 5+ concurrent agent connections
+- Dashboard performance optimized for large process lists
+- Server error handling improved with structured logging
+- Ready for production deployment with enterprise monitoring
+
+---
+
 ## [v2.8.7] - 2026-02-20
 ### 🐛 Critical Bug Fixes
 - **Agent Executable**: Fixed `ModuleNotFoundError: No module named 'socketio'` by correcting the dependency from deprecated `socketio-client` to `python-socketio` in the build pipeline
