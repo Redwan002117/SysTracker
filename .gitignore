@@ -5,7 +5,6 @@ build/
 dist/
 
 __pycache__/
-*.spec
 *.env
 .DS_Store
 *.exe
@@ -18,5 +17,4 @@ server/dashboard-dist/
 release/
 agent/dist/
 agent/build/
-agent/SysTracker_Agent.spec
 *.pyc
