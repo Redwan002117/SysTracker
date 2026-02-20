@@ -24,7 +24,8 @@ jobs:
           
       - name: Install PyInstaller and dependencies
         run: |
-          pip install pyinstaller psutil requests socketio-client pywin32
+          pip install pyinstaller
+          pip install -r agent/requirements.txt
           
       - name: Build Agent EXE
         run: |

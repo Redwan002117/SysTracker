@@ -1,5 +1,15 @@
 # SysTracker Changelog
 
+## [v2.8.7] - 2026-02-20
+### 🐛 Critical Bug Fixes
+- **Agent Executable**: Fixed `ModuleNotFoundError: No module named 'socketio'` by correcting the dependency from deprecated `socketio-client` to `python-socketio` in the build pipeline
+- **PyInstaller Spec**: Enhanced hidden imports to include allSocketIO, EngineIO, and WebSocket sub-modules to ensure proper bundling
+- **Build Dependencies**: Added comprehensive `requirements.txt` for the agent with pinned versions for reliability
+
+### 🔧 Technical Improvements
+- **Build Process**: Updated GitHub Actions to use `requirements.txt` for consistent dependency installation
+- **Module Bundling**: Added 25+ hidden imports to PyInstaller spec file to prevent runtime import errors
+
 ## [v2.8.6] - 2026-02-20
 ### 🎨 UI & UX Improvements
 - **Dashboard Components**: Enhanced MachineCard, TopBar, and Settings page layouts for better usability
