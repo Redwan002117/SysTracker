@@ -219,7 +219,7 @@ const TerminalTab: React.FC<TerminalTabProps> = ({ machine }) => {
                         <div key={cmd.id} className="group">
                             <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
                                 <span className="text-blue-500 font-bold">$</span>
-                                <span>{new Date(cmd.created_at).toLocaleTimeString()}</span>
+                                <span>{new Date(cmd.created_at).toLocaleTimeString('en-US', { timeZone: 'UTC' })} UTC</span>
                                 <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold ${cmd.status === 'completed' ? 'bg-green-500/10 text-green-500' :
                                     cmd.status === 'failed' ? 'bg-red-500/10 text-red-500' :
                                         'bg-yellow-500/10 text-yellow-500'

@@ -132,5 +132,10 @@ export interface HardwareInfo {
             type: string;
             speed_mbps: number | null;
         }>;
+        drives?: Array<{
+            model: string;
+            serial: string;
+            size: string;
+        }>;
     };
 }

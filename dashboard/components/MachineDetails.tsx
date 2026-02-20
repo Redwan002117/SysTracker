@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Machine } from '../types';
-import { X, Server, Cpu, HardDrive, CircuitBoard, Layers, Monitor, Activity, Radio, Shield, Globe, Terminal } from 'lucide-react';
+import { Server, Activity, Copy, Check, Clock, Globe, ArrowDown, ArrowUp, Zap, Radio, Terminal, Shield, CircuitBoard, Cpu, Layers, HardDrive, Monitor, LayoutList, Database, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileCard from './ProfileCard';
 import TerminalTab from './TerminalTab';
@@ -325,14 +325,14 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                                                             <div>
                                                                 <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5 flex items-center gap-1.5"><Radio size={10} /> Last Saw</span>
                                                                 <span className="font-mono text-sm text-slate-700 font-medium">
-                                                                    {new Date(machine.last_seen).toLocaleTimeString()}
+                                                                    {new Date(machine.last_seen).toLocaleTimeString('en-US', { timeZone: 'UTC' })} UTC
                                                                 </span>
                                                             </div>
                                                             <div>
                                                                 <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5">Boot Time</span>
                                                                 <span className="font-mono text-xs text-slate-500 bg-slate-50 px-2 py-1 rounded">
                                                                     {machine.metrics?.uptime_seconds
-                                                                        ? new Date(Date.now() - machine.metrics.uptime_seconds * 1000).toLocaleString()
+                                                                        ? new Date(Date.now() - machine.metrics.uptime_seconds * 1000).toLocaleString('en-US', { timeZone: 'UTC' }) + ' UTC'
                                                                         : 'Unknown'}
                                                                 </span>
                                                             </div>
@@ -487,40 +487,66 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                                             {/* Storage */}
                                             <section>
                                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                    <HardDrive size={14} /> Storage
+                                                    <HardDrive size={14} /> Storage Structure
                                                 </h3>
-                                                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-5 hover:shadow-md transition-shadow">
-                                                    {machine.metrics?.disk_details && machine.metrics.disk_details.length > 0 ? (
-                                                        machine.metrics.disk_details.map((disk, i) => (
-                                                            <div key={i}>
-                                                                <div className="flex justify-between items-center mb-1.5">
+
+                                                {/* Physical Drives */}
+                                                {hardware_info?.all_details?.drives && hardware_info.all_details.drives.length > 0 && (
+                                                    <div className="mb-4 space-y-3">
+                                                        <h4 className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5 ml-1"><Database size={12} /> Physical Drives</h4>
+                                                        {hardware_info.all_details.drives.map((drive, i) => (
+                                                            <div key={i} className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-1.5 hover:border-blue-100 transition-colors">
+                                                                <div className="flex justify-between items-start">
                                                                     <div className="flex items-center gap-2">
-                                                                        <span className="font-semibold text-slate-700 text-sm">
-                                                                            {disk.label ? `${disk.label} (${disk.mount})` : disk.mount}
-                                                                        </span>
-                                                                        <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.5 bg-slate-50 rounded uppercase">{disk.type}</span>
+                                                                        <div className="bg-slate-50 text-slate-500 p-1.5 rounded-md border border-slate-100"><HardDrive size={14} /></div>
+                                                                        <span className="font-semibold text-slate-800 text-sm leading-tight">{drive.model}</span>
                                                                     </div>
-                                                                    <span className="text-sm font-bold text-slate-600">{disk.percent}%</span>
+                                                                    <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded uppercase tracking-wider">{drive.size}</span>
                                                                 </div>
-
-                                                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-1.5">
-                                                                    <motion.div
-                                                                        initial={{ width: 0 }}
-                                                                        animate={{ width: `${disk.percent}%` }}
-                                                                        transition={{ duration: 0.8, delay: 0.2 }}
-                                                                        className={`h-full rounded-full ${disk.percent > 90 ? 'bg-rose-500' : disk.percent > 75 ? 'bg-amber-500' : 'bg-teal-500'}`}
-                                                                    />
-                                                                </div>
-
-                                                                <div className="flex justify-between text-xs text-slate-500">
-                                                                    <span>Used: <span className="font-medium text-slate-700">{disk.used_gb} GB</span></span>
-                                                                    <span>Total: {disk.total_gb} GB</span>
+                                                                <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1 mt-1">
+                                                                    Serial: <span className="bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 select-all">{drive.serial}</span>
                                                                 </div>
                                                             </div>
-                                                        ))
-                                                    ) : (
-                                                        <p className="text-slate-400 text-sm italic">No storage usage data.</p>
-                                                    )}
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* Logical Volumes */}
+                                                <div>
+                                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1.5 ml-1 mb-3"><LayoutList size={12} /> Logical Volumes</h4>
+                                                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-5 hover:shadow-md transition-shadow">
+                                                        {machine.metrics?.disk_details && machine.metrics.disk_details.length > 0 ? (
+                                                            machine.metrics.disk_details.map((disk, i) => (
+                                                                <div key={i}>
+                                                                    <div className="flex justify-between items-center mb-1.5">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="font-semibold text-slate-700 text-sm">
+                                                                                {disk.label ? `${disk.label} (${disk.mount})` : disk.mount}
+                                                                            </span>
+                                                                            <span className="text-[10px] text-slate-400 font-medium px-1.5 py-0.5 bg-slate-50 rounded uppercase">{disk.type}</span>
+                                                                        </div>
+                                                                        <span className="text-sm font-bold text-slate-600">{disk.percent}%</span>
+                                                                    </div>
+
+                                                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-1.5">
+                                                                        <motion.div
+                                                                            initial={{ width: 0 }}
+                                                                            animate={{ width: `${disk.percent}%` }}
+                                                                            transition={{ duration: 0.8, delay: 0.2 }}
+                                                                            className={`h-full rounded-full ${disk.percent > 90 ? 'bg-rose-500' : disk.percent > 75 ? 'bg-amber-500' : 'bg-teal-500'}`}
+                                                                        />
+                                                                    </div>
+
+                                                                    <div className="flex justify-between text-xs text-slate-500">
+                                                                        <span>Used: <span className="font-medium text-slate-700">{disk.used_gb} GB</span></span>
+                                                                        <span>Total: {disk.total_gb} GB</span>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <p className="text-slate-400 text-sm italic">No storage usage data.</p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </section>
 

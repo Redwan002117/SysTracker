@@ -31,7 +31,7 @@ DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() 
-VERSION = "2.8.3"
+VERSION = "2.8.5"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 
@@ -592,11 +592,66 @@ def get_detailed_hardware_info():
              except:
                  info['ram'] = {'modules': [], 'slots_used': 0}
         
+        # Physical Disk Drives
+        try:
+            drives = []
+            disk_data = run_wmic("wmic diskdrive get Model,SerialNumber,Size /format:csv")
+            
+            # Fallback to PowerShell if WMIC fails (e.g. on Windows 11+)
+            if not disk_data:
+                try:
+                    result = subprocess.check_output(
+                        'powershell -NoProfile -Command "Get-PhysicalDisk | Select-Object Model,SerialNumber,Size | ConvertTo-Csv -NoTypeInformation"',
+                        shell=True
+                    ).decode('utf-8', errors='ignore')
+                    lines = [line.strip() for line in result.split('\n') if line.strip()]
+                    if len(lines) > 1:
+                        # PowerShell CSV format: "Model","SerialNumber","Size"
+                        disk_data = []
+                        for line in lines[1:]:
+                            # Remove quotes
+                            cleaned = line.replace('"', '')
+                            parts = cleaned.split(',')
+                            if len(parts) >= 3:
+                                # Emulate wmic output format (Node, Model, Serial, Size) 
+                                disk_data.append(f"Node,{parts[0]},{parts[1]},{parts[2]}")
+                except Exception as ps_e:
+                    logging.error(f"PowerShell disk fallback failed: {ps_e}")
+
+            for line in disk_data:
+                parts = line.split(',')
+                if len(parts) >= 4:
+                    model = parts[1].strip()
+                    serial = parts[2].strip()
+                    try:
+                        size_bytes = int(parts[3].strip())
+                        if size_bytes >= 1024**4:
+                            size_str = f"{round(size_bytes / (1024**4), 2)} TB"
+                        else:
+                            size_str = f"{round(size_bytes / (1024**3), 2)} GB"
+                    except:
+                        size_str = parts[3].strip() or 'Unknown Size'
+                        
+                    # Filter out purely hexadecimal or overly generic non-unique serials if possible
+                    if not serial or serial.lower() == 'unknown':
+                        serial = 'N/A'
+                        
+                    drives.append({
+                        'model': model,
+                        'serial': serial,
+                        'size': size_str
+                    })
+            if drives:
+                info['drives'] = drives
+        except Exception as e:
+            logging.error(f"Error collecting physical drives: {e}")
+
         # Validation: If we have NO data, return None to avoid overwriting DB with empty structs
         has_data = (
             info.get('motherboard') or 
             (info.get('cpu') and info['cpu'].get('name') != "Unknown CPU") or 
-            (info.get('ram') and info['ram'].get('modules'))
+            (info.get('ram') and info['ram'].get('modules')) or
+            info.get('drives')
         )
         
         if not has_data:

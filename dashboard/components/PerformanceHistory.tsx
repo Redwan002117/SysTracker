@@ -21,7 +21,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
         return (
             <div className="bg-slate-800 text-white text-xs p-3 rounded-lg shadow-xl border border-slate-700">
-                <p className="font-bold mb-2 text-slate-300">{new Date(label).toLocaleString()}</p>
+                <p className="font-bold mb-2 text-slate-300">{new Date(label).toLocaleString('en-US', { timeZone: 'UTC' })} UTC</p>
                 {payload.map((entry: any, index: number) => (
                     <div key={index} className="flex items-center gap-2 mb-1">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
@@ -129,7 +129,7 @@ export default function PerformanceHistory({ machineId }: PerformanceHistoryProp
                                 dataKey="timestamp"
                                 type="number"
                                 domain={['dataMin', 'dataMax']}
-                                tickFormatter={(unix) => new Date(unix).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                tickFormatter={(unix) => new Date(unix).toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }) + ' UTC'}
                                 tick={{ fontSize: 10, fill: '#64748b' }}
                                 axisLine={false}
                                 tickLine={false}
@@ -171,7 +171,7 @@ export default function PerformanceHistory({ machineId }: PerformanceHistoryProp
                                 dataKey="timestamp"
                                 type="number"
                                 domain={['dataMin', 'dataMax']}
-                                tickFormatter={(unix) => new Date(unix).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                tickFormatter={(unix) => new Date(unix).toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }) + ' UTC'}
                                 tick={{ fontSize: 10, fill: '#64748b' }}
                                 axisLine={false}
                                 tickLine={false}
@@ -217,7 +217,7 @@ export default function PerformanceHistory({ machineId }: PerformanceHistoryProp
                                 dataKey="timestamp"
                                 type="number"
                                 domain={['dataMin', 'dataMax']}
-                                tickFormatter={(unix) => new Date(unix).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                tickFormatter={(unix) => new Date(unix).toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' }) + ' UTC'}
                                 tick={{ fontSize: 10, fill: '#64748b' }}
                                 axisLine={false}
                                 tickLine={false}
