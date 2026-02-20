@@ -22,7 +22,7 @@
 *   **/server**: Node.js Standalone Backend. Serves both the API and the embedded Dashboard.
 *   **/dashboard**: Next.js (React) Frontend. Bundled into the server binary.
 *   **/agent**: Python-based Client Agent. Optimized for minimal payload size.
-*   **/Release**: Contains the latest compiled v2.6.2 binaries.
+*   **/Release**: Contains the latest compiled v3.1.1 binaries.
 
 ---
 
@@ -45,7 +45,7 @@ The Agent is a **Single Standalone Application**. It installs itself as a Window
 4.  The agent will:
     *   **Prompt you for Server URL and API Key** (if not provided).
     *   **Test the connection** to the server.
-    *   Copy itself to `C:\Program Files\SysTrackerAgent`.
+    *   Copy itself to `C:\Program Files\SysTracker Agent`.
     *   Create a `config.json` with your settings.
     *   Register a background Scheduled Task (`SysTrackerAgent`).
     *   Start automatically.
@@ -53,12 +53,13 @@ The Agent is a **Single Standalone Application**. It installs itself as a Window
 ### Management
 - **Stop/Uninstall**: `.\SysTracker_Agent.exe --uninstall`
 - **Kill Switch**: `.\SysTracker_Agent.exe --kill`
-- **Logs**: Check `agent.log` in `C:\Program Files\SysTrackerAgent`.
+- **Logs**: Check `agent.log` in `C:\Program Files\SysTracker Agent`.
+- **Troubleshooting**: Run `.\agent\FIND_APP_INSTALLATION.ps1` to locate your installation.
 
 ## 📦 Installation & Deployment
 
 ### Quick Start (The "Easy Way")
-Go to the [**Releases Page**](https://github.com/Redwan002117/SysTracker/releases/latest) and download the latest version (**v2.6.2**).
+Go to the [**Releases Page**](https://github.com/Redwan002117/SysTracker/releases/latest) and download the latest version (**v3.1.1**).
 
 **1. Run the Admin Server**
 *   **Windows**: Download `SysTracker_Server.exe`. Run it.
