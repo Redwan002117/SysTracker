@@ -137,7 +137,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
 
         {/* Dashboard Header & Stats */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">

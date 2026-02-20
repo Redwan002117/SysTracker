@@ -42,8 +42,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
             <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl group-hover:bg-blue-500/30 transition-colors pointer-events-none"></div>
             <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl group-hover:bg-purple-500/30 transition-colors pointer-events-none"></div>
 
-            <div className="relative z-10 flex flex-col items-center text-center p-8 lg:p-10">
-                <div className="flex justify-between w-full mb-2 absolute top-4 right-4 z-50">
+            <div className="relative z-10 flex flex-col items-center text-center p-6 lg:p-8">
+                <div className="absolute top-4 right-4 z-50">
                     {!isEditing && (
                         <button
                             onClick={() => setIsEditing(true)}
@@ -95,27 +95,29 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
 
                 {/* Name & Role */}
                 {isEditing ? (
-                    <div className="w-full space-y-4 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div className="w-full space-y-3 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                         <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Identity</label>
-                            <input
-                                type="text"
-                                value={tempProfile.name}
-                                onChange={e => setTempProfile({ ...tempProfile, name: e.target.value })}
-                                className="w-full text-center font-bold text-2xl bg-white/80 rounded-xl px-4 py-3 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm transition-all placeholder:text-slate-300"
-                                placeholder="Full Name"
-                            />
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block text-left px-1">Identity</label>
+                            <div className="space-y-2">
+                                <input
+                                    type="text"
+                                    value={tempProfile.name}
+                                    onChange={e => setTempProfile({ ...tempProfile, name: e.target.value })}
+                                    className="w-full text-center font-bold text-xl bg-white/80 rounded-xl px-4 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm transition-all placeholder:text-slate-300"
+                                    placeholder="Full Name"
+                                />
+                                <input
+                                    type="text"
+                                    value={tempProfile.role}
+                                    onChange={e => setTempProfile({ ...tempProfile, role: e.target.value })}
+                                    className="w-full text-center text-slate-600 text-sm bg-white/80 rounded-xl px-4 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm transition-all placeholder:text-slate-300"
+                                    placeholder="Job Title / Role"
+                                />
+                            </div>
                         </div>
-                        <input
-                            type="text"
-                            value={tempProfile.role}
-                            onChange={e => setTempProfile({ ...tempProfile, role: e.target.value })}
-                            className="w-full text-center text-slate-600 text-base bg-white/80 rounded-xl px-4 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm transition-all placeholder:text-slate-300"
-                            placeholder="Job Title / Role"
-                        />
 
                         {/* New Fields Grid */}
-                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-200/60 mt-6">
+                        <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-200/60">
                             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block text-left px-1">Location & Contact</label>
                             <div className="grid grid-cols-2 gap-3">
                                 <input
