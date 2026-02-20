@@ -1,5 +1,30 @@
 # SysTracker Changelog
 
+## [v2.8.6] - 2026-02-20
+### 🎨 UI & UX Improvements
+- **Dashboard Components**: Enhanced MachineCard, TopBar, and Settings page layouts for better usability
+- **Visual Polish**: Improved spacing, typography, and component density across the dashboard
+- **User Management**: Refined user management interface with better role indicators
+
+### 🔧 Technical Improvements
+- **Agent Telemetry**: Improved data collection and submission reliability with better error handling
+- **Authentication**: Enhanced API request handling and token management for smoother user experience
+- **Dependencies**: Updated packages for improved security and stability
+- **Build Process**: Streamlined build artifacts and deployment configurations
+
+### 📚 Documentation
+- **BUILD_COMPLETE.md**: Added comprehensive build status documentation
+- **BUILD_REPORT.md**: Added detailed component-by-component analysis
+- **DETAILED_CODE_REVIEW.md**: Added architecture insights and code quality metrics
+- **COMPREHENSIVE_ANALYSIS.md**: Added recommendations and system analysis
+- **BUILD_INSTRUCTIONS.md**: Updated build instructions for all components
+
+### 🐛 Bug Fixes
+- Fixed various edge cases in dashboard component rendering
+- Improved error handling in agent-server communication
+- Enhanced API request validation and error responses
+- Resolved authentication token refresh issues
+
 ## [v2.8.5] - 2026-02-20
 ### 🐛 Bug Fixes
 - **Dashboard Timezones**: Enforced strict `UTC` formatting for all timestamps (`last_seen`, `uptime`, `TerminalTab`, `SystemLoadChart`, `PerformanceHistory`) to ensure universal consistency across global client devices.
