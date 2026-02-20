@@ -721,8 +721,8 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
     // --- STEP 1: Emit to Dashboard IMMEDIATELY (zero-wait) ---
     // Build mappings first so the dashboard gets notified before any DB work begins.
     const mappedMetrics = metrics ? {
-        cpu: metrics.cpu_usage,
-        ram: metrics.ram_usage,
+        cpu: metrics.cpu,
+        ram: metrics.ram,
         disk: metrics.disk_total_gb ? Math.round(((metrics.disk_total_gb - metrics.disk_free_gb) / metrics.disk_total_gb) * 100) : 0,
         disk_details: metrics.disk_details,
         processes: metrics.processes,

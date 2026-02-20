@@ -137,10 +137,10 @@ export default function Dashboard() {
 
   return (
     <>
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
 
         {/* Dashboard Header & Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
           <div className="lg:col-span-3 flex flex-col justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
@@ -150,7 +150,7 @@ export default function Dashboard() {
             </div>
 
             {/* KPI Cards (Compact) */}
-            <div className="grid grid-cols-3 gap-4 mt-6">
+            <div className="grid grid-cols-3 gap-3 mt-4">
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
                 <div>
                   <p className="text-xs text-slate-500 uppercase font-semibold">Online</p>
@@ -184,7 +184,7 @@ export default function Dashboard() {
           </div>
 
           {/* Controls */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
@@ -215,7 +215,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="mb-8">
+        <div className="mb-6">
           <SystemLoadChart />
         </div>
 
@@ -223,7 +223,7 @@ export default function Dashboard() {
           variants={container}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5"
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
         >
           <AnimatePresence mode='popLayout'>
             {loading && machines.length === 0 && (

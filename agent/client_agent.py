@@ -31,7 +31,7 @@ DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() 
-VERSION = "2.8.2"
+VERSION = "2.8.3"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 
@@ -535,10 +535,21 @@ def get_detailed_hardware_info():
                         'virtualization': 'N/A'
                     }
         except: 
-            # Fallback to platform for CPU Name if wmic fails
+            # Fallback to Registry / Platform for CPU Name if wmic fails
+            cpu_name = platform.processor() or "Unknown CPU"
+            if WIN32_AVAILABLE:
+                import winreg
+                try:
+                    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0")
+                    cpu_name, _ = winreg.QueryValueEx(key, "ProcessorNameString")
+                    winreg.CloseKey(key)
+                    cpu_name = cpu_name.strip()
+                except:
+                    pass
+                    
             try:
                 info['cpu'] = {
-                    'name': platform.processor() or "Unknown CPU",
+                    'name': cpu_name,
                     'cores': psutil.cpu_count(logical=False) or "N/A",
                     'logical': psutil.cpu_count(logical=True) or "N/A",
                     'socket': 'N/A', 
@@ -572,9 +583,9 @@ def get_detailed_hardware_info():
                      'modules': [{
                          'capacity': f"{total_ram} GB",
                          'speed': 'N/A',
-                         'manufacturer': 'System Total',
-                         'part_number': 'N/A',
-                         'form_factor': 'N/A'
+                         'manufacturer': 'System RAM',
+                         'part_number': 'Generic',
+                         'form_factor': 'DIMM'
                      }], 
                      'slots_used': 1
                  }

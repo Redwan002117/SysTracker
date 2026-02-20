@@ -44,7 +44,7 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick }) => {
             whileHover={{ y: -5, scale: 1.01 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             className={`
-                group relative p-5 rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden
+                group relative p-4 rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden
                 ${isOnline
                     ? 'bg-white/90 backdrop-blur-xl border-white/60 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-200/40 ring-1 ring-slate-900/5'
                     : 'bg-slate-50/50 backdrop-blur-sm border-slate-200/60 opacity-70 grayscale-[0.8] hover:opacity-100 hover:grayscale-0'}
@@ -56,21 +56,21 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick }) => {
             )}
 
             {/* Header */}
-            <div className="flex justify-between items-start mb-6 relative z-10">
-                <div className="flex items-center gap-4">
+            <div className="flex justify-between items-start mb-4 relative z-10">
+                <div className="flex items-center gap-3">
                     <div className={`
-                        p-3.5 rounded-2xl shadow-sm ring-1 ring-inset transition-all duration-300
+                        p-2.5 rounded-xl shadow-sm ring-1 ring-inset transition-all duration-300
                         ${isOnline
                             ? 'bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 ring-blue-100 group-hover:ring-blue-200 group-hover:scale-105'
                             : 'bg-slate-100 text-slate-400 ring-slate-200'}
                     `}>
-                        <Server size={24} strokeWidth={1.5} />
+                        <Server size={20} strokeWidth={1.5} />
                     </div>
                     <div>
-                        <h3 className="font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors text-lg tracking-tight">
+                        <h3 className="font-bold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors text-base tracking-tight">
                             {machine.nickname || machine.hostname}
                         </h3>
-                        <p className="text-xs text-slate-500 font-mono mt-0.5 tracking-wide opacity-80 flex items-center gap-1.5">
+                        <p className="text-[11px] text-slate-500 font-mono mt-0.5 tracking-wide opacity-80 flex items-center gap-1.5">
                             {machine.ip}
                             {machine.metrics?.active_vpn && (
                                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">
@@ -97,9 +97,9 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick }) => {
             </div>
 
             {/* Metrics Grid */}
-            <div className="space-y-4 relative z-10">
+            <div className="space-y-3 relative z-10">
                 {/* Metric Item: CPU */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                     <div className="flex justify-between items-end text-xs font-semibold tracking-tight">
                         <span className="text-slate-500 flex items-center gap-1.5">
                             <Cpu size={14} className="text-slate-400" /> CPU
@@ -119,7 +119,7 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick }) => {
                 </div>
 
                 {/* Metric Item: RAM */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                     <div className="flex justify-between items-end text-xs font-semibold tracking-tight">
                         <span className="text-slate-500 flex items-center gap-1.5">
                             <CircuitBoard size={14} className="text-slate-400" /> RAM
@@ -139,7 +139,7 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick }) => {
                 </div>
 
                 {/* Metric Item: Disk */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                     <div className="flex justify-between items-end text-xs font-semibold tracking-tight">
                         <span className="text-slate-500 flex items-center gap-1.5">
                             <HardDrive size={14} className="text-slate-400" /> Disk
@@ -160,13 +160,13 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick }) => {
             </div>
 
             {/* Footer / Network Stats */}
-            <div className="mt-6 pt-4 border-t border-slate-100/80 flex justify-between items-center relative z-10">
-                <div className="flex gap-3 text-[10px] font-semibold text-slate-500">
-                    <div className="flex items-center gap-1.5 bg-slate-50/80 px-2 py-1.5 rounded-md border border-slate-100" title="Download">
+            <div className="mt-4 pt-3 border-t border-slate-100/80 flex justify-between items-center relative z-10">
+                <div className="flex gap-2 text-[10px] font-semibold text-slate-500">
+                    <div className="flex items-center gap-1.5 bg-slate-50/80 px-2 py-1 rounded-md border border-slate-100" title="Download">
                         <Activity size={12} className="rotate-180 text-blue-500" />
                         {formatNetworkSpeed(machine.metrics?.network_down_kbps)}
                     </div>
-                    <div className="flex items-center gap-1.5 bg-slate-50/80 px-2 py-1.5 rounded-md border border-slate-100" title="Upload">
+                    <div className="flex items-center gap-1.5 bg-slate-50/80 px-2 py-1 rounded-md border border-slate-100" title="Upload">
                         <Activity size={12} className="text-emerald-500" />
                         {formatNetworkSpeed(machine.metrics?.network_up_kbps)}
                     </div>
