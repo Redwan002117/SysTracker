@@ -2,15 +2,16 @@
 
 import React from 'react';
 import { Machine } from '../types';
-import { Server, HardDrive, Cpu, Activity, ShieldCheck, Radio, CircuitBoard } from 'lucide-react';
+import { Server, HardDrive, Cpu, Activity, ShieldCheck, Radio, CircuitBoard, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface MachineCardProps {
     machine: Machine;
     onClick: (machine: Machine) => void;
+    isViewerMode?: boolean;
 }
 
-const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick }) => {
+const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick, isViewerMode = false }) => {
     const isOnline = machine.status === 'online';
 
     // Improved usage color coding (Subtle variants)
@@ -41,15 +42,25 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick }) => {
             onClick={() => onClick(machine)}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            whileHover={{ y: -5, scale: 1.01 }}
+            whileHover={isViewerMode ? { scale: 1.01 } : { y: -5, scale: 1.01 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             className={`
-                group relative p-4 rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden
+                group relative p-4 rounded-xl border transition-all duration-300 overflow-hidden
+                ${isViewerMode ? 'cursor-not-allowed' : 'cursor-pointer'}
                 ${isOnline
                     ? 'bg-white/90 backdrop-blur-xl border-white/60 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-200/40 ring-1 ring-slate-900/5'
                     : 'bg-slate-50/50 backdrop-blur-sm border-slate-200/60 opacity-70 grayscale-[0.8] hover:opacity-100 hover:grayscale-0'}
             `}
         >
+            {/* Lock Icon Overlay for Viewers */}
+            {isViewerMode && (
+                <div className="absolute inset-0 bg-slate-900/5 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 pointer-events-none">
+                    <div className="bg-amber-500 text-white p-3 rounded-full shadow-xl shadow-amber-500/30">
+                        <Lock size={20} />
+                    </div>
+                </div>
+            )}
+
             {/* Online Glow Effect */}
             {isOnline && (
                 <div className="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-blue-400/20 blur-3xl rounded-full pointer-events-none group-hover:bg-blue-500/30 transition-colors duration-700" />

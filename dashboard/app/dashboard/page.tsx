@@ -8,8 +8,8 @@ import MachineDetails from '../../components/MachineDetails';
 import SystemLoadChart from '../../components/SystemLoadChart';
 import { Machine } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Search, Cpu, Wifi, Server } from 'lucide-react';
-import { fetchWithAuth, clearToken } from '../../lib/auth';
+import { Activity, Search, Cpu, Wifi, Server, Lock, X } from 'lucide-react';
+import { fetchWithAuth, clearToken, isViewer, isAdmin } from '../../lib/auth';
 
 const container = {
   hidden: { opacity: 0 },
@@ -32,8 +32,20 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'online' | 'offline' | 'critical'>('all');
   const [loading, setLoading] = useState(true);
+  const [showAccessDeniedToast, setShowAccessDeniedToast] = useState(false);
 
   const router = useRouter(); // Explicitly use router
+
+  // Handle machine card click with role-based access control
+  const handleMachineClick = (machine: Machine) => {
+    if (isViewer()) {
+      // Show toast notification for viewers
+      setShowAccessDeniedToast(true);
+      setTimeout(() => setShowAccessDeniedToast(false), 4000);
+      return;
+    }
+    setSelectedMachine(machine);
+  };
 
   useEffect(() => {
     // Explicit socket options for better connectivity behind proxies
@@ -241,7 +253,8 @@ export default function Dashboard() {
               >
                 <MachineCard
                   machine={machine}
-                  onClick={setSelectedMachine}
+                  onClick={handleMachineClick}
+                  isViewerMode={isViewer()}
                 />
               </motion.div>
             ))}
@@ -263,6 +276,32 @@ export default function Dashboard() {
           onClose={() => setSelectedMachine(null)}
         />
       )}
+
+      {/* Access Denied Toast for Viewers */}
+      <AnimatePresence>
+        {showAccessDeniedToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -50, x: '-50%' }}
+            className="fixed top-8 left-1/2 z-50 bg-amber-500 text-white px-6 py-4 rounded-2xl shadow-2xl shadow-amber-500/30 flex items-center gap-3 border border-amber-400 max-w-md"
+          >
+            <Lock size={20} className="shrink-0" />
+            <div className="flex-1">
+              <p className="font-bold text-sm">Admin Access Required</p>
+              <p className="text-xs text-amber-100 mt-0.5">
+                You do not have permission to view detailed machine telemetry and terminal controls.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowAccessDeniedToast(false)}
+              className="text-amber-100 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

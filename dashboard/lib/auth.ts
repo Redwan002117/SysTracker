@@ -3,25 +3,41 @@
 
 const TOKEN_KEY = 'systracker_token';
 const USERNAME_KEY = 'systracker_username';
+const ROLE_KEY = 'systracker_role';
 
 export function getToken(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(TOKEN_KEY);
 }
 
-export function setToken(token: string, username: string): void {
+export function setToken(token: string, username: string, role: string = 'admin'): void {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USERNAME_KEY, username);
+    localStorage.setItem(ROLE_KEY, role);
 }
 
 export function clearToken(): void {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USERNAME_KEY);
+    localStorage.removeItem(ROLE_KEY);
 }
 
 export function getUsername(): string | null {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(USERNAME_KEY);
+}
+
+export function getRole(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(ROLE_KEY) || 'admin'; // Default to admin for backward compatibility
+}
+
+export function isAdmin(): boolean {
+    return getRole() === 'admin';
+}
+
+export function isViewer(): boolean {
+    return getRole() === 'viewer';
 }
 
 export function isTokenExpired(token: string): boolean {

@@ -2,19 +2,21 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Zap, LogOut, User, ChevronDown, Monitor, Bell, Settings } from 'lucide-react';
-import { clearToken, getUsername, isAuthenticated } from '../lib/auth';
+import { Zap, LogOut, User, ChevronDown, Monitor, Bell, Settings, Users } from 'lucide-react';
+import { clearToken, getUsername, isAuthenticated, getRole, isAdmin } from '../lib/auth';
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const TopBar = () => {
     const router = useRouter();
     const [username, setUsername] = useState<string | null>(null);
+    const [userRole, setUserRole] = useState<string>('admin');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setUsername(getUsername());
+        setUserRole(getRole() || 'admin');
 
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -59,8 +61,8 @@ const TopBar = () => {
                         <User size={16} />
                     </div>
                     <div className="hidden sm:block text-left">
-                        <div className="text-xs font-semibold text-slate-700 leading-tight">{username || 'Admin'}</div>
-                        <div className="text-[10px] text-slate-500 leading-tight">Administrator</div>
+                        <div className="text-xs font-semibold text-slate-700 leading-tight">{username || 'User'}</div>
+                        <div className="text-[10px] text-slate-500 leading-tight capitalize">{userRole}</div>
                     </div>
                     <ChevronDown size={14} className={`text-slate-400 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -76,25 +78,38 @@ const TopBar = () => {
                             <div className="px-4 py-3 border-b border-slate-50 bg-slate-50/50">
                                 <p className="text-sm font-medium text-slate-900">Signed in as</p>
                                 <p className="text-xs text-slate-500 truncate">{username}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5 capitalize">Role: {userRole}</p>
                             </div>
 
                             <div className="p-1">
-                                <Link
-                                    href="/dashboard/settings"
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                >
-                                    <Settings size={16} />
-                                    Settings
-                                </Link>
-                                <Link
-                                    href="/dashboard/alerts"
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                >
-                                    <Bell size={16} />
-                                    Alerts
-                                </Link>
+                                {isAdmin() && (
+                                    <>
+                                        <Link
+                                            href="/dashboard/settings"
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        >
+                                            <Settings size={16} />
+                                            Settings
+                                        </Link>
+                                        <Link
+                                            href="/dashboard/users"
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        >
+                                            <Users size={16} />
+                                            User Management
+                                        </Link>
+                                        <Link
+                                            href="/dashboard/alerts"
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        >
+                                            <Bell size={16} />
+                                            Alerts
+                                        </Link>
+                                    </>
+                                )}
                                 <Link
                                     href="/dashboard/profile"
                                     onClick={() => setIsMenuOpen(false)}

@@ -184,6 +184,7 @@ function initializeDb() {
             username TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE,
             password_hash TEXT NOT NULL,
+            role TEXT DEFAULT 'admin',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`, (err) => {
             if (err) console.error('Error creating admin_users table:', err.message);
@@ -192,6 +193,12 @@ function initializeDb() {
                 db.run("ALTER TABLE admin_users ADD COLUMN email TEXT UNIQUE", (err) => {
                     if (err && !err.message.includes("duplicate column name")) {
                         console.error("Migration error (admin_users email):", err.message);
+                    }
+                });
+                // Migration: Add role column if it doesn't exist (defaults to 'admin' for existing users)
+                db.run("ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT 'admin'", (err) => {
+                    if (err && !err.message.includes("duplicate column name")) {
+                        console.error("Migration error (admin_users role):", err.message);
                     }
                 });
             }
@@ -225,6 +232,31 @@ function initializeDb() {
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`, (err) => {
             if (err) console.error('Error creating settings table:', err.message);
+        });
+
+        // Agent Releases: Auto-Updater Support
+        db.run(`CREATE TABLE IF NOT EXISTS agent_releases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            version TEXT NOT NULL UNIQUE,
+            file_path TEXT NOT NULL,
+            file_hash TEXT NOT NULL,
+            file_size INTEGER,
+            upload_date DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, (err) => {
+            if (err) console.error('Error creating agent_releases table:', err.message);
+            else {
+                // Migration: Add file_hash and file_size columns if they don't exist
+                db.run("ALTER TABLE agent_releases ADD COLUMN file_hash TEXT", (err) => {
+                    if (err && !err.message.includes("duplicate column name")) {
+                        console.error("Migration error (agent_releases file_hash):", err.message);
+                    }
+                });
+                db.run("ALTER TABLE agent_releases ADD COLUMN file_size INTEGER", (err) => {
+                    if (err && !err.message.includes("duplicate column name")) {
+                        console.error("Migration error (agent_releases file_size):", err.message);
+                    }
+                });
+            }
         });
     });
 }
@@ -317,6 +349,15 @@ const authenticateDashboard = (req, res, next) => {
     });
 };
 
+// Middleware: Require Admin Role
+const requireAdmin = (req, res, next) => {
+    if (req.admin && req.admin.role === 'admin') {
+        next();
+    } else {
+        res.status(403).json({ error: 'Forbidden: Admin access required' });
+    }
+};
+
 // Middleware: Authenticate API (Agent)
 const authenticateAPI = async (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
@@ -384,12 +425,12 @@ app.post('/api/auth/login', (req, res) => {
             if (err || !match) return res.status(401).json({ error: 'Invalid credentials' });
 
             const token = jwt.sign(
-                { id: user.id, username: user.username },
+                { id: user.id, username: user.username, role: user.role || 'admin' },
                 JWT_SECRET,
                 { expiresIn: JWT_EXPIRES_IN }
             );
 
-            res.json({ token, username: user.username });
+            res.json({ token, username: user.username, role: user.role || 'admin' });
         });
     });
 });
@@ -622,6 +663,138 @@ app.get('/api/download/agent', authenticateDashboard, (req, res) => {
     }
 });
 
+// --- Agent Auto-Updater Endpoints ---
+
+// Upload new agent release (Admin only)
+app.post('/api/settings/agent/upload', authenticateDashboard, requireAdmin, upload.single('file'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+
+    const { version } = req.body;
+    if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
+        // Clean up uploaded file
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ error: 'Valid semantic version (e.g., 2.9.0) is required' });
+    }
+
+    // Create agent_releases directory if it doesn't exist
+    const agentReleasesDir = path.join(BASE_DIR, 'data', 'agent_releases');
+    if (!fs.existsSync(agentReleasesDir)) {
+        fs.mkdirSync(agentReleasesDir, { recursive: true });
+    }
+
+    // Calculate SHA256 hash of the file for integrity verification
+    const crypto = require('crypto');
+    const fileBuffer = fs.readFileSync(req.file.path);
+    const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+    const fileSize = fileBuffer.length;
+
+    // Move file to agent_releases directory
+    const targetPath = path.join(agentReleasesDir, `SysTracker_Agent_v${version}.exe`);
+    try {
+        fs.renameSync(req.file.path, targetPath);
+    } catch (e) {
+        return res.status(500).json({ error: 'Failed to save agent release: ' + e.message });
+    }
+
+    // Save to database with hash for integrity verification
+    db.run("INSERT INTO agent_releases (version, file_path, file_hash, file_size) VALUES (?, ?, ?, ?)",
+        [version, targetPath, hash, fileSize],
+        function (err) {
+            if (err) {
+                // Clean up file
+                if (fs.existsSync(targetPath)) fs.unlinkSync(targetPath);
+                if (err.message.includes('UNIQUE constraint failed')) {
+                    return res.status(400).json({ error: 'Version already exists' });
+                }
+                return res.status(500).json({ error: err.message });
+            }
+            console.log(`[AgentUpdater] New agent release v${version} uploaded by ${req.admin.username} (SHA256: ${hash.substring(0, 16)}...)`);
+            res.json({ success: true, message: 'Agent release uploaded successfully', version, hash });
+        }
+    );
+});
+
+// Check for agent updates (Public - no auth required, like /api/telemetry)
+app.get('/api/agent/check-update', (req, res) => {
+    const { current_version } = req.query;
+
+    // Get the latest version from database with hash for integrity verification
+    db.get("SELECT version, file_hash, file_size FROM agent_releases ORDER BY upload_date DESC LIMIT 1", [], (err, latest) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!latest) return res.json({ updateAvailable: false });
+
+        // Simple semantic version comparison
+        const isNewer = compareVersions(latest.version, current_version || '0.0.0') > 0;
+
+        res.json({
+            updateAvailable: isNewer,
+            version: isNewer ? latest.version : null,
+            downloadUrl: isNewer ? `/api/agent/download?v=${latest.version}` : null,
+            fileHash: isNewer ? latest.file_hash : null,
+            fileSize: isNewer ? latest.file_size : null
+        });
+    });
+});
+
+// Download specific agent version (Public - no auth required)
+app.get('/api/agent/download', (req, res) => {
+    const { v } = req.query;
+
+    if (!v) {
+        // Get latest version
+        db.get("SELECT version, file_path FROM agent_releases ORDER BY upload_date DESC LIMIT 1", [], (err, release) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!release) return res.status(404).json({ error: 'No agent releases available' });
+
+            if (fs.existsSync(release.file_path)) {
+                res.download(release.file_path, `SysTracker_Agent_v${release.version}.exe`);
+            } else {
+                res.status(404).json({ error: 'Agent file not found on disk' });
+            }
+        });
+    } else {
+        // Get specific version
+        db.get("SELECT version, file_path FROM agent_releases WHERE version = ?", [v], (err, release) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!release) return res.status(404).json({ error: 'Version not found' });
+
+            if (fs.existsSync(release.file_path)) {
+                res.download(release.file_path, `SysTracker_Agent_v${release.version}.exe`);
+            } else {
+                res.status(404).json({ error: 'Agent file not found on disk' });
+            }
+        });
+    }
+});
+
+// Get current distributed version (for dashboard display)
+app.get('/api/settings/agent/version', authenticateDashboard, (req, res) => {
+    db.get("SELECT version, upload_date, file_hash, file_size FROM agent_releases ORDER BY upload_date DESC LIMIT 1", [], (err, release) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(release || { version: null, upload_date: null, file_hash: null, file_size: null });
+    });
+});
+
+// List all agent releases (Admin only)
+app.get('/api/settings/agent/releases', authenticateDashboard, requireAdmin, (req, res) => {
+    db.all("SELECT id, version, upload_date FROM agent_releases ORDER BY upload_date DESC", [], (err, releases) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(releases || []);
+    });
+});
+
+// Helper: Compare semantic versions (returns -1, 0, or 1)
+function compareVersions(v1, v2) {
+    const parts1 = v1.split('.').map(Number);
+    const parts2 = v2.split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+        if (parts1[i] > parts2[i]) return 1;
+        if (parts1[i] < parts2[i]) return -1;
+    }
+    return 0;
+}
+
+
 // --- DEBUG ENDPOINT ---
 app.get('/api/debug/config', (req, res) => {
     const resolvedDbFolder = path.join(BASE_DIR, 'data');
@@ -681,6 +854,94 @@ app.post('/api/setup', (req, res) => {
                 }
             );
         });
+    });
+});
+
+// --- User Management Endpoints (Admin Only) ---
+
+// List all users
+app.get('/api/users', authenticateDashboard, requireAdmin, (req, res) => {
+    db.all("SELECT id, username, email, role, created_at FROM admin_users ORDER BY created_at DESC", [], (err, users) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(users);
+    });
+});
+
+// Create new user
+app.post('/api/users', authenticateDashboard, requireAdmin, (req, res) => {
+    const { username, email, password, role } = req.body;
+
+    if (!username || !password || !email) {
+        return res.status(400).json({ error: 'Username, email, and password are required' });
+    }
+
+    if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    if (role && !['admin', 'viewer'].includes(role)) {
+        return res.status(400).json({ error: 'Invalid role. Must be "admin" or "viewer"' });
+    }
+
+    bcrypt.hash(password, 12, (err, hash) => {
+        if (err) return res.status(500).json({ error: 'Hashing error' });
+
+        db.run("INSERT INTO admin_users (username, email, password_hash, role) VALUES (?, ?, ?, ?)",
+            [username, email, hash, role || 'admin'],
+            function (err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE constraint failed')) {
+                        return res.status(400).json({ error: 'Username or email already exists' });
+                    }
+                    return res.status(500).json({ error: err.message });
+                }
+                console.log(`[UserMgmt] User '${username}' created with role '${role || 'admin'}' by ${req.admin.username}`);
+                res.json({ success: true, message: 'User created successfully', userId: this.lastID });
+            }
+        );
+    });
+});
+
+// Delete user
+app.delete('/api/users/:id', authenticateDashboard, requireAdmin, (req, res) => {
+    const { id } = req.params;
+
+    // Prevent deleting yourself
+    if (parseInt(id) === req.admin.id) {
+        return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    db.run("DELETE FROM admin_users WHERE id = ?", [id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        console.log(`[UserMgmt] User ID ${id} deleted by ${req.admin.username}`);
+        res.json({ success: true, message: 'User deleted successfully' });
+    });
+});
+
+// Update user role
+app.patch('/api/users/:id/role', authenticateDashboard, requireAdmin, (req, res) => {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!role || !['admin', 'viewer'].includes(role)) {
+        return res.status(400).json({ error: 'Invalid role. Must be "admin" or "viewer"' });
+    }
+
+    // Prevent changing your own role
+    if (parseInt(id) === req.admin.id) {
+        return res.status(400).json({ error: 'Cannot change your own role' });
+    }
+
+    db.run("UPDATE admin_users SET role = ? WHERE id = ?", [role, id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        console.log(`[UserMgmt] User ID ${id} role changed to '${role}' by ${req.admin.username}`);
+        res.json({ success: true, message: 'User role updated successfully' });
     });
 });
 

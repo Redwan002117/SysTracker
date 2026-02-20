@@ -53,7 +53,7 @@ function LoginForm() {
                 return;
             }
 
-            setToken(data.token, data.username);
+            setToken(data.token, data.username, data.role);
             setStatus('success');
             setTimeout(() => router.replace('/dashboard'), 600);
         } catch {

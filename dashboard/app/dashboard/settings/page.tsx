@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../../../lib/auth';
-import { Mail, Save, Server, Shield, User, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw } from 'lucide-react';
+import { Mail, Save, Server, Shield, User, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw, Download, Upload, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Settings() {
-    const [activeTab, setActiveTab] = useState<'general' | 'smtp'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'smtp' | 'agent'>('general');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
@@ -26,6 +26,14 @@ export default function Settings() {
         secure: 'false',
         from: ''
     });
+
+    // Agent Release State
+    const [currentVersion, setCurrentVersion] = useState<string | null>(null);
+    const [releaseDate, setReleaseDate] = useState<string | null>(null);
+    const [releaseHash, setReleaseHash] = useState<string | null>(null);
+    const [uploadingAgent, setUploadingAgent] = useState(false);
+    const [agentFile, setAgentFile] = useState<File | null>(null);
+    const [newVersion, setNewVersion] = useState('');
 
     useEffect(() => {
         loadSettings();
@@ -52,6 +60,15 @@ export default function Settings() {
                 secure: String(smtpData.secure),
                 from: smtpData.from
             });
+
+            // Load Agent Version
+            const agentRes = await fetchWithAuth('/api/settings/agent/version');
+            const agentData = await agentRes.json();
+            if (agentData.version) {
+                setCurrentVersion(agentData.version);
+                setReleaseDate(agentData.upload_date);
+                setReleaseHash(agentData.file_hash);
+            }
         } catch (err: any) {
             setMessage({ type: 'error', text: 'Failed to load settings: ' + err.message });
         } finally {
@@ -130,6 +147,48 @@ export default function Settings() {
         setTimeout(() => setMessage(null), 3000);
     };
 
+    const handleAgentUpload = async () => {
+        if (!agentFile || !newVersion) {
+            setMessage({ type: 'error', text: 'Please select a file and enter a version number' });
+            return;
+        }
+
+        // Validate semantic version format
+        if (!/^\d+\.\d+\.\d+$/.test(newVersion)) {
+            setMessage({ type: 'error', text: 'Version must be in format X.Y.Z (e.g., 2.9.0)' });
+            return;
+        }
+
+        setUploadingAgent(true);
+        setMessage(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', agentFile);
+            formData.append('version', newVersion);
+
+            const res = await fetchWithAuth('/api/settings/agent/upload', {
+                method: 'POST',
+                body: formData,
+                headers: {} // Let browser set Content-Type for FormData
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            setMessage({ type: 'success', text: `Agent v${newVersion} uploaded successfully! Hash: ${data.hash?.substring(0, 16)}...` });
+            setAgentFile(null);
+            setNewVersion('');
+            setCurrentVersion(newVersion);
+            setReleaseDate(new Date().toISOString());
+            setReleaseHash(data.hash);
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.message });
+        } finally {
+            setUploadingAgent(false);
+        }
+    };
+
     return (
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
 
@@ -166,6 +225,13 @@ export default function Settings() {
                         }`}
                 >
                     <Mail size={16} /> SMTP Configuration
+                </button>
+                <button
+                    onClick={() => setActiveTab('agent')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'agent' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                        }`}
+                >
+                    <Package size={16} /> Agent Management
                 </button>
             </div>
 
@@ -357,6 +423,167 @@ export default function Settings() {
                                 </button>
                             </div>
                         </form>
+                    </motion.div>
+                )}
+
+                {activeTab === 'agent' && (
+                    <motion.div
+                        key="agent"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+                    >
+                        <div className="p-6 border-b border-slate-100">
+                            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                                <Package size={18} className="text-slate-400" /> Agent Auto-Updater
+                            </h2>
+                            <p className="text-sm text-slate-500 mt-1">
+                                Manage agent releases. Connected agents will automatically update to the latest version.
+                            </p>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                            {/* Current Version Display */}
+                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">Currently Distributed Version</p>
+                                        {currentVersion ? (
+                                            <>
+                                                <p className="text-3xl font-bold text-slate-800 mb-1">v{currentVersion}</p>
+                                                <p className="text-sm text-slate-500 mb-3">
+                                                    Uploaded {releaseDate ? new Date(releaseDate).toLocaleDateString('en-US', { 
+                                                        month: 'long', 
+                                                        day: 'numeric', 
+                                                        year: 'numeric' 
+                                                    }) : 'Unknown'}
+                                                </p>
+                                                {releaseHash && (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="bg-white/80 rounded-lg px-3 py-1.5 border border-blue-200">
+                                                            <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider mb-0.5">SHA256 Hash</p>
+                                                            <p className="text-xs font-mono text-slate-700">{releaseHash.substring(0, 16)}...{releaseHash.substring(releaseHash.length - 8)}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(releaseHash);
+                                                                setMessage({ type: 'success', text: 'Hash copied to clipboard!' });
+                                                                setTimeout(() => setMessage(null), 2000);
+                                                            }}
+                                                            className="p-2 bg-white/80 hover:bg-white rounded-lg border border-blue-200 text-blue-600 transition-colors"
+                                                            title="Copy full hash"
+                                                        >
+                                                            <Copy size={14} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <p className="text-slate-500">No agent release uploaded yet</p>
+                                        )}
+                                    </div>
+                                    <div className="bg-white/80 backdrop-blur-sm p-3 rounded-lg shadow-sm">
+                                        <Download className="text-blue-600" size={24} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Upload New Release */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-slate-700 mb-4">Upload New Agent Release</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Agent Executable File (.exe)
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                accept=".exe"
+                                                onChange={(e) => setAgentFile(e.target.files?.[0] || null)}
+                                                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 transition-colors"
+                                            />
+                                        </div>
+                                        {agentFile && (
+                                            <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                                                <CheckCircle size={12} className="text-green-600" />
+                                                Selected: {agentFile.name} ({(agentFile.size / 1024 / 1024).toFixed(2)} MB)
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Semantic Version Number
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={newVersion}
+                                            onChange={(e) => setNewVersion(e.target.value)}
+                                            placeholder="2.9.0"
+                                            pattern="\d+\.\d+\.\d+"
+                                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            Format: X.Y.Z (e.g., 2.9.0). Agents will automatically update if their version is lower.
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        onClick={handleAgentUpload}
+                                        disabled={uploadingAgent || !agentFile || !newVersion}
+                                        className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-200"
+                                    >
+                                        {uploadingAgent ? (
+                                            <>
+                                                <RefreshCw size={18} className="animate-spin" />
+                                                Uploading...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload size={18} />
+                                                Upload Agent Release
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Info Box */}
+                            <div className="space-y-4">
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                                    <div className="flex gap-3">
+                                        <CheckCircle size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-emerald-900 mb-1">Built-in Safety Mechanisms</p>
+                                            <ul className="text-xs text-emerald-800 space-y-1">
+                                                <li>• <strong>SHA256 Hash Verification</strong> - Every download is verified for integrity</li>
+                                                <li>• <strong>Automatic Backup</strong> - Old version is saved before updating</li>
+                                                <li>• <strong>Smart Rollback</strong> - Auto-restores if new version fails to start</li>
+                                                <li>• <strong>File Size Check</strong> - Ensures complete download before installing</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                    <div className="flex gap-3">
+                                        <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-amber-900 mb-1">How Auto-Updates Work</p>
+                                            <ul className="text-xs text-amber-800 space-y-1">
+                                                <li>• Agents check for updates every 60 minutes</li>
+                                                <li>• If a newer version is available, the agent downloads and verifies it</li>
+                                                <li>• Update installs automatically with backup/rollback protection</li>
+                                                <li>• No remote desktop session or manual intervention required</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>

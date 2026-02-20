@@ -1,0 +1,11 @@
+{
+    "chat.mcp.serverSampling": {
+        "SysTracker/.vscode/mcp.json: io.github.github/github-mcp-server": {
+            "allowedModels": [
+                "copilot/auto"
+            ]
+        }
+    },
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "python-envs.pythonProjects": []
+}

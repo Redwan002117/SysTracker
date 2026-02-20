@@ -9,6 +9,9 @@ import datetime
 import socketio
 import threading
 import subprocess
+import sys
+import os
+import hashlib
 
 # Initialize Socket.IO Client
 sio = socketio.Client()
@@ -30,6 +33,7 @@ DEFAULT_API_URL = "https://monitor.rico.bd/api"
 DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
+UPDATE_CHECK_INTERVAL = 3600  # seconds (60 minutes)
 MACHINE_ID = socket.gethostname() 
 VERSION = "2.8.5"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
@@ -41,6 +45,7 @@ retry_delay = 5
 # Global State for Delta Calculation
 last_net_io = None
 last_net_time = None
+last_update_check = 0  # Track last update check time
 
 # CPU Primer: psutil.cpu_percent(interval=None) returns 0.0 on first call per process.
 # We prime it once at startup (non-blocking). All subsequent calls use interval=None.
@@ -762,14 +767,221 @@ def exec_command(data):
     # Run in strict thread to not block heartbeat
     threading.Thread(target=run_cmd, daemon=True).start()
 
+def check_for_updates():
+    """Check if a new agent version is available."""
+    try:
+        api_url = config.get("api_url", DEFAULT_API_URL)
+        check_url = f"{api_url}/agent/check-update"
+        
+        response = requests.get(
+            check_url, 
+            params={"current_version": VERSION},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("updateAvailable"):
+                logging.info(f"Update available: {data.get('version')} (current: {VERSION})")
+                return data
+        return None
+    except Exception as e:
+        logging.error(f"Failed to check for updates: {e}")
+        return None
+
+def download_and_apply_update(update_info):
+    """Download new agent version and initiate self-update process with safety checks."""
+    # Define paths early for exception handler
+    update_file = None
+    
+    try:
+        version = update_info.get("version")
+        download_url = update_info.get("downloadUrl")
+        expected_hash = update_info.get("fileHash")
+        expected_size = update_info.get("fileSize")
+        
+        if not version or not download_url:
+            logging.error("Invalid update info")
+            return False
+        
+        # Construct full download URL
+        api_url = config.get("api_url", DEFAULT_API_URL)
+        server_url = api_url.replace("/api", "")
+        full_download_url = f"{server_url}{download_url}"
+        
+        logging.info(f"Downloading agent update v{version} from {full_download_url}")
+        
+        # Determine installation directory
+        if getattr(sys, 'frozen', False):
+            install_dir = os.path.dirname(sys.executable)
+        else:
+            install_dir = INSTALL_DIR
+        
+        update_file = os.path.join(install_dir, "SysTracker_Agent_Update.exe")
+        backup_file = os.path.join(install_dir, "SysTracker_Agent_Backup.exe")
+        current_file = os.path.join(install_dir, EXE_NAME)
+        
+        # Download the new executable
+        logging.info("Downloading new agent executable...")
+        response = requests.get(full_download_url, stream=True, timeout=300)
+        response.raise_for_status()
+        
+        # Download to temporary file
+        with open(update_file, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        
+        logging.info(f"Downloaded update to {update_file}")
+        
+        # SAFETY CHECK 1: Verify file size
+        actual_size = os.path.getsize(update_file)
+        if expected_size and actual_size != expected_size:
+            logging.error(f"File size mismatch! Expected {expected_size} bytes, got {actual_size} bytes")
+            os.remove(update_file)
+            return False
+        
+        # SAFETY CHECK 2: Verify SHA256 hash for integrity
+        if expected_hash:
+            logging.info("Verifying file integrity (SHA256)...")
+            sha256_hash = hashlib.sha256()
+            with open(update_file, "rb") as f:
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+            actual_hash = sha256_hash.hexdigest()
+            
+            if actual_hash != expected_hash:
+                logging.error(f"Hash mismatch! Expected {expected_hash[:16]}..., got {actual_hash[:16]}...")
+                logging.error("Downloaded file may be corrupted or tampered with. Update aborted for safety.")
+                os.remove(update_file)
+                return False
+            
+            logging.info("File integrity verified successfully!")
+        
+        # Create updater batch script with backup and rollback capability
+        updater_script = os.path.join(install_dir, "updater.bat")
+        script_content = f"""@echo off
+REM SysTracker Agent Auto-Updater with Rollback Safety
+echo [SysTracker] Starting agent update to v{version}...
+
+REM Wait for agent to exit
+timeout /t 3 /nobreak > NUL
+
+REM Kill any remaining agent processes
+taskkill /F /IM {EXE_NAME} /T > NUL 2>&1
+timeout /t 2 /nobreak > NUL
+
+REM SAFETY: Create backup of current version
+echo [SysTracker] Creating backup of current version...
+if exist "{current_file}" (
+    copy /Y "{current_file}" "{backup_file}" > NUL 2>&1
+    if errorlevel 1 (
+        echo [SysTracker] ERROR: Failed to create backup. Update aborted.
+        goto cleanup
+    )
+    echo [SysTracker] Backup created successfully.
+)
+
+REM Replace with new version
+echo [SysTracker] Installing new version...
+move /Y "{update_file}" "{current_file}" > NUL 2>&1
+if errorlevel 1 (
+    echo [SysTracker] ERROR: Failed to install update.
+    goto rollback
+)
+
+REM Start new version
+echo [SysTracker] Starting new agent...
+start "" "{current_file}"
+timeout /t 5 /nobreak > NUL
+
+REM Verify new version started successfully
+tasklist /FI "IMAGENAME eq {EXE_NAME}" 2>NUL | find /I /N "{EXE_NAME}">NUL
+if errorlevel 1 (
+    echo [SysTracker] ERROR: New version failed to start. Rolling back...
+    goto rollback
+)
+
+echo [SysTracker] Update completed successfully!
+REM Delete backup after successful update
+if exist "{backup_file}" del /F "{backup_file}" > NUL 2>&1
+goto cleanup
+
+:rollback
+echo [SysTracker] ROLLBACK: Restoring previous version...
+taskkill /F /IM {EXE_NAME} /T > NUL 2>&1
+timeout /t 2 /nobreak > NUL
+if exist "{backup_file}" (
+    move /Y "{backup_file}" "{current_file}" > NUL 2>&1
+    echo [SysTracker] Previous version restored. Starting...
+    start "" "{current_file}"
+) else (
+    echo [SysTracker] CRITICAL: Backup not found. Manual intervention required.
+)
+
+:cleanup
+REM Clean up temporary files
+timeout /t 2 /nobreak > NUL
+if exist "{update_file}" del /F "{update_file}" > NUL 2>&1
+del "%~f0"
+"""
+        
+        with open(updater_script, 'w') as f:
+            f.write(script_content)
+        
+        logging.info(f"Created updater script with rollback safety: {updater_script}")
+        
+        # Launch updater script in detached process
+        logging.info("Launching updater and exiting...")
+        try:
+            # Windows-specific process flags
+            if platform.system() == 'Windows':
+                import ctypes
+                DETACHED_PROCESS = 0x00000008
+                CREATE_NEW_PROCESS_GROUP = 0x00000200
+                subprocess.Popen(
+                    [updater_script],
+                    cwd=install_dir,
+                    creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+                    close_fds=True
+                )
+            else:
+                # Fallback for non-Windows (shouldn't happen for agent)
+                subprocess.Popen([updater_script], cwd=install_dir)
+        except Exception as proc_error:
+            logging.error(f"Failed to launch updater: {proc_error}")
+            return False
+        
+        # Give the script a moment to start
+        time.sleep(1)
+        
+        # Commit suicide - exit immediately to release file lock
+        logging.info("Agent exiting for update...")
+        os._exit(0)  # Force immediate exit without cleanup
+        
+    except Exception as e:
+        logging.error(f"Failed to apply update: {e}")
+        # Clean up any partial downloads
+        if update_file:
+            try:
+                if os.path.exists(update_file):
+                    os.remove(update_file)
+            except Exception as cleanup_error:
+                logging.error(f"Failed to cleanup update file: {cleanup_error}")
+        return False
+
 def main():
     if not os.environ.get("SYSTRACKER_TEST_MODE") and not is_admin():
         logging.info("Not running as admin. Requesting elevation...")
         try:
-             ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+            import ctypes
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
         except Exception as e:
-             logging.error(f"Failed to elevate: {e}")
-             ctypes.windll.user32.MessageBoxW(0, "Failed to elevate privileges. Agent requires Admin.", "Error", 0x10)
+            logging.error(f"Failed to elevate: {e}")
+            try:
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(0, "Failed to elevate privileges. Agent requires Admin.", "Error", 0x10)
+            except:
+                pass  # If ctypes fails, just exit
         sys.exit(0)
 
     
@@ -813,10 +1025,24 @@ def main():
                 except Exception as e:
                     logging.error(f"Socket connection failed: {e}")
 
-            # 1. Collect Telemetry
+            # 1. Check for agent updates (every 60 minutes)
+            global last_update_check
+            now_ts = time.time()
+            if (now_ts - last_update_check) >= UPDATE_CHECK_INTERVAL:
+                try:
+                    logging.info("Checking for agent updates...")
+                    last_update_check = now_ts
+                    update_info = check_for_updates()
+                    if update_info:
+                        # Download and apply update (this will exit the process)
+                        download_and_apply_update(update_info)
+                except Exception as update_error:
+                    logging.error(f"Update check/apply failed: {update_error}")
+                    # Continue normal operation even if update fails
+
+            # 2. Collect Telemetry
             metrics = get_system_metrics()
             if metrics:
-                now_ts = time.time()
                 send_hw = (now_ts - last_hardware_sent) >= HARDWARE_RESEND_INTERVAL
 
                 # Lightweight machine stub sent every cycle (just id + hostname for last_seen upsert)
