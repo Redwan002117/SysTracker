@@ -1,5 +1,68 @@
 # SysTracker Changelog
 
+## [v3.1.0] - 2026-02-20
+### 🚀 System Integration & Production Robustness
+
+### ✨ Major Enhancements
+- **Profile System Overhaul**
+  - Avatar upload with image crop (circular) and compression (max 500KB)
+  - Random avatar generation via DiceBear API
+  - Display name, bio, and location fields
+  - Auto-save avatar functionality
+  - Modern UI following UI/UX Pro Max patterns
+
+- **Server-Side Data Validation**
+  - All telemetry validated before emit and storage
+  - Prevents data corruption and UI crashes
+  - Graceful fallbacks for malformed data
+  - Integration point in telemetry endpoint
+
+- **Production Error Logging**
+  - Structured JSON logging with PID tracking
+  - Daily rotating log files: `logs/systracker-YYYY-MM-DD.log`
+  - Global error handlers (uncaughtException, unhandledRejection)
+  - Context-aware messages with machine ID and operation info
+
+### 🐛 Critical Bug Fixes
+- **React Hooks Compliance**: Fixed MachineDetails component - moved hooks before early return statement
+- **Profile Page Duplication**: Removed 327 lines of accidentally duplicated code
+- **ErrorLogger Imports**: Added missing path and fs requires
+- **CSS Conflicts**: Removed redundant `block` classes conflicting with `flex`
+
+### 🔧 Technical Improvements
+- Profile data integrated throughout system:
+  - Database: Added avatar, display_name, bio, location columns to admin_users
+  - Server API: /api/auth/profile endpoint supports all new fields
+  - Dashboard: Profile page implements all features (517 lines)
+  
+- Validation integration:
+  - validateProcessData() called before emit and storage
+  - validateHardwareInfo() with fallback defaults
+  - validateDiskDetails() ensures disk percentages valid
+  - All string fields trimmed to 255 characters
+
+- Error handling enhancements:
+  - Database operation errors logged with context
+  - Try-catch wrapper around telemetry processing
+  - Global error handlers for uncaught exceptions
+  - Async file writes minimize performance impact
+
+### ✅ System Verification
+- Dashboard build: ✓ TypeScript compilation successful
+- Server startup: ✓ Validation and logging modules load correctly
+- Database schema: ✓ All profile columns present
+- Component integration: ✓ All critical components working together
+- Error logging: ✓ PID tracking active, log files created
+
+### 📊 Files Modified
+- dashboard/app/dashboard/profile/page.tsx (fixed duplication, 517 lines)
+- dashboard/components/MachineDetails.tsx (fixed React Hooks)
+- server/server.js (integrated validation & logging)
+- server/errorLogger.js (fixed imports)
+- server/dataValidation.js (syntax fix)
+
+---
+
 ## [v3.0.0] - 2026-02-20
 ### 🎯 Major Release - Dashboard Stability & Data Integrity
 
