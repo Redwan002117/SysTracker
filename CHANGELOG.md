@@ -1,5 +1,38 @@
 # SysTracker Changelog
 
+## [v2.8.5] - 2026-02-20
+### 🐛 Bug Fixes
+- **Dashboard Timezones**: Enforced strict `UTC` formatting for all timestamps (`last_seen`, `uptime`, `TerminalTab`, `SystemLoadChart`, `PerformanceHistory`) to ensure universal consistency across global client devices.
+
+### 🚀 Build & Release
+- **GitHub Actions**: Added the `main` branch to the publish workflow trigger to automatically build releases on main pushes.
+
+## [v2.8.4] - 2026-02-20
+### ✨ Features
+- **Physical Disk Telemetry**: The Windows Agent now uses `wmic diskdrive` (with a robust PowerShell `Get-PhysicalDisk` fallback) to collect physical drive specifications including Brand/Model, Serial Number, and physical Capacity.
+
+### 🎨 UI & UX Improvements
+- **Storage UI**: Overhauled the Storage section in the Machine Details drawer to explicitly list bare-metal Physical Drives alongside the existing Logical Volumes.
+
+## [v2.8.3] - 2026-02-20
+### 🐛 Bug Fixes
+- **Live Streaming**: Fixed a critical `mappedMetrics` mapping error in `server.js` where realtime `cpu` and `ram` Socket.IO events were broadcasting undefined values, preventing the React Dashboard UI from updating live.
+
+## [v2.8.2] - 2026-02-20
+### 🐛 Bug Fixes
+- **Agent Executable Bundle**: Solved `ModuleNotFoundError: No module named 'socketio'` by forcing PyInstaller to bundle hidden Socket.IO, Engine.IO, and win32 dependencies via a custom `.spec` file.
+- **Installer File Locks**: Fixed `WinError 32` (File in use) during agent installation by implementing a forced `taskkill` loop to terminate old instances before overwriting.
+
+### 🎨 UI & UX Improvements
+- **Dashboard Density**: Significantly compacted the main Dashboard layout, `MachineCard` components, fonts, margins, and padding to fit much more telemetry on screen simultaneously.
+
+## [v2.8.1] - 2026-02-20
+### 🎨 UI & UX Improvements
+- **UI Polish**: Minor visual polishing applied to TopBar, Padding, and ProfileCard structures for a cleaner modern aesthetic.
+
+## [v2.8.0] - 2026-02-20
+### 🚀 Major Release
+- **Platform Foundation**: Released the SysTracker v2.8.x architecture baseline with enhanced process tracking and monitoring hooks.
 ## [v2.6.2] - 2026-02-19
 ### 🐛 Bug Fixes
 - **CI/CD**: Fixed typo in GitHub Actions where the Linux build target was incorrectly specified as `node18-linux-64` instead of `node18-linux-x64`.
