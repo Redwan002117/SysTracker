@@ -6,6 +6,15 @@ import requests
 import json
 import logging
 import datetime
+import socketio
+import threading
+import subprocess
+
+# Initialize Socket.IO Client
+sio = socketio.Client()
+
+# Configure Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Try initializing Windows Event Log modules
 try:
@@ -22,7 +31,7 @@ DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 MACHINE_ID = socket.gethostname() 
-VERSION = "2.6.8"
+VERSION = "2.8.0"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 
@@ -638,8 +647,56 @@ def get_event_logs(last_check_time):
 
 
 
+@sio.event
+def exec_command(data):
+    """
+    Handle remote command execution from server.
+    Expected data: { 'id': 'cmd_uuid', 'command': 'ipconfig' }
+    """
+    cmd_id = data.get('id')
+    command = data.get('command')
+    
+    if not cmd_id or not command:
+        return
+
+    logging.info(f"Received remote command: {command} (ID: {cmd_id})")
+    
+    def run_cmd():
+        try:
+            # Use shell=True for flexibility (PowerShell/Bash capability)
+            # Timeout set to 30s to prevent hanging processes
+            result = subprocess.run(
+                command, 
+                shell=True, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                text=True, 
+                timeout=30
+            )
+            output = result.stdout + result.stderr
+            status = 'completed' if result.returncode == 0 else 'failed'
+            if not output.strip():
+                output = "[No Output]"
+                
+        except subprocess.TimeoutExpired:
+            output = "[Error] Command timed out after 30 seconds."
+            status = 'failed'
+        except Exception as e:
+            output = f"[Error] Execution failed: {str(e)}"
+            status = 'failed'
+
+        # Send result back to server
+        sio.emit('command_result', {
+            'id': cmd_id,
+            'output': output,
+            'status': status
+        })
+
+    # Run in strict thread to not block heartbeat
+    threading.Thread(target=run_cmd, daemon=True).start()
+
 def main():
-    if not is_admin():
+    if not os.environ.get("SYSTRACKER_TEST_MODE") and not is_admin():
         logging.info("Not running as admin. Requesting elevation...")
         try:
              ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
@@ -677,6 +734,18 @@ def main():
         last_hardware_sent = 0  # force send on first loop
 
         while True:
+            # 0. Ensure Socket Connection
+            if not sio.connected:
+                try:
+                    server_url = config.get("api_url", "").replace("/api", "")
+                    if server_url:
+                        # Construct query params (python-socketio handles query in url)
+                        query_url = f"{server_url}?role=agent&id={MACHINE_ID}"
+                        sio.connect(query_url, namespaces=['/'], wait_timeout=5)
+                        logging.info(f"Connected to Socket.IO at {server_url}")
+                except Exception as e:
+                    logging.error(f"Socket connection failed: {e}")
+
             # 1. Collect Telemetry
             metrics = get_system_metrics()
             if metrics:
@@ -764,7 +833,7 @@ if __name__ == "__main__":
     import shutil
     
     # Global Admin Check
-    if not is_admin():
+    if not os.environ.get("SYSTRACKER_TEST_MODE") and not is_admin():
         # Re-run the script/exe with admin privileges
         # If frozen, sys.executable is the exe.
         # If script, sys.executable is python.exe.
@@ -796,7 +865,7 @@ if __name__ == "__main__":
     
     config_loaded = load_config()
 
-    if not is_installed:
+    if not os.environ.get("SYSTRACKER_TEST_MODE") and not is_installed:
         # Not in Program Files -> Trigger Installation
         if config_loaded and config.get("api_url") != DEFAULT_API_URL:
              logging.info("Configuration found. Installing agent...")
