@@ -1,7 +1,8 @@
 // Error Logging with PID Tracking - SysTracker v3.0.0
-// Add this to server.js after the require statements
+const path = require('path');
+const fs = require('fs');
 
-const LOG_DIR = path.join(BASE_DIR, 'logs');
+const LOG_DIR = path.join(__dirname, 'logs');
 if (!fs.existsSync(LOG_DIR)) {
     fs.mkdirSync(LOG_DIR, { recursive: true });
 }

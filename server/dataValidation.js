@@ -40,7 +40,7 @@ function validateHardwareInfo(hwInfo) {
                 cores: Math.max(1, parseInt(hwInfo.all_details.cpu.cores) || 1),
                 logical: Math.max(1, parseInt(hwInfo.all_details.cpu.logical) || 1),
                 socket: String(hwInfo.all_details.cpu.socket || 'Unknown').substring(0, 100),
-                virtualization: String(hwInfo.all_details.cpu. || hwInfo.all_details.cpu.virtualization || 'Unknown').substring(0, 100)
+                virtualization: String(hwInfo.all_details.cpu.virtualization || 'Unknown').substring(0, 100)
             };
         }
 

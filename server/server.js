@@ -23,6 +23,13 @@ const crypto = require('crypto');
 const emailTemplates = require('./emailTemplates');
 const nodemailer = require('nodemailer');
 
+// Import validation and logging modules
+const { validateProcessData, validateHardwareInfo, validateDiskDetails } = require('./dataValidation');
+const { logger, LOG_DIR } = require('./errorLogger');
+
+// Log server startup
+logger.info('SysTracker Server starting...', { pid: process.pid });
+
 
 
 // JWT secret — use env var in production, auto-generate otherwise
@@ -199,6 +206,30 @@ function initializeDb() {
                 db.run("ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT 'admin'", (err) => {
                     if (err && !err.message.includes("duplicate column name")) {
                         console.error("Migration error (admin_users role):", err.message);
+                    }
+                });
+                // Migration: Add avatar column
+                db.run("ALTER TABLE admin_users ADD COLUMN avatar TEXT", (err) => {
+                    if (err && !err.message.includes("duplicate column name")) {
+                        console.error("Migration error (admin_users avatar):", err.message);
+                    }
+                });
+                // Migration: Add display_name column
+                db.run("ALTER TABLE admin_users ADD COLUMN display_name TEXT", (err) => {
+                    if (err && !err.message.includes("duplicate column name")) {
+                        console.error("Migration error (admin_users display_name):", err.message);
+                    }
+                });
+                // Migration: Add bio column
+                db.run("ALTER TABLE admin_users ADD COLUMN bio TEXT", (err) => {
+                    if (err && !err.message.includes("duplicate column name")) {
+                        console.error("Migration error (admin_users bio):", err.message);
+                    }
+                });
+                // Migration: Add location column
+                db.run("ALTER TABLE admin_users ADD COLUMN location TEXT", (err) => {
+                    if (err && !err.message.includes("duplicate column name")) {
+                        console.error("Migration error (admin_users location):", err.message);
                     }
                 });
             }
@@ -406,7 +437,7 @@ app.get('/api/auth/status', (req, res) => {
             if (err) return res.json({ authenticated: false, setup_required: setupRequired });
 
             // Fetch full user details (email) from DB
-            db.get("SELECT id, username, email FROM admin_users WHERE id = ?", [decoded.id], (err, user) => {
+            db.get("SELECT id, username, email, role, avatar, display_name, bio, location FROM admin_users WHERE id = ?", [decoded.id], (err, user) => {
                 if (err || !user) return res.json({ authenticated: false, setup_required: setupRequired });
                 res.json({ authenticated: true, user: user, setup_required: setupRequired });
             });
@@ -558,15 +589,15 @@ app.post('/api/auth/change-password', authenticateDashboard, (req, res) => {
     });
 });
 
-// Update Profile (Email/Username)
+// Update Profile (Email/Username/Display Name/Bio/Location/Avatar)
 app.put('/api/auth/profile', authenticateDashboard, (req, res) => {
-    const { email, username } = req.body;
+    const { email, username, display_name, bio, location, avatar } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
     // TODO: Validate email format
 
-    db.run('UPDATE admin_users SET email = ?, username = COALESCE(?, username) WHERE id = ?',
-        [email, username || null, req.admin.id],
+    db.run('UPDATE admin_users SET email = ?, username = COALESCE(?, username), display_name = ?, bio = ?, location = ?, avatar = ? WHERE id = ?',
+        [email, username || null, display_name || null, bio || null, location || null, avatar || null, req.admin.id],
         function (err) {
             if (err) {
                 if (err.message.includes('UNIQUE constraint failed')) {
@@ -976,57 +1007,70 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
     const { machine, metrics, events } = req.body;
 
     if (!machine || !machine.id) {
+        logger.warn('Invalid telemetry payload: Machine ID required', { ip: req.ip });
         return res.status(400).json({ error: 'Invalid payload: Machine ID required' });
     }
 
-    // --- STEP 1: Emit to Dashboard IMMEDIATELY (zero-wait) ---
-    // Build mappings first so the dashboard gets notified before any DB work begins.
-    const mappedMetrics = metrics ? {
-        cpu: metrics.cpu,
-        ram: metrics.ram,
-        disk: metrics.disk_total_gb ? Math.round(((metrics.disk_total_gb - metrics.disk_free_gb) / metrics.disk_total_gb) * 100) : 0,
-        disk_details: metrics.disk_details,
-        processes: metrics.processes,
-        network_up_kbps: metrics.network_up_kbps,
-        network_down_kbps: metrics.network_down_kbps,
-        uptime_seconds: metrics.uptime_seconds,
-        active_vpn: metrics.active_vpn
-    } : {};
+    try {
+        // --- STEP 0: Validate incoming data ---
+        let validatedProcesses = metrics && metrics.processes ? validateProcessData(metrics.processes) : null;
+        let validatedHardwareInfo = machine.hardware_info ? validateHardwareInfo(machine.hardware_info) : null;
+        let validatedDiskDetails = metrics && metrics.disk_details ? validateDiskDetails(metrics.disk_details) : null;
 
-    let emittedHardwareInfo = null;
-    if (machine.hardware_info) {
-        const raw = machine.hardware_info;
-        const details = raw.all_details || raw;
-        if (metrics && metrics.network_interfaces) {
-            details.network = metrics.network_interfaces;
+        // --- STEP 1: Emit to Dashboard IMMEDIATELY (zero-wait) ---
+        // Build mappings first so the dashboard gets notified before any DB work begins.
+        const mappedMetrics = metrics ? {
+            cpu: metrics.cpu,
+            ram: metrics.ram,
+            disk: metrics.disk_total_gb ? Math.round(((metrics.disk_total_gb - metrics.disk_free_gb) / metrics.disk_total_gb) * 100) : 0,
+            disk_details: validatedDiskDetails || metrics.disk_details,
+            processes: validatedProcesses || metrics.processes,
+            network_up_kbps: metrics.network_up_kbps,
+            network_down_kbps: metrics.network_down_kbps,
+            uptime_seconds: metrics.uptime_seconds,
+            active_vpn: metrics.active_vpn
+        } : {};
+
+        let emittedHardwareInfo = null;
+        if (validatedHardwareInfo) {
+            const details = validatedHardwareInfo.all_details || validatedHardwareInfo;
+            if (metrics && metrics.network_interfaces) {
+                details.network = metrics.network_interfaces;
+            }
+            emittedHardwareInfo = { all_details: details };
+        } else if (machine.hardware_info) {
+            const raw = machine.hardware_info;
+            const details = raw.all_details || raw;
+            if (metrics && metrics.network_interfaces) {
+                details.network = metrics.network_interfaces;
+            }
+            emittedHardwareInfo = { all_details: details };
+        } else if (metrics && metrics.network_interfaces && metrics.network_interfaces.length > 0) {
+            emittedHardwareInfo = { all_details: { network: metrics.network_interfaces } };
         }
-        emittedHardwareInfo = { all_details: details };
-    } else if (metrics && metrics.network_interfaces && metrics.network_interfaces.length > 0) {
-        emittedHardwareInfo = { all_details: { network: metrics.network_interfaces } };
-    }
 
-    io.emit('machine_update', {
-        id: machine.id,
-        hostname: machine.hostname,
-        status: 'online',
-        last_seen: new Date(),
-        metrics: mappedMetrics,
-        hardware_info: emittedHardwareInfo
-    });
+        io.emit('machine_update', {
+            id: machine.id,
+            hostname: machine.hostname,
+            status: 'online',
+            last_seen: new Date(),
+            metrics: mappedMetrics,
+            hardware_info: emittedHardwareInfo
+        });
 
-    // Respond to agent immediately so it doesn't wait for DB writes
-    res.json({ success: true });
+        // Respond to agent immediately so it doesn't wait for DB writes
+        res.json({ success: true });
 
-    // --- STEP 2: Persist to DB asynchronously (fire and forget) ---
-    // Machine upsert — runs only if throttled or if critical info changed
-    // We update last_seen every 60s to reduce DB locking
-    const now = Date.now();
-    const lastMachWrite = lastMachineDbWrite.get(machine.id) || 0;
+        // --- STEP 2: Persist to DB asynchronously (fire and forget) ---
+        // Machine upsert — runs only if throttled or if critical info changed
+        // We update last_seen every 60s to reduce DB locking
+        const now = Date.now();
+        const lastMachWrite = lastMachineDbWrite.get(machine.id) || 0;
 
-    if ((now - lastMachWrite) >= MACHINE_DB_THROTTLE_MS) {
-        lastMachineDbWrite.set(machine.id, now);
+        if ((now - lastMachWrite) >= MACHINE_DB_THROTTLE_MS) {
+            lastMachineDbWrite.set(machine.id, now);
 
-        const machineQuery = `
+            const machineQuery = `
             INSERT INTO machines (id, hostname, ip_address, os_info, os_distro, os_release, os_codename, os_serial, os_uefi, uuid, device_name, users, hardware_info, status, last_seen)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'online', CURRENT_TIMESTAMP)
             ON CONFLICT(id) DO UPDATE
@@ -1037,32 +1081,41 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
                 status = 'online',
                 last_seen = CURRENT_TIMESTAMP;
         `;
-        db.run(machineQuery, [
-            machine.id, machine.hostname,
-            machine.ip || (metrics ? metrics.ip_address : null),
-            machine.os_info, machine.os_distro, machine.os_release,
-            machine.os_codename, machine.os_serial,
-            machine.os_uefi ? 1 : 0, machine.uuid,
-            machine.device_name, JSON.stringify(machine.users),
-            machine.hardware_info ? JSON.stringify(machine.hardware_info) : null
-        ], (err) => { if (err) console.error("Error upserting machine:", err); });
-    }
+            db.run(machineQuery, [
+                machine.id, machine.hostname,
+                machine.ip || (metrics ? metrics.ip_address : null),
+                machine.os_info, machine.os_distro, machine.os_release,
+                machine.os_codename, machine.os_serial,
+                machine.os_uefi ? 1 : 0, machine.uuid,
+                machine.device_name, JSON.stringify(machine.users),
+                validatedHardwareInfo ? JSON.stringify(validatedHardwareInfo) : (machine.hardware_info ? JSON.stringify(machine.hardware_info) : null)
+            ], (err) => {
+                if (err) {
+                    logger.error('Error upserting machine', err, { machineId: machine.id });
+                    console.error("Error upserting machine:", err);
+                }
+            });
+        }
 
-    // Throttled metrics insert — at most once per 10s per machine
-    const lastWrite = lastMetricsDbWrite.get(machine.id) || 0;
-    if (metrics && (now - lastWrite) >= METRICS_DB_THROTTLE_MS) {
-        lastMetricsDbWrite.set(machine.id, now);
+        // Throttled metrics insert — at most once per 10s per machine
+        const lastWrite = lastMetricsDbWrite.get(machine.id) || 0;
+        if (metrics && (now - lastWrite) >= METRICS_DB_THROTTLE_MS) {
+            lastMetricsDbWrite.set(machine.id, now);
 
-        const diskDetailsStr = metrics.disk_details ? JSON.stringify(metrics.disk_details) : null;
-        const processesStr = metrics.processes ? JSON.stringify(metrics.processes) : null;
-        db.run(
-            `INSERT INTO metrics (machine_id, cpu_usage, ram_usage, disk_total_gb, disk_free_gb, network_up_kbps, network_down_kbps, active_vpn, disk_details, processes, timestamp)
+            const diskDetailsStr = validatedDiskDetails ? JSON.stringify(validatedDiskDetails) : (metrics.disk_details ? JSON.stringify(metrics.disk_details) : null);
+            const processesStr = validatedProcesses ? JSON.stringify(validatedProcesses) : (metrics.processes ? JSON.stringify(metrics.processes) : null);
+            db.run(
+                `INSERT INTO metrics (machine_id, cpu_usage, ram_usage, disk_total_gb, disk_free_gb, network_up_kbps, network_down_kbps, active_vpn, disk_details, processes, timestamp)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-            [machine.id, metrics.cpu_usage, metrics.ram_usage, metrics.disk_total_gb, metrics.disk_free_gb,
-            metrics.network_up_kbps || 0, metrics.network_down_kbps || 0, metrics.active_vpn ? 1 : 0,
-                diskDetailsStr, processesStr],
-            (err) => {
-                if (err) { console.error("Error inserting metrics:", err); return; }
+                [machine.id, metrics.cpu_usage, metrics.ram_usage, metrics.disk_total_gb, metrics.disk_free_gb,
+                metrics.network_up_kbps || 0, metrics.network_down_kbps || 0, metrics.active_vpn ? 1 : 0,
+                    diskDetailsStr, processesStr],
+                (err) => {
+                    if (err) {
+                        logger.error('Error inserting metrics', err, { machineId: machine.id });
+                        console.error("Error inserting metrics:", err);
+                        return;
+                    }
 
                 // --- DYNAMIC ALERT EVALUATION ---
                 evaluateAlerts(machine.id, {
@@ -1079,6 +1132,11 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
         const stmt = db.prepare(`INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, ?, ?, ?, ?, ?)`);
         events.forEach(event => stmt.run([machine.id, event.event_id, event.source, event.message, event.severity, event.timestamp]));
         stmt.finalize();
+    }
+    
+    } catch (error) {
+        logger.error('Error processing telemetry', error, { machineId: machine?.id, hasMetrics: !!metrics });
+        // Already responded to agent, just log the error
     }
 });
 

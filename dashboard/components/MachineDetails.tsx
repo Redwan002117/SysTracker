@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Machine } from '../types';
-import { Server, Activity, Copy, Check, Clock, Globe, ArrowDown, ArrowUp, Zap, Radio, Terminal, Shield, CircuitBoard, Cpu, Layers, HardDrive, Monitor, LayoutList, Database, X } from 'lucide-react';
+import { Server, Activity, Globe, Radio, Terminal, Shield, CircuitBoard, Cpu, Layers, HardDrive, Monitor, LayoutList, Database, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileCard from './ProfileCard';
 import TerminalTab from './TerminalTab';
@@ -14,6 +14,11 @@ interface MachineDetailsProps {
 }
 
 const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => {
+    // React Hooks must be called before any early returns
+    const [activeTab, setActiveTab] = React.useState<'overview' | 'terminal' | 'history'>('overview');
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [nickname, setNickname] = React.useState(machine?.nickname || '');
+    const [sortConfig, setSortConfig] = React.useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'cpu', direction: 'desc' });
 
     // Close on escape key
     React.useEffect(() => {
@@ -24,30 +29,25 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
         return () => window.removeEventListener('keydown', handleEsc);
     }, [onClose]);
 
-    if (!machine) return null;
+    // Update nickname when machine changes
+    React.useEffect(() => {
+        if (machine) {
+            setNickname(machine.nickname || '');
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [machine?.nickname]);
 
-    const isOnline = machine.status === 'online';
-    const { hardware_info } = machine;
-
-    const [activeTab, setActiveTab] = React.useState<'overview' | 'terminal' | 'history'>('overview');
-    const [isEditing, setIsEditing] = React.useState(false);
-    const [nickname, setNickname] = React.useState(machine.nickname || '');
-    const [sortConfig, setSortConfig] = React.useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'cpu', direction: 'desc' });
-
-    // Force update to reflect changes from ProfileCard immediate local state if needed, 
-    // though the socket event should handle it.
-
-    // ... existing sort logic ...
+    // Sort processes (moved before early return for React Hooks compliance)
     const sortedProcesses = React.useMemo(() => {
-        if (!machine.metrics?.processes) return [];
-        let sortableProcesses = [...machine.metrics.processes];
+        if (!machine?.metrics?.processes) return [];
+        const sortableProcesses = [...machine.metrics.processes];
         if (sortConfig !== null) {
             sortableProcesses.sort((a, b) => {
-                // @ts-ignore
+                // @ts-expect-error - dynamic key access
                 if (a[sortConfig.key] < b[sortConfig.key]) {
                     return sortConfig.direction === 'asc' ? -1 : 1;
                 }
-                // @ts-ignore
+                // @ts-expect-error - dynamic key access
                 if (a[sortConfig.key] > b[sortConfig.key]) {
                     return sortConfig.direction === 'asc' ? 1 : -1;
                 }
@@ -55,15 +55,20 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
             });
         }
         return sortableProcesses;
-    }, [machine.metrics?.processes, sortConfig]);
+    }, [machine?.metrics?.processes, sortConfig]);
 
     const handleSort = (key: string) => {
-        let direction: 'asc' | 'desc' = 'desc'; // Default to descending for numbers usually
+        let direction: 'asc' | 'desc' = 'desc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
             direction = 'asc';
         }
         setSortConfig({ key, direction });
     };
+
+    if (!machine) return null;
+
+    const isOnline = machine.status === 'online';
+    const { hardware_info } = machine;
 
     const handleSaveNickname = async () => {
         try {
@@ -310,7 +315,7 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                                                         </div>
                                                         <div className="col-span-2 border-t border-slate-50 pt-4 grid grid-cols-2 gap-6">
                                                             <div>
-                                                                <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5 flex items-center gap-1.5"><Activity size={10} /> Uptime</span>
+                                                                <span className="text-[10px] text-slate-400 font-bold uppercase mb-1.5 flex items-center gap-1.5"><Activity size={10} /> Uptime</span>
                                                                 <span className="font-mono text-sm text-slate-700 font-medium">
                                                                     {(() => {
                                                                         const seconds = machine.metrics?.uptime_seconds || 0;
@@ -323,7 +328,7 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                                                                 </span>
                                                             </div>
                                                             <div>
-                                                                <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1.5 flex items-center gap-1.5"><Radio size={10} /> Last Saw</span>
+                                                                <span className="text-[10px] text-slate-400 font-bold uppercase mb-1.5 flex items-center gap-1.5"><Radio size={10} /> Last Saw</span>
                                                                 <span className="font-mono text-sm text-slate-700 font-medium">
                                                                     {new Date(machine.last_seen).toLocaleTimeString('en-US', { timeZone: 'UTC' })} UTC
                                                                 </span>
