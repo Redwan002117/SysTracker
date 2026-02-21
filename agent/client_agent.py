@@ -17,53 +17,103 @@ import hashlib
 # Initialize Socket.IO Client
 sio = socketio.Client()
 
-# Configure Logging to file and console
-LOG_DIR = os.path.join(os.environ.get('PROGRAMDATA', 'C:\\ProgramData'), 'SysTracker', 'Agent', 'logs')
-if not os.path.exists(LOG_DIR):
+# Version - Define early so it's available for logging
+VERSION = "3.3.1"
+
+# Configure Logging to file and console with multiple fallback locations
+def setup_logging():
+    """Setup logging with fallback locations for maximum compatibility."""
+    
+    # Try multiple log directory locations in order of preference
+    log_locations = [
+        # 1. ProgramData (best for Windows services)
+        os.path.join(os.environ.get('PROGRAMDATA', 'C:\\ProgramData'), 'SysTracker', 'Agent', 'logs'),
+        # 2. User's AppData (fallback if ProgramData fails)
+        os.path.join(os.environ.get('APPDATA', 'C:\\Users\\Public\\AppData\\Roaming'), 'SysTracker', 'Agent', 'logs'),
+        # 3. Temp directory (always writable)
+        os.path.join(os.environ.get('TEMP', 'C:\\Windows\\Temp'), 'SysTracker', 'logs'),
+        # 4. Script directory (last resort)
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+    ]
+    
+    log_dir = None
+    for location in log_locations:
+        try:
+            os.makedirs(location, exist_ok=True)
+            # Test write permissions
+            test_file = os.path.join(location, '.write_test')
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            log_dir = location
+            print(f"✓ Using log directory: {log_dir}")
+            break
+        except Exception as e:
+            print(f"✗ Cannot use {location}: {e}")
+            continue
+    
+    if not log_dir:
+        print("ERROR: Could not create log directory in any location!")
+        # Use console-only logging as absolute fallback
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s | %(levelname)-8s | %(funcName)-20s | %(message)s',
+            handlers=[logging.StreamHandler()]
+        )
+        logging.warning("Running with console-only logging due to file system permissions")
+        return None
+    
+    log_file = os.path.join(log_dir, f'agent_{datetime.datetime.now().strftime("%Y%m%d")}.log')
+    print(f"✓ Log file: {log_file}")
+    
+    # Create handlers
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    
     try:
-        os.makedirs(LOG_DIR, exist_ok=True)
-        print(f"Created log directory: {LOG_DIR}")
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file, 
+            maxBytes=10*1024*1024,  # 10MB per file
+            backupCount=10,  # Keep 10 backup files
+            encoding='utf-8'
+        )
+        file_handler.setLevel(logging.DEBUG)
+        
+        # Create formatter
+        formatter = logging.Formatter('%(asctime)s | %(levelname)-8s | %(funcName)-20s | %(message)s')
+        console_handler.setFormatter(formatter)
+        file_handler.setFormatter(formatter)
+        
+        # Configure root logger
+        logging.basicConfig(
+            level=logging.DEBUG,
+            handlers=[console_handler, file_handler]
+        )
+        
+        logging.info("="*80)
+        logging.info("SysTracker Agent Starting...")
+        logging.info(f"Version: {VERSION}")
+        logging.info(f"Python: {sys.version}")
+        logging.info(f"Platform: {platform.platform()}")
+        logging.info(f"Hostname: {socket.gethostname()}")
+        logging.info(f"Log Directory: {log_dir}")
+        logging.info(f"Log File: {log_file}")
+        logging.info("="*80)
+        
+        return log_dir
+        
     except Exception as e:
-        print(f"Failed to create log directory {LOG_DIR}: {e}")
-        LOG_DIR = os.path.dirname(os.path.abspath(__file__))  # Fallback to script directory
-        print(f"Using fallback log directory: {LOG_DIR}")
+        print(f"ERROR: Could not create log file handler: {e}")
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s | %(levelname)-8s | %(funcName)-20s | %(message)s',
+            handlers=[logging.StreamHandler()]
+        )
+        logging.error(f"Failed to setup file logging: {e}")
+        return None
 
-LOG_FILE = os.path.join(LOG_DIR, f'agent_{datetime.datetime.now().strftime("%Y%m%d")}.log')
-
-print(f"Initializing logging system...")
-print(f"Log file: {LOG_FILE}")
-
-# Create handlers
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-file_handler = logging.handlers.RotatingFileHandler(
-    LOG_FILE, 
-    maxBytes=10*1024*1024,  # 10MB per file (increased from 5MB)
-    backupCount=10,  # Keep 10 backup files (increased from 5)
-    encoding='utf-8'
-)
-file_handler.setLevel(logging.DEBUG)
-
-# Create formatter with more detailed format
-formatter = logging.Formatter('%(asctime)s | %(levelname)-8s | %(funcName)-20s | %(message)s')
-console_handler.setFormatter(formatter)
-file_handler.setFormatter(formatter)
-
-# Configure root logger
-logging.basicConfig(
-    level=logging.DEBUG,
-    handlers=[console_handler, file_handler]
-)
-
-logging.info("="*80)
-logging.info("SysTracker Agent Starting...")
-logging.info(f"Version: {VERSION if 'VERSION' in dir() else 'Unknown'}")
-logging.info(f"Python: {sys.version}")
-logging.info(f"Platform: {platform.platform()}")
-logging.info(f"Hostname: {socket.gethostname()}")
-logging.info(f"Log Directory: {LOG_DIR}")
-logging.info(f"Log File: {LOG_FILE}")
-logging.info("="*80)
+# Initialize logging
+LOG_DIR = setup_logging()
 
 # Try initializing Windows Event Log modules
 try:
@@ -80,8 +130,8 @@ DEFAULT_API_KEY = "YOUR_STATIC_API_KEY_HERE"
 TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 UPDATE_CHECK_INTERVAL = 3600  # seconds (60 minutes)
-MACHINE_ID = socket.gethostname() 
-VERSION = "3.3.1"
+MACHINE_ID = socket.gethostname()
+# VERSION defined at top of file (line 7)
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 
