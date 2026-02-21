@@ -11,7 +11,7 @@
 
 ; ---- Metadata -----------------------------------------------
 Name                 "SysTracker Agent"
-OutFile              "agent\dist\SysTracker-Agent-Setup.exe"
+OutFile              "dist\SysTracker-Agent-Setup.exe"
 InstallDir           "$PROGRAMFILES64\SysTracker\Agent"
 InstallDirRegKey     HKLM "Software\SysTracker\Agent" "InstallDir"
 RequestExecutionLevel admin
@@ -28,8 +28,8 @@ VIAddVersionKey      "ProductVersion"   "3.1.5"
 VIAddVersionKey      "LegalCopyright"   "© 2026 Redwan002117"
 
 ; ---- MUI Settings -------------------------------------------
-!define MUI_ICON                    "agent\app.ico"
-!define MUI_UNICON                  "agent\app.ico"
+!define MUI_ICON                    "app.ico"
+!define MUI_UNICON                  "app.ico"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN          "$INSTDIR\systracker-agent.exe"
 !define MUI_FINISHPAGE_RUN_TEXT     "Start SysTracker Agent service now"
@@ -47,7 +47,7 @@ Var Dialog
 
 ; ---- Pages --------------------------------------------------
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "LICENSE"
+!insertmacro MUI_PAGE_LICENSE "..\LICENSE"
 !insertmacro MUI_PAGE_DIRECTORY
 Page custom ConfigPage ConfigPageLeave
 !insertmacro MUI_PAGE_INSTFILES
@@ -108,7 +108,7 @@ Section "SysTracker Agent" SecMain
     SetOutPath "$INSTDIR"
 
     ; Copy agent executable
-    File "agent\dist\systracker-agent-win.exe"
+    File "dist\systracker-agent-win.exe"
     Rename "$INSTDIR\systracker-agent-win.exe" "$INSTDIR\systracker-agent.exe"
 
     ; Write config file
