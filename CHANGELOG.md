@@ -3,6 +3,12 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.1.8] - 2026-02-21
+
+### Fixed
+- **CI: `build-server-release`** — Dual Node.js strategy: Node 20 for dashboard/agent (Next.js 16 requires `>=20.9.0`), switches to Node 18 before server `npm install` so sqlite3 uses prebuilt NAPI binaries instead of falling back to `node-gyp` / Windows SDK compilation
+- **CI: `notify-release`** — Added `permissions: issues: write` to fix 403 "Resource not accessible by integration" error when creating release notification issue via `actions/github-script`
+
 ---
 
 ## [v3.1.7] - 2026-02-21
