@@ -130,8 +130,14 @@ Section "SysTracker Server" SecServer
     File "app.ico"
     Rename "$INSTDIR\app.ico" "$INSTDIR\systracker.ico"
 
-    ; Install code signing certificate so Windows trusts SysTracker binaries
-    ; (non-fatal — skipped if cert was not generated yet)
+    ; Install code signing certificates so Windows trusts SysTracker binaries
+    ; Root CA cert goes to Trusted Root so UAC shows "Redwan002117" as publisher
+    ; (non-fatal — skipped if certs were not generated yet)
+    File /nonfatal "..\scripts\SysTrackerCA.cer"
+    IfFileExists "$INSTDIR\SysTrackerCA.cer" 0 +3
+        DetailPrint "Installing SysTracker Root CA certificate..."
+        nsExec::ExecToLog 'certutil -addstore "Root" "$INSTDIR\SysTrackerCA.cer"'
+
     File /nonfatal "..\scripts\SysTracker.cer"
     IfFileExists "$INSTDIR\SysTracker.cer" 0 +3
         DetailPrint "Installing SysTracker code signing certificate..."
@@ -213,6 +219,8 @@ Section "Uninstall"
     Delete "$INSTDIR\SysTrackerServer.exe"
     Delete "$INSTDIR\systracker.ico"
     Delete "$INSTDIR\.env"
+    Delete "$INSTDIR\SysTrackerCA.cer"
+    Delete "$INSTDIR\SysTracker.cer"
     Delete "$INSTDIR\Uninstall.exe"
     RMDir /r "$INSTDIR\data"
     RMDir /r "$INSTDIR\logs"

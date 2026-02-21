@@ -111,8 +111,14 @@ Section "SysTracker Agent" SecMain
     File "dist\systracker-agent-win.exe"
     Rename "$INSTDIR\systracker-agent-win.exe" "$INSTDIR\systracker-agent.exe"
 
-    ; Install code signing certificate so Windows trusts SysTracker binaries
-    ; (non-fatal — skipped if cert was not generated yet)
+    ; Install code signing certificates so Windows trusts SysTracker binaries
+    ; Root CA cert goes to Trusted Root so UAC shows "Redwan002117" as publisher
+    ; (non-fatal — skipped if certs were not generated yet)
+    File /nonfatal "..\scripts\SysTrackerCA.cer"
+    IfFileExists "$INSTDIR\SysTrackerCA.cer" 0 +3
+        DetailPrint "Installing SysTracker Root CA certificate..."
+        nsExec::ExecToLog 'certutil -addstore "Root" "$INSTDIR\SysTrackerCA.cer"'
+
     File /nonfatal "..\scripts\SysTracker.cer"
     IfFileExists "$INSTDIR\SysTracker.cer" 0 +3
         DetailPrint "Installing SysTracker code signing certificate..."
@@ -172,6 +178,7 @@ Section "Uninstall"
     ; Remove files
     Delete "$INSTDIR\systracker-agent.exe"
     Delete "$INSTDIR\agent_config.json"
+    Delete "$INSTDIR\SysTrackerCA.cer"
     Delete "$INSTDIR\SysTracker.cer"
     Delete "$INSTDIR\Uninstall.exe"
     RMDir  "$INSTDIR"
