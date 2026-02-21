@@ -1,119 +1,52 @@
-name: Publish Documentation Wiki
+name: Publish to Wiki
 
+# This action runs every time you push changes to the main branch
+# specifically within the '.wiki/' folder.
 on:
   push:
     branches:
       - main
     paths:
-      - 'docs/**'
-      - '*.md'
-      - '.github/workflows/publish-wiki.yml'
-  workflow_dispatch:
+      - '.wiki/**'
 
+# Grants the action permission to push code
 permissions:
   contents: write
 
 jobs:
-  validate-docs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate Markdown Files
-        run: |
-          echo "Validating Markdown syntax..."
-          find docs -name "*.md" -type f 2>/dev/null | while read file; do
-            if [ -f "$file" ]; then
-              echo "✓ Found: $file"
-            fi
-          done
-          echo "✓ Markdown validation passed"
-
   update-wiki:
     runs-on: ubuntu-latest
-    needs: validate-docs
     steps:
-      - uses: actions/checkout@v4
+      # 1. Check out your main repository
+      - name: Checkout main repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          path: main-repo
 
-      - name: Set up Git
+      # 2. Check out your hidden Wiki repository
+      - name: Checkout wiki repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki-repo
+
+      # 3. Copy files from your .wiki folder to the Wiki repository and push
+      - name: Sync files and push to Wiki
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-
-      - name: Update Wiki
-        run: |
-          mkdir -p wiki
-          cd wiki
+          # Sync files from .wiki/ to the wiki repository
+          # --delete ensures files removed from docs/ are also removed from the Wiki
+          rsync -av --delete --exclude='.git' main-repo/.wiki/ wiki-repo/
           
-          # Try to clone existing wiki
-          if git clone --depth 1 "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git" . 2>/dev/null; then
-            echo "Wiki repository cloned"
+          # Navigate to the wiki directory, commit, and push
+          cd wiki-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          
+          # Only commit and push if there are actual changes
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "Auto-published wiki updates from main repository"
+            git push
           else
-            echo "Initializing new wiki repository"
-            git init
-            git config user.email "action@github.com"
-            git config user.name "GitHub Action"
-            git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git"
-            
-            # Create initial Home page
-            echo "# SysTracker Documentation Wiki" > Home.md
-            echo "" >> Home.md
-            echo "Welcome to the SysTracker documentation!" >> Home.md
-          fi
-          
-          # Prefer repo-managed wiki content when available
-          if [ -d "../.wiki" ]; then
-            cp -r ../.wiki/* . 2>/dev/null || true
-          else
-            # Copy README as Home
-            cp ../README.md Home.md
-            
-            # Copy all markdown files from docs
-            if [ -d "../docs" ]; then
-              cp -r ../docs/* . 2>/dev/null || true
-            fi
-          fi
-          
-          # Create sidebar when none is provided
-          if [ ! -f "_Sidebar.md" ]; then
-            cat > _Sidebar.md << 'SIDEBAR'
-          # Documentation
-          
-          ## Getting Started
-          - [[Home|Home]]
-          - [[Installation|README]]
-          
-          ## Features
-          - [[Dashboard Features|FEATURES_AND_STATUS]]
-          - [[Implementation Status|IMPLEMENTATION_COMPLETE_SUMMARY]]
-          
-          ## Guides
-          - [[Architecture|docs/architecture]]
-          - [[Deployment|docs/deployment]]
-          
-          ---
-          [GitHub](https://github.com/${{ github.repository }}) | [Issues](https://github.com/${{ github.repository }}/issues)
-          SIDEBAR
-          fi
-
-          # Commit and push
-          git add -A
-          
-          if git diff --quiet --cached; then
-            echo "No changes to wiki"
-            exit 0
-          fi
-          
-          git commit -m "docs: sync documentation from main repository"
-          
-          # Try to push
-          if git push -u origin master 2>/dev/null; then
-            echo "✓ Wiki updated (master branch)"
-          elif git push -u origin main 2>/dev/null; then
-            echo "✓ Wiki updated (main branch)"
-          else
-            echo "⚠ Wiki push skipped (may need manual initialization)"
-            exit 0
+            echo "No changes to publish."
           fi
