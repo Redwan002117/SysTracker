@@ -3,6 +3,23 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.3] - 2026-02-21
+
+### ✨ New Features
+- **Windows Server System Tray Launcher** (`SysTrackerServer.exe`) — the server now ships as a proper Windows GUI application with a system tray icon; double-click to open the dashboard, right-click for Restart / Stop & Exit; shows balloon notification when the server is ready; single-instance mutex prevents duplicate launches
+
+### 🔧 Technical Improvements
+- **CI: tray build added to `test-and-validate.yml`** — `build-windows` job now compiles `SysTrackerTray.csproj` in Release mode and verifies `SysTrackerServer.exe` is produced, so tray regressions are caught on every push to `main`
+- **CI: `publish.yml` rcedit version** — updated hardcoded file version stamp from `3.2.0.0` → `3.2.3.0` to match the actual release
+
+### 🐛 Bug Fixes
+- **`launch-server.bat`** — was referencing `systracker-server-win.exe` (the raw Node.js core binary, which the installer renames) instead of `SysTrackerServer.exe` (the tray launcher); also removed hardcoded `start http://localhost:3000` — the tray app opens the browser automatically via its health-check
+- **`install-server.ps1`** — port `3000` → `7777` throughout (`.env` template, summary output); version `3.1.0` → `3.2.3`; publisher `"SysTracker Project"` → `"RedwanCodes"`; shortcuts pointed to `launch-server.bat` + `logo.ico` → `SysTrackerServer.exe` + `systracker.ico`
+- **`installer.nsi`** — version bumped through all `VIProductVersion` / `VIAddVersionKey` entries
+- **`.gitignore`** — added `server/tray/bin/` and `server/tray/obj/` to suppress .NET build artifact noise
+
+---
+
 ## [3.2.2] - 2026-02-21
 
 ### 🐛 Bug Fixes

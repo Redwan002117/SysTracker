@@ -126,7 +126,7 @@ jobs:
             & $rcedit "server\dist\SysTrackerServer.exe" --set-icon "server\app.ico"
             & $rcedit "server\dist\SysTrackerServer.exe" --set-version-string "ProductName" "SysTracker Server"
             & $rcedit "server\dist\SysTrackerServer.exe" --set-version-string "FileDescription" "SysTracker Server Launcher"
-            & $rcedit "server\dist\SysTrackerServer.exe" --set-file-version "3.2.0.0"
+            & $rcedit "server\dist\SysTrackerServer.exe" --set-file-version "3.2.3.0"
             Write-Host "✓ Icon embedded into tray launcher"
           } else {
             Write-Warning "rcedit not found, skipping icon embed for tray launcher"

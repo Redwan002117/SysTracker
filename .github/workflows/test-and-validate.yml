@@ -282,6 +282,28 @@ jobs:
             exit 1
           }
 
+      - name: Setup .NET SDK (for tray)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build Tray Launcher (C#)
+        run: |
+          dotnet publish server\tray\SysTrackerTray.csproj -c Release -o server\dist
+          if ($LASTEXITCODE -ne 0) { Write-Error "Tray launcher build failed"; exit 1 }
+          Write-Host "✓ SysTrackerServer.exe (tray launcher) built"
+
+      - name: Verify Tray Launcher
+        run: |
+          if (Test-Path "server\dist\SysTrackerServer.exe") {
+            Write-Host "✓ SysTrackerServer.exe created"
+            $size = (Get-Item "server\dist\SysTrackerServer.exe").Length / 1MB
+            Write-Host "  Size: $([Math]::Round($size, 2)) MB"
+          } else {
+            Write-Host "✗ SysTrackerServer.exe not found"
+            exit 1
+          }
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
