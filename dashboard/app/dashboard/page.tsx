@@ -128,6 +128,19 @@ export default function Dashboard() {
     };
   }, [router]);
 
+  // Keep selectedMachine in sync with the machines array.
+  // When a profile save triggers a socket update, the machines array gets the
+  // updated machine — this effect pushes that update into selectedMachine so
+  // MachineDetails always renders fresh data without requiring a panel reopen.
+  useEffect(() => {
+    setSelectedMachine(prev => {
+      if (!prev) return prev;
+      const latest = machines.find(m => m.id === prev.id);
+      return latest ?? prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [machines]);
+
   // Filter Logic
   const filteredMachines = machines.filter(machine => {
     if (!machine) return false;

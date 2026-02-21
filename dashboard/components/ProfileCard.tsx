@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { Machine } from '../types';
-import { User, Edit2, Check, X as XIcon, Share, Star, Briefcase, Hash, Layers, MapPin, ArrowRight, Activity } from 'lucide-react';
+import { User, Edit2, Check, X as XIcon, Share, Star, Briefcase, Hash, Layers, MapPin, ArrowRight, Activity, Loader } from 'lucide-react';
 import AvatarUpload from './AvatarUpload';
 
 interface ProfileCardProps {
     machine: Machine;
-    onUpdate: (profile: Machine['profile']) => void;
+    onUpdate: (profile: Machine['profile']) => Promise<boolean>;
 }
 
 const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
-    // Default or existing profile state
-    const [profile, setProfile] = useState(machine.profile || {
+    const defaultProfile = machine.profile || {
         name: 'Unassigned',
         role: 'No Role Set',
         tags: [],
@@ -21,18 +22,49 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
             { label: 'Uptime', value: '0%' },
             { label: 'Rate', value: '$0/hr' }
         ]
-    });
+    };
 
-    const [tempProfile, setTempProfile] = useState(profile);
+    // Local display state — initialized from prop, kept in sync when not editing
+    const [profile, setProfile] = useState(defaultProfile);
+    const [tempProfile, setTempProfile] = useState(defaultProfile);
 
-    const handleSave = () => {
-        onUpdate(tempProfile);
-        setProfile(tempProfile);
-        setIsEditing(false);
+    // When the machine.profile prop updates (e.g. socket pushes a fresh copy
+    // after another client saves), re-sync local state — but never while the
+    // user is actively editing so their in-progress changes aren't lost.
+    React.useEffect(() => {
+        if (!isEditing) {
+            const fresh = machine.profile || {
+                name: 'Unassigned',
+                role: 'No Role Set',
+                tags: [],
+                stats: [
+                    { label: 'Rating', value: '0.0' },
+                    { label: 'Uptime', value: '0%' },
+                    { label: 'Rate', value: '$0/hr' }
+                ]
+            };
+            setProfile(fresh);
+            setTempProfile(fresh);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [machine.profile]);
+
+    const handleSave = async () => {
+        setSaveError(null);
+        setIsSaving(true);
+        const success = await onUpdate(tempProfile);
+        setIsSaving(false);
+        if (success) {
+            setProfile(tempProfile);
+            setIsEditing(false);
+        } else {
+            setSaveError('Failed to save. Check your connection and try again.');
+        }
     };
 
     const handleCancel = () => {
         setTempProfile(profile);
+        setSaveError(null);
         setIsEditing(false);
     };
 
@@ -239,13 +271,20 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
 
                 {/* Actions */}
                 {isEditing ? (
-                    <div className="flex gap-3 w-full animate-in fade-in slide-in-from-bottom-2">
-                        <button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 active:scale-[0.98] text-base">
-                            <Check size={20} strokeWidth={2.5} /> Save Profile
-                        </button>
-                        <button onClick={handleCancel} className="bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 font-semibold p-4 rounded-2xl transition-all border border-slate-200 hover:border-red-200 flex items-center justify-center active:scale-[0.98]">
-                            <XIcon size={24} />
-                        </button>
+                    <div className="flex flex-col gap-2 w-full animate-in fade-in slide-in-from-bottom-2">
+                        <div className="flex gap-3">
+                            <button onClick={handleSave} disabled={isSaving} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 active:scale-[0.98] text-base">
+                                {isSaving
+                                    ? <><Loader size={18} className="animate-spin" /> Saving...</>
+                                    : <><Check size={20} strokeWidth={2.5} /> Save Profile</>}
+                            </button>
+                            <button onClick={handleCancel} disabled={isSaving} className="bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 font-semibold p-4 rounded-2xl transition-all border border-slate-200 hover:border-red-200 flex items-center justify-center active:scale-[0.98] disabled:opacity-60">
+                                <XIcon size={24} />
+                            </button>
+                        </div>
+                        {saveError && (
+                            <p className="text-xs text-red-500 text-center font-medium px-1">{saveError}</p>
+                        )}
                     </div>
                 ) : (
                     <div className="w-full space-y-3">

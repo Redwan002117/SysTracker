@@ -88,7 +88,7 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
         }
     };
 
-    const handleProfileUpdate = async (newProfile: Machine['profile']) => {
+    const handleProfileUpdate = async (newProfile: Machine['profile']): Promise<boolean> => {
         try {
             const token = typeof window !== 'undefined' ? localStorage.getItem('systracker_token') : null;
             const res = await fetch(`/api/machines/${machine.id}/profile`, {
@@ -99,10 +99,15 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                 },
                 body: JSON.stringify({ profile: newProfile })
             });
-            if (!res.ok) throw new Error('Failed to update profile');
-            // Socket will update the UI
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || `Server error ${res.status}`);
+            }
+            // Socket will update the UI via machine_update event
+            return true;
         } catch (err) {
-            console.error(err);
+            console.error('[ProfileCard] Save failed:', err);
+            return false;
         }
     };
 
