@@ -114,6 +114,11 @@ export default function Dashboard() {
       setMachines(prev => prev.map(m => m.id === id ? { ...m, status } : m));
     });
 
+    socket.on('machine_removed', ({ id }: { id: string }) => {
+      setMachines(prev => prev.filter(m => m.id !== id));
+      setSelectedMachine(prev => (prev?.id === id ? null : prev));
+    });
+
     socket.on('refresh_request', () => {
       fetchWithAuth('/api/machines')
         .then(res => res.json())
@@ -127,6 +132,12 @@ export default function Dashboard() {
       socket.disconnect();
     };
   }, [router]);
+
+  // Handle machine delete — removes from state and closes the detail panel
+  const handleMachineDelete = (id: string) => {
+    setMachines(prev => prev.filter(m => m.id !== id));
+    setSelectedMachine(null);
+  };
 
   // Keep selectedMachine in sync with the machines array.
   // When a profile save triggers a socket update, the machines array gets the
@@ -297,6 +308,7 @@ export default function Dashboard() {
         <MachineDetails
           machine={selectedMachine}
           onClose={() => setSelectedMachine(null)}
+          onDelete={handleMachineDelete}
         />
       )}
 

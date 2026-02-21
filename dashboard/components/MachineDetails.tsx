@@ -2,23 +2,28 @@
 
 import React from 'react';
 import { Machine } from '../types';
-import { Server, Activity, Globe, Radio, Terminal, Shield, CircuitBoard, Cpu, Layers, HardDrive, Monitor, LayoutList, Database, X } from 'lucide-react';
+import { Server, Activity, Globe, Radio, Terminal, Shield, CircuitBoard, Cpu, Layers, HardDrive, Monitor, LayoutList, Database, X, Trash2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProfileCard from './ProfileCard';
 import TerminalTab from './TerminalTab';
 import PerformanceHistory from './PerformanceHistory';
+import { isAdmin, getToken } from '../lib/auth';
 
 interface MachineDetailsProps {
     machine: Machine | null;
     onClose: () => void;
+    onDelete?: (id: string) => void;
 }
 
-const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => {
+const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose, onDelete }) => {
     // React Hooks must be called before any early returns
     const [activeTab, setActiveTab] = React.useState<'overview' | 'terminal' | 'history'>('overview');
     const [isEditing, setIsEditing] = React.useState(false);
     const [nickname, setNickname] = React.useState(machine?.nickname || '');
     const [sortConfig, setSortConfig] = React.useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'cpu', direction: 'desc' });
+    const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+    const [isDeleting, setIsDeleting] = React.useState(false);
+    const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
     // Close on escape key
     React.useEffect(() => {
@@ -108,6 +113,29 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
         } catch (err) {
             console.error('[ProfileCard] Save failed:', err);
             return false;
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!machine) return;
+        setIsDeleting(true);
+        setDeleteError(null);
+        try {
+            const token = getToken();
+            const res = await fetch(`/api/machines/${machine.id}`, {
+                method: 'DELETE',
+                headers: { ...(token ? { 'Authorization': `Bearer ${token}` } : {}) }
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || `Server error ${res.status}`);
+            }
+            onDelete?.(machine.id);
+            onClose();
+        } catch (err: unknown) {
+            setDeleteError(err instanceof Error ? err.message : 'Failed to remove device');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -215,9 +243,56 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose }) => 
                                         </div>
                                     </div>
                                 </div>
-                                <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600 hover:rotate-90 duration-300">
-                                    <X size={24} />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                    {isAdmin() && onDelete && (
+                                        <button
+                                            onClick={() => { setShowDeleteConfirm(true); setDeleteError(null); }}
+                                            title="Remove device from server"
+                                            className="p-2 hover:bg-rose-50 rounded-full transition-colors text-slate-400 hover:text-rose-600 duration-200"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    )}
+                                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600 hover:rotate-90 duration-300">
+                                        <X size={24} />
+                                    </button>
+                                </div>
+
+                                {/* Delete Confirmation Modal */}
+                                {showDeleteConfirm && (
+                                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)}>
+                                        <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+                                            <div className="flex items-center gap-3 mb-4">
+                                                <div className="p-2.5 bg-rose-100 rounded-xl text-rose-600 shrink-0">
+                                                    <AlertTriangle size={22} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-slate-800 text-base">Remove Device?</h3>
+                                                    <p className="text-xs text-slate-500 mt-0.5">This deletes all metrics, events, and logs for this machine from the server.</p>
+                                                </div>
+                                            </div>
+                                            <div className="bg-slate-50 rounded-xl px-4 py-3 mb-4 border border-slate-100">
+                                                <p className="text-sm font-semibold text-slate-700">{machine.nickname || machine.hostname}</p>
+                                                <p className="text-xs text-slate-400 font-mono mt-0.5">{machine.ip}</p>
+                                            </div>
+                                            {deleteError && (
+                                                <p className="text-xs text-rose-600 mb-3 bg-rose-50 px-3 py-2 rounded-lg border border-rose-100">{deleteError}</p>
+                                            )}
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => setShowDeleteConfirm(false)}
+                                                    disabled={isDeleting}
+                                                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                                                >Cancel</button>
+                                                <button
+                                                    onClick={handleDelete}
+                                                    disabled={isDeleting}
+                                                    className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 transition-colors disabled:opacity-60"
+                                                >{isDeleting ? 'Removing…' : 'Remove Device'}</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Tab Navigation */}

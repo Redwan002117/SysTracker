@@ -175,6 +175,23 @@ Section "Uninstall"
     nsExec::ExecToLog 'schtasks /End /TN "SysTrackerAgent"'
     nsExec::ExecToLog 'schtasks /Delete /TN "SysTrackerAgent" /F'
 
+    ; Self-deregister from the SysTracker server (best-effort, non-fatal)
+    ; Reads SERVER_URL and API_KEY from agent_config.json and calls /api/deregister
+    DetailPrint "Notifying SysTracker server of removal..."
+    FileOpen $1 "$TEMP\st_dereg.ps1" w
+    FileWrite $1 "try {$\r$\n"
+    FileWrite $1 "  if (Test-Path '$INSTDIR\agent_config.json') {$\r$\n"
+    FileWrite $1 "    $$cfg = Get-Content -Raw '$INSTDIR\agent_config.json' | ConvertFrom-Json;$\r$\n"
+    FileWrite $1 "    $$url = $$cfg.SERVER_URL + '/deregister';$\r$\n"
+    FileWrite $1 "    $$hdr = @{'x-api-key'=$$cfg.API_KEY;'Content-Type'='application/json'};$\r$\n"
+    FileWrite $1 "    $$bdy = ConvertTo-Json @{machine_id=$$env:COMPUTERNAME};$\r$\n"
+    FileWrite $1 "    Invoke-RestMethod -Uri $$url -Method POST -Headers $$hdr -Body $$bdy -TimeoutSec 5 | Out-Null$\r$\n"
+    FileWrite $1 "  }$\r$\n"
+    FileWrite $1 "} catch { Write-Host ('Deregister skipped: ' + $$_.Exception.Message) }"
+    FileClose $1
+    nsExec::ExecToLog 'powershell -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "$TEMP\st_dereg.ps1"'
+    Delete "$TEMP\st_dereg.ps1"
+
     ; Remove files
     Delete "$INSTDIR\systracker-agent.exe"
     Delete "$INSTDIR\agent_config.json"

@@ -1223,6 +1223,79 @@ app.put('/api/machines/:id/profile', authenticateDashboard, (req, res) => {
     });
 });
 
+// Delete a Machine (cascades metrics, events, logs) — Admin only
+app.delete('/api/machines/:id', authenticateDashboard, requireAdmin, (req, res) => {
+    const { id } = req.params;
+
+    // Cascade delete related data manually (SQLite FK enforcement may be off)
+    const steps = [
+        'DELETE FROM metrics  WHERE machine_id = ?',
+        'DELETE FROM events   WHERE machine_id = ?',
+        'DELETE FROM logs     WHERE machine_id = ?',
+        'DELETE FROM alerts   WHERE machine_id = ?',
+        'DELETE FROM commands WHERE machine_id = ?',
+        'DELETE FROM machines WHERE id = ?',
+    ];
+
+    const runStep = (i) => {
+        if (i >= steps.length) {
+            // Notify all dashboard clients the machine is gone
+            io.emit('machine_removed', { id });
+            console.log(`[DELETE] Machine removed: ${id}`);
+            return res.json({ success: true, id });
+        }
+        db.run(steps[i], [id], (err) => {
+            if (err) {
+                // Non-fatal: table may not exist in all deployments
+                console.warn(`[DELETE] Step ${i} warning:`, err.message);
+            }
+            runStep(i + 1);
+        });
+    };
+
+    // First check the machine actually exists
+    db.get('SELECT id FROM machines WHERE id = ?', [id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Machine not found' });
+        runStep(0);
+    });
+});
+
+// Agent self-deregister on uninstall — authenticated by API key
+app.post('/api/deregister', authenticateAPI, (req, res) => {
+    const { machine_id } = req.body;
+    if (!machine_id) return res.status(400).json({ error: 'machine_id required' });
+
+    const steps = [
+        'DELETE FROM metrics  WHERE machine_id = ?',
+        'DELETE FROM events   WHERE machine_id = ?',
+        'DELETE FROM logs     WHERE machine_id = ?',
+        'DELETE FROM alerts   WHERE machine_id = ?',
+        'DELETE FROM commands WHERE machine_id = ?',
+        'DELETE FROM machines WHERE id = ?',
+    ];
+
+    const runStep = (i) => {
+        if (i >= steps.length) {
+            io.emit('machine_removed', { id: machine_id });
+            console.log(`[DEREGISTER] Agent self-removed: ${machine_id}`);
+            return res.json({ success: true });
+        }
+        db.run(steps[i], [machine_id], (err) => {
+            if (err) {
+                console.warn(`[DEREGISTER] Step ${i} warning:`, err.message);
+            }
+            runStep(i + 1);
+        });
+    };
+
+    db.get('SELECT id FROM machines WHERE id = ?', [machine_id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Machine not found' });
+        runStep(0);
+    });
+});
+
 // Get All Machines (for Dashboard) — JWT protected
 app.get('/api/machines', authenticateDashboard, (req, res) => {
     const query = `
