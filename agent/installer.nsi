@@ -19,12 +19,12 @@ SetCompressor        /SOLID lzma
 Unicode              true
 
 ; ---- Version Info -------------------------------------------
-VIProductVersion     "3.2.0.0"
+VIProductVersion     "3.2.4.0"
 VIAddVersionKey      "ProductName"      "SysTracker Agent"
 VIAddVersionKey      "CompanyName"      "RedwanCodes"
 VIAddVersionKey      "FileDescription"  "SysTracker System Monitoring Agent Installer"
-VIAddVersionKey      "FileVersion"      "3.2.0.0"
-VIAddVersionKey      "ProductVersion"   "3.2.0"
+VIAddVersionKey      "FileVersion"      "3.2.4.0"
+VIAddVersionKey      "ProductVersion"   "3.2.4"
 VIAddVersionKey      "LegalCopyright"   "© 2026 SysTracker / RedwanCodes"
 
 ; ---- MUI Settings -------------------------------------------
@@ -105,6 +105,9 @@ FunctionEnd
 Section "SysTracker Agent" SecMain
     SectionIn RO  ; Required
 
+    ; Force 64-bit registry view so uninstall entry is visible to 64-bit PowerShell
+    SetRegView 64
+
     SetOutPath "$INSTDIR"
 
     ; Copy agent executable
@@ -143,9 +146,9 @@ Section "SysTracker Agent" SecMain
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "DisplayName"     "SysTracker Agent"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
-        "DisplayVersion"  "3.2.0"
+        "DisplayVersion"  "3.2.4"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
-        "Publisher"       "SysTracker"
+        "Publisher"       "RedwanCodes"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "UninstallString" "$INSTDIR\Uninstall.exe"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
@@ -176,6 +179,7 @@ SectionEnd
 
 ; ---- Uninstaller --------------------------------------------
 Section "Uninstall"
+    SetRegView 64
     ; Stop and remove the scheduled task
     nsExec::ExecToLog 'schtasks /End /TN "SysTrackerAgent"'
     nsExec::ExecToLog 'schtasks /Delete /TN "SysTrackerAgent" /F'

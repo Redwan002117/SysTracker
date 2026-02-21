@@ -12,9 +12,9 @@ By installing, copying, forking, cloning, or otherwise using the Software,
 you agree to be bound by the terms of this Agreement. If you do not agree,
 do not install or use the Software.
 
-──────────────────────────────────────────────────
+--------------------------------------------------
 1. GRANT OF LICENSE
-──────────────────────────────────────────────────
+--------------------------------------------------
 Subject to the terms of this Agreement, the Author grants you a limited,
 non-exclusive, non-transferable, revocable license to:
 
@@ -24,9 +24,9 @@ non-exclusive, non-transferable, revocable license to:
       purpose of contributing improvements back to the original project
       via official pull requests.
 
-──────────────────────────────────────────────────
+--------------------------------------------------
 2. RESTRICTIONS
-──────────────────────────────────────────────────
+--------------------------------------------------
 You may NOT, without prior written permission from the Author:
 
   (a) Use the Software, in whole or in part, for any commercial purpose,
@@ -46,55 +46,55 @@ You may NOT, without prior written permission from the Author:
       component of the Software except to the extent permitted by
       applicable law.
 
-──────────────────────────────────────────────────
+--------------------------------------------------
 3. CONTRIBUTIONS
-──────────────────────────────────────────────────
+--------------------------------------------------
 By submitting a pull request, patch, or other contribution to the
 official repository, you grant the Author an irrevocable, worldwide,
 royalty-free license to use, modify, sublicense, and distribute your
 contribution as part of the Software under any license the Author chooses.
 
-──────────────────────────────────────────────────
+--------------------------------------------------
 4. ATTRIBUTION
-──────────────────────────────────────────────────
+--------------------------------------------------
 Any permitted use must retain the above copyright notice and this
 Agreement in all copies or substantial portions of the Software, and
 display a clear attribution: "Powered by SysTracker — RedwanCodes".
 
-──────────────────────────────────────────────────
+--------------------------------------------------
 5. DISCLAIMER OF WARRANTIES
-──────────────────────────────────────────────────
+--------------------------------------------------
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
 OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. THE AUTHOR DOES
 NOT WARRANT THAT THE SOFTWARE WILL BE ERROR-FREE OR UNINTERRUPTED.
 
-──────────────────────────────────────────────────
+--------------------------------------------------
 6. LIMITATION OF LIABILITY
-──────────────────────────────────────────────────
+--------------------------------------------------
 IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
 SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING BUT NOT LIMITED
 TO LOSS OF DATA, LOSS OF PROFITS, OR BUSINESS INTERRUPTION) ARISING OUT
 OF OR IN CONNECTION WITH THE SOFTWARE OR THIS AGREEMENT, EVEN IF ADVISED
 OF THE POSSIBILITY OF SUCH DAMAGES.
 
-──────────────────────────────────────────────────
+--------------------------------------------------
 7. TERMINATION
-──────────────────────────────────────────────────
+--------------------------------------------------
 This license is effective until terminated. It terminates automatically
 if you breach any term of this Agreement. Upon termination you must
 destroy all copies of the Software in your possession.
 
-──────────────────────────────────────────────────
+--------------------------------------------------
 8. GOVERNING LAW
-──────────────────────────────────────────────────
+--------------------------------------------------
 This Agreement is governed by the laws of Bangladesh, without regard to
 its conflict-of-law provisions. Any disputes shall be resolved in the
 courts of Dhaka, Bangladesh.
 
-──────────────────────────────────────────────────
+--------------------------------------------------
 9. CONTACT
-──────────────────────────────────────────────────
+--------------------------------------------------
 For commercial licensing, permission requests, or other inquiries:
   https://github.com/Redwan002117
   https://systracker.rico.bd/

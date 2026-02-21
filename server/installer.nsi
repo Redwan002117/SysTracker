@@ -19,12 +19,12 @@ SetCompressor        /SOLID lzma
 Unicode              true
 
 ; ---- Version Info -------------------------------------------
-VIProductVersion     "3.2.3.0"
+VIProductVersion     "3.2.4.0"
 VIAddVersionKey      "ProductName"      "SysTracker Server"
 VIAddVersionKey      "CompanyName"      "RedwanCodes"
 VIAddVersionKey      "FileDescription"  "SysTracker Server Installer"
-VIAddVersionKey      "FileVersion"      "3.2.3.0"
-VIAddVersionKey      "ProductVersion"   "3.2.3"
+VIAddVersionKey      "FileVersion"      "3.2.4.0"
+VIAddVersionKey      "ProductVersion"   "3.2.4"
 VIAddVersionKey      "LegalCopyright"   "© 2026 SysTracker / RedwanCodes"
 
 ; ---- MUI Settings -------------------------------------------
@@ -117,6 +117,9 @@ FunctionEnd
 Section "SysTracker Server" SecServer
     SectionIn RO
 
+    ; Force 64-bit registry view so uninstall entry is visible to 64-bit PowerShell
+    SetRegView 64
+
     SetOutPath "$INSTDIR"
 
     ; Core server EXE (the pkg-built Node.js server)
@@ -194,9 +197,9 @@ Section "SysTracker Server" SecServer
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "DisplayName"      "SysTracker Server"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
-        "DisplayVersion"   "3.2.0"
+        "DisplayVersion"   "3.2.4"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
-        "Publisher"        "SysTracker"
+        "Publisher"        "RedwanCodes"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "UninstallString"  "$INSTDIR\Uninstall.exe"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
@@ -222,6 +225,7 @@ SectionEnd
 
 ; ---- Uninstaller --------------------------------------------
 Section "Uninstall"
+    SetRegView 64
     ; Remove startup entry
     DeleteRegValue HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Run" "SysTrackerServer"
 

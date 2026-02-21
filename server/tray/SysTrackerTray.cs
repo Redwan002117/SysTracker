@@ -21,7 +21,7 @@ using System.Windows.Forms;
 [assembly: AssemblyDescription("SysTracker Server Launcher")]
 [assembly: AssemblyCompany("RedwanCodes")]
 [assembly: AssemblyProduct("SysTracker")]
-[assembly: AssemblyVersion("3.2.3.0")]
+[assembly: AssemblyVersion("3.2.4.0")]
 
 class SysTrackerTray : ApplicationContext
 {
@@ -31,11 +31,16 @@ class SysTrackerTray : ApplicationContext
     private bool _serverReady = false;
     private readonly string _serverExe;
     private readonly string _dashboardUrl;
+    private readonly string _logFile;
 
     public SysTrackerTray()
     {
         _serverExe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SysTracker-Server-Core.exe");
         _dashboardUrl = GetDashboardUrl();
+
+        string logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+        Directory.CreateDirectory(logDir);
+        _logFile = Path.Combine(logDir, "server.log");
 
         BuildTrayIcon();
         StartServer();
@@ -67,11 +72,12 @@ class SysTrackerTray : ApplicationContext
         var title = new ToolStripMenuItem("SysTracker Server") { Enabled = false, Font = new Font("Segoe UI", 9f, FontStyle.Bold) };
         var status = new ToolStripMenuItem("⏳ Starting...") { Enabled = false, Name = "status" };
         var openDash = new ToolStripMenuItem("🌐 Open Dashboard", null, (s, e) => OpenDashboard());
-        var sep = new ToolStripSeparator();
-        var restart = new ToolStripMenuItem("🔄 Restart Server", null, (s, e) => RestartServer());
-        var stopAll = new ToolStripMenuItem("⏹ Stop & Exit", null, (s, e) => StopAndExit());
+        var viewLog  = new ToolStripMenuItem("📄 View Server Log", null, (s, e) => OpenLogFile());
+        var sep      = new ToolStripSeparator();
+        var restart  = new ToolStripMenuItem("🔄 Restart Server", null, (s, e) => RestartServer());
+        var stopAll  = new ToolStripMenuItem("⏹ Stop & Exit", null, (s, e) => StopAndExit());
 
-        menu.Items.AddRange(new ToolStripItem[] { title, status, new ToolStripSeparator(), openDash, sep, restart, stopAll });
+        menu.Items.AddRange(new ToolStripItem[] { title, status, new ToolStripSeparator(), openDash, viewLog, sep, restart, stopAll });
 
         // Try to use the embedded icon, fall back to application icon
         Icon icon;
@@ -112,13 +118,26 @@ class SysTrackerTray : ApplicationContext
                     WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory,
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                    RedirectStandardOutput = false,
-                    RedirectStandardError = false
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
                 },
                 EnableRaisingEvents = true
             };
+
+            // Append stdout/stderr to logs\server.log
+            _serverProcess.OutputDataReceived += (s, e) => {
+                if (e.Data != null)
+                    try { File.AppendAllText(_logFile, $"[OUT] {e.Data}\n"); } catch { }
+            };
+            _serverProcess.ErrorDataReceived += (s, e) => {
+                if (e.Data != null)
+                    try { File.AppendAllText(_logFile, $"[ERR] {e.Data}\n"); } catch { }
+            };
+
             _serverProcess.Exited += OnServerExited;
             _serverProcess.Start();
+            _serverProcess.BeginOutputReadLine();
+            _serverProcess.BeginErrorReadLine();
         }
         catch (Exception ex)
         {
@@ -173,13 +192,29 @@ class SysTrackerTray : ApplicationContext
     {
         _serverReady = false;
         UpdateStatus("❌ Stopped", "SysTracker Server — Stopped");
-        _trayIcon.ShowBalloonTip(3000, "SysTracker", "Server stopped unexpectedly. Right-click to restart.", ToolTipIcon.Warning);
+        string logHint = File.Exists(_logFile) ? $"\nLog: {_logFile}" : "";
+        _trayIcon.ShowBalloonTip(5000, "SysTracker",
+            $"Server stopped unexpectedly. Right-click to restart.{logHint}",
+            ToolTipIcon.Warning);
     }
 
     private void OpenDashboard()
     {
         try { Process.Start(new ProcessStartInfo(_dashboardUrl) { UseShellExecute = true }); }
         catch (Exception ex) { MessageBox.Show("Could not open browser:\n" + ex.Message, "SysTracker"); }
+    }
+
+    private void OpenLogFile()
+    {
+        if (File.Exists(_logFile))
+        {
+            try { Process.Start(new ProcessStartInfo(_logFile) { UseShellExecute = true }); }
+            catch { Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{_logFile}\"") { UseShellExecute = true }); }
+        }
+        else
+        {
+            MessageBox.Show($"No log file found yet.\nExpected: {_logFile}", "SysTracker", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
     }
 
     private void RestartServer()

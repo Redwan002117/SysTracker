@@ -3,6 +3,17 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.4] - 2026-02-21
+
+### 🐛 Bug Fixes
+- **NSIS installers**: added `SetRegView 64` to both agent and server install/uninstall sections — fixes "not installed" detection on 64-bit Windows (NSIS default 32-bit view wrote registry to `Wow6432Node`, invisible to 64-bit PowerShell)
+- **Tray app**: server `stdout`/`stderr` now captured to `logs\server.log` — server crash output was previously swallowed; now persisted for diagnosis
+- **Tray app**: added "View Server Log" context menu item; crash balloon now shows log file path hint; balloon duration extended 3 s → 5 s
+- **`Install-SysTracker.ps1`**: set UTF-8 console encoding (`chcp 65001`) — fixes garbled box-drawing characters on non-UTF-8 terminals
+- **`Install-SysTracker.ps1`**: single-keypress menu navigation — menu selection proceeds immediately without pressing Enter
+- **`Install-SysTracker.ps1`**: checks both 64-bit and 32-bit (`Wow6432Node`) registry hives when detecting installed components — backward-compat fallback for old installs
+- **`LICENSE`**: replaced Unicode box-drawing characters (`─`) with ASCII `-` — fixes garbled text on NSIS MUI license agreement page
+
 ## [3.2.3] - 2026-02-21
 
 ### ✨ New Features

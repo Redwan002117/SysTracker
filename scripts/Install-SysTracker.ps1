@@ -1,7 +1,7 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    SysTracker Installer — interactive menu for installing, updating, and
+    SysTracker Installer - interactive menu for installing, updating, and
     removing SysTracker Server and/or Agent on Windows.
 
 .DESCRIPTION
@@ -41,9 +41,14 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
 
-# ──────────────────────────────────────────────────────────────
+# Force UTF-8 so all characters render correctly in any terminal
+$OutputEncoding           = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+& chcp 65001 2>&1 | Out-Null
+
+# ─────────────────────────────────────────────────────────────────
 #  CONSTANTS
-# ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 $Repo    = 'Redwan002117/SysTracker'
 $BaseUrl = if ($Tag -eq 'latest') {
     "https://github.com/$Repo/releases/latest/download"
@@ -62,42 +67,72 @@ $UninstallKeys = @{
     Agent  = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent'
 }
 
-# ──────────────────────────────────────────────────────────────
-#  HELPERS
-# ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+#  UI HELPERS
+# ─────────────────────────────────────────────────────────────────
+function Get-Width { [Math]::Max(72, [Math]::Min(120, $Host.UI.RawUI.WindowSize.Width)) }
+
+function Write-Divider {
+    param([System.ConsoleColor]$Color = 'DarkCyan', [string]$Char = '=')
+    $w = Get-Width
+    Write-Host ("  " + ($Char * ($w - 4))) -ForegroundColor $Color
+}
+
 function Write-Header {
     Clear-Host
-    $w = $Host.UI.RawUI.WindowSize.Width
-    if ($w -lt 60) { $w = 80 }
-    $line = '─' * ($w - 2)
     Write-Host ""
-    Write-Host "  $line" -ForegroundColor DarkCyan
-    Write-Host "" 
-    Write-Host "        ███████╗██╗   ██╗███████╗████████╗██████╗  █████╗  ██████╗██╗  ██╗███████╗██████╗ " -ForegroundColor Cyan
-    Write-Host "        ██╔════╝╚██╗ ██╔╝██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗" -ForegroundColor Cyan
-    Write-Host "        ███████╗ ╚████╔╝ ███████╗   ██║   ██████╔╝███████║██║     █████╔╝ █████╗  ██████╔╝" -ForegroundColor Cyan
-    Write-Host "        ╚════██║  ╚██╔╝  ╚════██║   ██║   ██╔══██╗██╔══██║██║     ██╔═██╗ ██╔══╝  ██╔══██╗" -ForegroundColor Cyan
-    Write-Host "        ███████║   ██║   ███████║   ██║   ██║  ██║██║  ██║╚██████╗██║  ██╗███████╗██║  ██║" -ForegroundColor Cyan
-    Write-Host "        ╚══════╝   ╚═╝   ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝" -ForegroundColor Cyan
+    Write-Divider DarkCyan '='
     Write-Host ""
-    Write-Host "        System Monitoring Dashboard  •  RedwanCodes  •  $WebUrl" -ForegroundColor DarkGray
+    Write-Host "       ___           _____               _           " -ForegroundColor Cyan
+    Write-Host "      / __| _  _  __|_   _| _ __  __ _ | |__ ___  _ " -ForegroundColor Cyan
+    Write-Host "      \__ \| || |(_-< | || '_/ _' / _`` | / // -_)| '_|" -ForegroundColor Cyan
+    Write-Host "      |___/ \_, |/__/ |_||_| \__,_\__,_|_\_\\___||_|  " -ForegroundColor Cyan
+    Write-Host "            |__/                                       " -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  $line" -ForegroundColor DarkCyan
+    Write-Host "      System Monitoring Dashboard  |  RedwanCodes  |  $WebUrl" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Divider DarkCyan '='
     Write-Host ""
 }
 
-function Write-Status {
-    param([string]$Label, [string]$Status, [System.ConsoleColor]$Color = 'Green')
-    Write-Host "  $Label" -NoNewline -ForegroundColor DarkGray
-    Write-Host " $Status" -ForegroundColor $Color
+function Write-BoxTop {
+    param([string]$Title = '')
+    $w = Get-Width
+    if ($Title) {
+        $rest = [Math]::Max(2, $w - 7 - $Title.Length)
+        Write-Host ("  +-- " + $Title + " " + ("-" * $rest) + "+") -ForegroundColor Cyan
+    } else {
+        Write-Host ("  +" + ("-" * ($w - 5)) + "+") -ForegroundColor Cyan
+    }
+}
+
+function Write-BoxLine {
+    param([string]$Text = '', [System.ConsoleColor]$Color = 'DarkGray')
+    $w     = Get-Width
+    $inner = $w - 6
+    $line  = $Text.PadRight($inner)
+    if ($line.Length -gt $inner) { $line = $line.Substring(0, $inner) }
+    Write-Host "  |" -NoNewline -ForegroundColor DarkGray
+    Write-Host " $line " -NoNewline -ForegroundColor $Color
+    Write-Host "|" -ForegroundColor DarkGray
+}
+
+function Write-BoxBottom {
+    $w = Get-Width
+    Write-Host ("  +" + ("-" * ($w - 5)) + "+") -ForegroundColor Cyan
 }
 
 function Get-InstalledVersion {
     param([string]$Component)
     try {
-        $key = $UninstallKeys[$Component]
-        if (Test-Path $key) {
-            return (Get-ItemProperty $key).DisplayVersion
+        # Check both 64-bit and 32-bit (Wow6432Node) registry hives
+        $key64 = $UninstallKeys[$Component]
+        $key32 = $key64 -replace '\\SOFTWARE\\', '\\SOFTWARE\\Wow6432Node\\'
+        foreach ($key in @($key64, $key32)) {
+            if (Test-Path $key) {
+                $ver = (Get-ItemProperty $key -ErrorAction SilentlyContinue).DisplayVersion
+                if ($ver) { return $ver }
+            }
         }
     } catch {}
     return $null
@@ -107,81 +142,26 @@ function Get-LatestRelease {
     try {
         $rel = Invoke-RestMethod -Uri $ApiUrl -UseBasicParsing -TimeoutSec 8
         return $rel.tag_name -replace '^v',''
-    } catch {
-        return $null
-    }
+    } catch { return $null }
 }
 
 function Show-InstalledStatus {
-    $serverVer = Get-InstalledVersion 'Server'
-    $agentVer  = Get-InstalledVersion 'Agent'
+    $sv = Get-InstalledVersion 'Server'
+    $av = Get-InstalledVersion 'Agent'
+
     Write-Host "  Installed:" -ForegroundColor DarkGray
-    if ($serverVer) {
-        Write-Status "    Server  " "v$serverVer (installed)" Green
-    } else {
-        Write-Status "    Server  " "not installed" DarkGray
-    }
-    if ($agentVer) {
-        Write-Status "    Agent   " "v$agentVer (installed)" Green
-    } else {
-        Write-Status "    Agent   " "not installed" DarkGray
-    }
+    Write-Host "    Server  " -NoNewline -ForegroundColor DarkGray
+    if ($sv) { Write-Host "v$sv  [installed]" -ForegroundColor Green  }
+    else      { Write-Host "not installed"     -ForegroundColor DarkGray }
+    Write-Host "    Agent   " -NoNewline -ForegroundColor DarkGray
+    if ($av) { Write-Host "v$av  [installed]" -ForegroundColor Green  }
+    else      { Write-Host "not installed"     -ForegroundColor DarkGray }
     Write-Host ""
 }
 
-function Download-AndInstall {
-    param([string]$Name, [string]$FileName, [string]$SilentArgs = '')
-
-    $dest = Join-Path $env:TEMP $FileName
-    $url  = "$BaseUrl/$FileName"
-
-    Write-Host ""
-    Write-Host "  ► Downloading $Name installer..." -ForegroundColor Cyan
-    Write-Host "    $url" -ForegroundColor DarkGray
-    try {
-        Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
-    } catch {
-        Write-Host "  ✗ Download failed: $_" -ForegroundColor Red
-        return $false
-    }
-
-    Write-Host "  ► Removing Mark-of-the-Web..." -ForegroundColor Yellow
-    Unblock-File -Path $dest
-
-    if ($Unattended -or $SilentArgs) {
-        Write-Host "  ► Installing silently..." -ForegroundColor Green
-        $proc = Start-Process -FilePath $dest -ArgumentList '/S' -Wait -PassThru
-        if ($proc.ExitCode -ne 0) {
-            Write-Host "  ✗ Installer exited with code $($proc.ExitCode)" -ForegroundColor Red
-            Remove-Item $dest -Force -ErrorAction SilentlyContinue
-            return $false
-        }
-    } else {
-        Write-Host "  ► Launching installer wizard..." -ForegroundColor Green
-        Start-Process -FilePath $dest -Wait
-    }
-
-    Remove-Item $dest -Force -ErrorAction SilentlyContinue
-    Write-Host "  ✓ $Name installed successfully." -ForegroundColor Green
-    return $true
-}
-
-function Uninstall-Component {
-    param([string]$Name)
-    $key = $UninstallKeys[$Name]
-    if (-not (Test-Path $key)) {
-        Write-Host "  ✗ $Name is not installed." -ForegroundColor Yellow
-        return
-    }
-    $uninstStr = (Get-ItemProperty $key).UninstallString
-    if (-not $uninstStr) {
-        Write-Host "  ✗ Could not find uninstall entry for $Name." -ForegroundColor Red
-        return
-    }
-    Write-Host "  ► Uninstalling $Name..." -ForegroundColor Cyan
-    Write-Host "    $uninstStr" -ForegroundColor DarkGray
-    Start-Process -FilePath $uninstStr -Wait
-    Write-Host "  ✓ $Name uninstalled." -ForegroundColor Green
+function Read-SingleKey {
+    $k = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    return $k.Character.ToString().Trim()
 }
 
 function Pause-Menu {
@@ -190,32 +170,106 @@ function Pause-Menu {
     $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
 }
 
-# ──────────────────────────────────────────────────────────────
-#  MENU ACTIONS
-# ──────────────────────────────────────────────────────────────
-function Do-InstallServer {
+function Confirm-Action {
+    param([string]$Prompt)
     Write-Host ""
-    Write-Host "  ┌─ Install SysTracker Server ────────────────────────────────┐" -ForegroundColor Cyan
-    Write-Host "  │  The server hosts the web dashboard on your machine.        │" -ForegroundColor DarkGray
-    Write-Host "  │  Access it at http://localhost:7777 after installation.     │" -ForegroundColor DarkGray
-    Write-Host "  └─────────────────────────────────────────────────────────────┘" -ForegroundColor Cyan
+    Write-Host "  $Prompt [Y/N]: " -NoNewline -ForegroundColor Yellow
+    $k = Read-SingleKey
+    Write-Host $k -ForegroundColor White
+    return $k -match '^[Yy]$'
+}
+
+function Download-AndInstall {
+    param([string]$Name, [string]$FileName)
+    $dest = Join-Path $env:TEMP $FileName
+    $url  = "$BaseUrl/$FileName"
+
+    Write-Host ""
+    Write-Host "  >> Downloading $Name installer..." -ForegroundColor Cyan
+    Write-Host "     $url" -ForegroundColor DarkGray
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+    } catch {
+        Write-Host "  [FAIL] Download failed: $_" -ForegroundColor Red
+        return $false
+    }
+
+    Write-Host "  >> Removing Mark-of-the-Web..." -ForegroundColor DarkGray
+    Unblock-File -Path $dest
+
+    if ($Unattended) {
+        Write-Host "  >> Installing silently..." -ForegroundColor Green
+        $proc = Start-Process -FilePath $dest -ArgumentList '/S' -Wait -PassThru
+        if ($proc.ExitCode -ne 0) {
+            Write-Host "  [FAIL] Installer exited with code $($proc.ExitCode)" -ForegroundColor Red
+            Remove-Item $dest -Force -ErrorAction SilentlyContinue
+            return $false
+        }
+    } else {
+        Write-Host "  >> Launching installer wizard..." -ForegroundColor Green
+        Start-Process -FilePath $dest -Wait
+    }
+
+    Remove-Item $dest -Force -ErrorAction SilentlyContinue
+    Write-Host ""
+    Write-Host "  [OK] $Name installed successfully." -ForegroundColor Green
+    return $true
+}
+
+function Uninstall-Component {
+    param([string]$Name)
+    $key64 = $UninstallKeys[$Name]
+    $key32 = $key64 -replace '\\SOFTWARE\\', '\\SOFTWARE\\Wow6432Node\\'
+    $uninstStr = $null
+    foreach ($key in @($key64, $key32)) {
+        if (Test-Path $key) {
+            $uninstStr = (Get-ItemProperty $key -ErrorAction SilentlyContinue).UninstallString
+            if ($uninstStr) { break }
+        }
+    }
+    if (-not $uninstStr) {
+        Write-Host "  [!] $Name is not installed or uninstall entry is missing." -ForegroundColor Yellow
+        return
+    }
+    Write-Host "  >> Uninstalling $Name..." -ForegroundColor Cyan
+    Start-Process -FilePath $uninstStr -Wait
+    Write-Host "  [OK] $Name uninstalled." -ForegroundColor Green
+}
+
+# ─────────────────────────────────────────────────────────────────
+#  MENU ACTIONS
+# ─────────────────────────────────────────────────────────────────
+function Do-InstallServer {
+    Write-Header
+    Write-BoxTop "Install SysTracker Server"
+    Write-BoxLine ""
+    Write-BoxLine "  The server hosts the web dashboard on your machine." White
+    Write-BoxLine "  Access it at http://localhost:7777 after installation." DarkGray
+    Write-BoxLine ""
+    Write-BoxBottom
     Download-AndInstall 'Server' $Files['Server']
     Pause-Menu
 }
 
 function Do-InstallAgent {
-    Write-Host ""
-    Write-Host "  ┌─ Install SysTracker Agent ─────────────────────────────────┐" -ForegroundColor Cyan
-    Write-Host "  │  The agent runs on each machine you want to monitor.        │" -ForegroundColor DarkGray
-    Write-Host "  │  You will need the server URL and API key during setup.     │" -ForegroundColor DarkGray
-    Write-Host "  └─────────────────────────────────────────────────────────────┘" -ForegroundColor Cyan
+    Write-Header
+    Write-BoxTop "Install SysTracker Agent"
+    Write-BoxLine ""
+    Write-BoxLine "  The agent runs on each machine you want to monitor." White
+    Write-BoxLine "  You will need the server URL and API key during setup." DarkGray
+    Write-BoxLine ""
+    Write-BoxBottom
     Download-AndInstall 'Agent' $Files['Agent']
     Pause-Menu
 }
 
 function Do-InstallBoth {
-    Write-Host ""
-    Write-Host "  Installing Server first, then Agent..." -ForegroundColor Cyan
+    Write-Header
+    Write-BoxTop "Install Server + Agent"
+    Write-BoxLine ""
+    Write-BoxLine "  Installing Server first, then Agent..." White
+    Write-BoxLine ""
+    Write-BoxBottom
     Download-AndInstall 'Server' $Files['Server']
     Write-Host ""
     Download-AndInstall 'Agent' $Files['Agent']
@@ -223,9 +277,13 @@ function Do-InstallBoth {
 }
 
 function Do-UninstallServer {
-    Write-Host ""
-    $confirm = Read-Host "  Are you sure you want to uninstall SysTracker Server? [y/N]"
-    if ($confirm -match '^[Yy]') {
+    Write-Header
+    Write-BoxTop "Uninstall SysTracker Server"
+    Write-BoxLine ""
+    Write-BoxLine "  This will remove the Server and all associated files." Yellow
+    Write-BoxLine ""
+    Write-BoxBottom
+    if (Confirm-Action "Are you sure you want to uninstall SysTracker Server?") {
         Uninstall-Component 'Server'
     } else {
         Write-Host "  Cancelled." -ForegroundColor DarkGray
@@ -234,9 +292,13 @@ function Do-UninstallServer {
 }
 
 function Do-UninstallAgent {
-    Write-Host ""
-    $confirm = Read-Host "  Are you sure you want to uninstall SysTracker Agent? [y/N]"
-    if ($confirm -match '^[Yy]') {
+    Write-Header
+    Write-BoxTop "Uninstall SysTracker Agent"
+    Write-BoxLine ""
+    Write-BoxLine "  This will remove the Agent and all associated files." Yellow
+    Write-BoxLine ""
+    Write-BoxBottom
+    if (Confirm-Action "Are you sure you want to uninstall SysTracker Agent?") {
         Uninstall-Component 'Agent'
     } else {
         Write-Host "  Cancelled." -ForegroundColor DarkGray
@@ -245,90 +307,105 @@ function Do-UninstallAgent {
 }
 
 function Do-CheckUpdates {
+    Write-Header
+    Write-BoxTop "Check for Updates"
+    Write-BoxLine ""
+    Write-BoxLine "  Querying GitHub for the latest release..." DarkGray
+    Write-BoxLine ""
+    Write-BoxBottom
     Write-Host ""
-    Write-Host "  Checking for the latest release..." -ForegroundColor Cyan
+
     $latest = Get-LatestRelease
     if (-not $latest) {
-        Write-Host "  ✗ Could not reach GitHub. Check your internet connection." -ForegroundColor Red
+        Write-Host "  [FAIL] Could not reach GitHub. Check your internet connection." -ForegroundColor Red
         Pause-Menu
         return
     }
-    Write-Host "  Latest release : v$latest" -ForegroundColor Green
-    $serverVer = Get-InstalledVersion 'Server'
-    $agentVer  = Get-InstalledVersion 'Agent'
+    Write-Host "  Latest release : " -NoNewline -ForegroundColor DarkGray
+    Write-Host "v$latest" -ForegroundColor Green
     Write-Host ""
+
+    $anyUpdate = $false
     foreach ($comp in @('Server','Agent')) {
-        $cur = if ($comp -eq 'Server') { $serverVer } else { $agentVer }
+        $cur = Get-InstalledVersion $comp
+        Write-Host "  $comp : " -NoNewline -ForegroundColor DarkGray
         if ($cur) {
             if ($cur -eq $latest) {
-                Write-Host "  $comp : v$cur — up to date ✓" -ForegroundColor Green
+                Write-Host "v$cur  -- up to date" -ForegroundColor Green
             } else {
-                Write-Host "  $comp : v$cur → v$latest — UPDATE AVAILABLE" -ForegroundColor Yellow
+                Write-Host "v$cur --> v$latest  -- UPDATE AVAILABLE" -ForegroundColor Yellow
+                $anyUpdate = $true
             }
         } else {
-            Write-Host "  $comp : not installed" -ForegroundColor DarkGray
+            Write-Host "not installed" -ForegroundColor DarkGray
         }
     }
 
-    Write-Host ""
-    $upd = Read-Host "  Would you like to install the latest versions now? [y/N]"
-    if ($upd -match '^[Yy]') {
-        if ($serverVer) { Download-AndInstall 'Server' $Files['Server'] }
-        if ($agentVer)  { Download-AndInstall 'Agent'  $Files['Agent']  }
+    if ($anyUpdate) {
+        if (Confirm-Action "Install the latest versions now?") {
+            if (Get-InstalledVersion 'Server') { Download-AndInstall 'Server' $Files['Server'] }
+            if (Get-InstalledVersion 'Agent')  { Download-AndInstall 'Agent'  $Files['Agent']  }
+        }
     }
     Pause-Menu
 }
 
 function Do-OpenDashboard {
-    Write-Host ""
-    $serverVer = Get-InstalledVersion 'Server'
-    if ($serverVer) {
+    Write-Header
+    Write-BoxTop "Open Dashboard"
+    $sv = Get-InstalledVersion 'Server'
+    if ($sv) {
         $regPort = try { (Get-ItemProperty 'HKLM:\Software\SysTracker\Server' -ErrorAction Stop).Port } catch { '7777' }
         $url = "http://localhost:$regPort"
-        Write-Host "  Opening $url ..." -ForegroundColor Cyan
+        Write-BoxLine ""
+        Write-BoxLine "  Opening: $url" Cyan
+        Write-BoxLine ""
+        Write-BoxBottom
+        Write-Host ""
         Start-Process $url
+        Write-Host "  >> Browser launched." -ForegroundColor Green
     } else {
-        Write-Host "  SysTracker Server is not installed." -ForegroundColor Yellow
-        Write-Host "  Install the server first to access the dashboard." -ForegroundColor DarkGray
+        Write-BoxLine ""
+        Write-BoxLine "  SysTracker Server is not installed." Yellow
+        Write-BoxLine "  Install the server first to access the dashboard." DarkGray
+        Write-BoxLine ""
+        Write-BoxBottom
     }
     Pause-Menu
 }
 
 function Do-Help {
-    Write-Host ""
-    Write-Host "  ┌─ SysTracker Help ───────────────────────────────────────────┐" -ForegroundColor Cyan
-    Write-Host "  │                                                              │" -ForegroundColor DarkGray
-    Write-Host "  │  QUICK START                                                 │" -ForegroundColor White
-    Write-Host "  │  1. Install the Server on the machine that runs the          │" -ForegroundColor DarkGray
-    Write-Host "  │     dashboard (option 1).                                    │" -ForegroundColor DarkGray
-    Write-Host "  │  2. Install the Agent on every machine you want to           │" -ForegroundColor DarkGray
-    Write-Host "  │     monitor (option 2). Enter your server URL + API key.     │" -ForegroundColor DarkGray
-    Write-Host "  │  3. Open http://localhost:7777 to view the dashboard.        │" -ForegroundColor DarkGray
-    Write-Host "  │                                                              │" -ForegroundColor DarkGray
-    Write-Host "  │  SCRIPTED / UNATTENDED INSTALL                               │" -ForegroundColor White
-    Write-Host "  │  irm https://systracker.rico.bd/install | iex                │" -ForegroundColor Yellow
-    Write-Host "  │  .\Install-SysTracker.ps1 -Component Server -Unattended     │" -ForegroundColor Yellow
-    Write-Host "  │  .\Install-SysTracker.ps1 -Component Agent  -Tag v3.1.8     │" -ForegroundColor Yellow
-    Write-Host "  │                                                              │" -ForegroundColor DarkGray
-    Write-Host "  │  DOCUMENTATION                                               │" -ForegroundColor White
-    Write-Host "  │  Website : $WebUrl" -ForegroundColor DarkGray
-    Write-Host "  │  Wiki    : $WikiUrl" -ForegroundColor DarkGray
-    Write-Host "  │  GitHub  : https://github.com/$Repo" -ForegroundColor DarkGray
-    Write-Host "  │                                                              │" -ForegroundColor DarkGray
-    Write-Host "  └──────────────────────────────────────────────────────────────┘" -ForegroundColor Cyan
+    Write-Header
+    Write-BoxTop "Help / Documentation"
+    Write-BoxLine ""
+    Write-BoxLine "  QUICK START" White
+    Write-BoxLine "  1. Install the Server on the machine you want as dashboard host." DarkGray
+    Write-BoxLine "  2. Install the Agent on every monitored machine." DarkGray
+    Write-BoxLine "     Enter the server URL and API key when prompted." DarkGray
+    Write-BoxLine "  3. Open http://localhost:7777 to see the live dashboard." DarkGray
+    Write-BoxLine ""
+    Write-BoxLine "  SCRIPTED INSTALL" White
+    Write-BoxLine "  irm https://systracker.rico.bd/install | iex" Yellow
+    Write-BoxLine "  .\Install-SysTracker.ps1 -Component Server -Unattended" Yellow
+    Write-BoxLine "  .\Install-SysTracker.ps1 -Component Agent  -Tag v3.2.3" Yellow
+    Write-BoxLine ""
+    Write-BoxLine "  LINKS" White
+    Write-BoxLine "  Website : $WebUrl" DarkGray
+    Write-BoxLine "  Wiki    : $WikiUrl" DarkGray
+    Write-BoxLine "  GitHub  : https://github.com/$Repo" DarkGray
+    Write-BoxLine ""
+    Write-BoxBottom
     Pause-Menu
 }
 
-# ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 #  NON-INTERACTIVE (SCRIPTED) MODE
-# ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 if ($Component -ne '' -or $Unattended) {
-
     Write-Host ""
-    Write-Host "==============================" -ForegroundColor Cyan
-    Write-Host " SysTracker Installer" -ForegroundColor Cyan
-    Write-Host " RedwanCodes  •  $WebUrl" -ForegroundColor DarkGray
-    Write-Host "==============================" -ForegroundColor Cyan
+    Write-Host "  SysTracker Installer  |  RedwanCodes  |  $WebUrl" -ForegroundColor Cyan
+    Write-Divider DarkCyan '='
+    Write-Host ""
 
     $targets = switch ($Component) {
         'Server' { @('Server') }
@@ -337,11 +414,8 @@ if ($Component -ne '' -or $Unattended) {
     }
 
     foreach ($t in $targets) {
-        if ($Action -eq 'Uninstall') {
-            Uninstall-Component $t
-        } else {
-            Download-AndInstall $t $Files[$t]
-        }
+        if ($Action -eq 'Uninstall') { Uninstall-Component $t }
+        else                         { Download-AndInstall $t $Files[$t] | Out-Null }
     }
 
     Write-Host ""
@@ -349,42 +423,44 @@ if ($Component -ne '' -or $Unattended) {
     exit 0
 }
 
-# ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 #  INTERACTIVE MENU LOOP
-# ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 while ($true) {
     Write-Header
     Show-InstalledStatus
 
-    Write-Host "  ┌─ What would you like to do? ────────────────────────────────┐" -ForegroundColor DarkCyan
-    Write-Host "  │                                                              │" -ForegroundColor DarkGray
-    Write-Host "  │   [1]  Install Server     - Dashboard + backend             │" -ForegroundColor White
-    Write-Host "  │   [2]  Install Agent      - Monitoring agent for this PC    │" -ForegroundColor White
-    Write-Host "  │   [3]  Install Both       - Server + Agent (all-in-one)     │" -ForegroundColor White
-    Write-Host "  │                                                              │" -ForegroundColor DarkGray
-    Write-Host "  │   [4]  Uninstall Server                                     │" -ForegroundColor DarkGray
-    Write-Host "  │   [5]  Uninstall Agent                                      │" -ForegroundColor DarkGray
-    Write-Host "  │                                                              │" -ForegroundColor DarkGray
-    Write-Host "  │   [6]  Check for Updates                                    │" -ForegroundColor Cyan
-    Write-Host "  │   [7]  Open Dashboard     - http://localhost:7777            │" -ForegroundColor Cyan
-    Write-Host "  │   [8]  Help / Documentation                                  │" -ForegroundColor DarkGray
-    Write-Host "  │                                                              │" -ForegroundColor DarkGray
-    Write-Host "  │   [0]  Exit                                                  │" -ForegroundColor DarkGray
-    Write-Host "  │                                                              │" -ForegroundColor DarkGray
-    Write-Host "  └──────────────────────────────────────────────────────────────┘" -ForegroundColor DarkCyan
+    Write-BoxTop "What would you like to do?"
+    Write-BoxLine ""
+    Write-BoxLine "   [1]  Install Server    -  Dashboard + backend" White
+    Write-BoxLine "   [2]  Install Agent     -  Monitoring agent for this PC" White
+    Write-BoxLine "   [3]  Install Both      -  Server + Agent (all-in-one)" White
+    Write-BoxLine ""
+    Write-BoxLine "   [4]  Uninstall Server" DarkGray
+    Write-BoxLine "   [5]  Uninstall Agent" DarkGray
+    Write-BoxLine ""
+    Write-BoxLine "   [6]  Check for Updates" Cyan
+    Write-BoxLine "   [7]  Open Dashboard    -  http://localhost:7777" Cyan
+    Write-BoxLine "   [8]  Help / Docs" DarkGray
+    Write-BoxLine ""
+    Write-BoxLine "   [0]  Exit" DarkGray
+    Write-BoxLine ""
+    Write-BoxBottom
     Write-Host ""
+    Write-Host "  Press a key [0-8]: " -NoNewline -ForegroundColor Yellow
 
-    $choice = Read-Host "  Enter option"
+    $choice = Read-SingleKey
+    Write-Host $choice -ForegroundColor White
 
-    switch ($choice.Trim()) {
-        '1' { Do-InstallServer  }
-        '2' { Do-InstallAgent   }
-        '3' { Do-InstallBoth    }
+    switch ($choice) {
+        '1' { Do-InstallServer   }
+        '2' { Do-InstallAgent    }
+        '3' { Do-InstallBoth     }
         '4' { Do-UninstallServer }
         '5' { Do-UninstallAgent  }
-        '6' { Do-CheckUpdates   }
-        '7' { Do-OpenDashboard  }
-        '8' { Do-Help           }
+        '6' { Do-CheckUpdates    }
+        '7' { Do-OpenDashboard   }
+        '8' { Do-Help            }
         '0' {
             Write-Host ""
             Write-Host "  Goodbye." -ForegroundColor DarkGray
@@ -392,8 +468,8 @@ while ($true) {
             exit 0
         }
         default {
-            Write-Host "  Invalid option. Please choose 0-8." -ForegroundColor Red
-            Start-Sleep -Seconds 1
+            Write-Host "  Invalid key. Press 0-8." -ForegroundColor Red
+            Start-Sleep -Milliseconds 700
         }
     }
 }

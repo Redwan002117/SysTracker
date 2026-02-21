@@ -8,8 +8,8 @@
     <LangVersion>9.0</LangVersion>
     <AssemblyName>SysTrackerServer</AssemblyName>
     <RootNamespace>SysTracker</RootNamespace>
-    <Version>3.2.3</Version>
-    <FileVersion>3.2.3.0</FileVersion>
+    <Version>3.2.4</Version>
+    <FileVersion>3.2.4.0</FileVersion>
     <Copyright>Redwan002117</Copyright>
     <Product>SysTracker</Product>
     <Description>SysTracker Server Launcher</Description>
