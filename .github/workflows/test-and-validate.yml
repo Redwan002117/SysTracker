@@ -256,9 +256,9 @@ jobs:
 
       - name: Verify Server EXE
         run: |
-          if (Test-Path "server\systracker-server-win.exe") {
+          if (Test-Path "server\dist\systracker-server-win.exe") {
             Write-Host "✓ Server EXE created"
-            $size = (Get-Item "server\systracker-server-win.exe").Length / 1MB
+            $size = (Get-Item "server\dist\systracker-server-win.exe").Length / 1MB
             Write-Host "  Size: $([Math]::Round($size, 2)) MB"
           } else {
             Write-Host "✗ Server EXE not found"
@@ -287,7 +287,7 @@ jobs:
         with:
           name: windows-executables
           path: |
-            server/systracker-server-win.exe
+            server/dist/systracker-server-win.exe
             agent/dist/systracker-agent-win.exe
           retention-days: 7
 
