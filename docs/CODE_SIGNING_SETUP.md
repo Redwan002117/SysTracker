@@ -1,0 +1,215 @@
+# Code Signing Setup Guide
+
+This guide walks you through configuring code signing certificates for SysTracker releases.
+
+## 🎯 Overview
+
+Code signing ensures:
+- Windows SmartScreen doesn't block your executables
+- UAC shows "SysTracker" as publisher instead of "Unknown Publisher"
+- Users can verify the authenticity of downloaded binaries
+
+## 📋 Prerequisites
+
+- Windows machine with PowerShell 5.1+ (or PowerShell Core 7+)
+- Administrator privileges
+- GitHub repository access to add secrets
+
+## 🔐 Step 1: Generate Certificates
+
+Run the certificate generator script:
+
+```powershell
+# From the repository root
+cd /workspaces/SysTracker
+.\scripts\create-codesign-cert.ps1
+```
+
+**When prompted:**
+- Enter a strong password to protect the PFX files (recommended)
+- Or press Enter for no password (less secure but simpler)
+
+**What gets created:**
+
+| File | Type | Action |
+|------|------|--------|
+| `scripts/SysTrackerCA.cer` | Root CA (public) | ✅ **Commit to repo** |
+| `scripts/SysTracker.cer` | Code cert (public) | ✅ **Commit to repo** |
+| `SysTrackerCA.pfx` | Root CA (private) | ❌ **NEVER commit** — backup securely |
+| `SysTracker.pfx` | Code cert (private) | ❌ **NEVER commit** — add to GitHub |
+
+## 📤 Step 2: Commit Public Certificates
+
+```bash
+git add scripts/SysTrackerCA.cer scripts/SysTracker.cer
+git commit -m "chore: add code signing certificates"
+git push origin main
+```
+
+These public certificates are safe to commit — they contain no private keys.
+
+## 🔑 Step 3: Add GitHub Secrets
+
+Navigate to your GitHub repository:
+
+```
+https://github.com/Redwan002117/SysTracker/settings/secrets/actions
+```
+
+### Required Secret: `CODESIGN_PFX_BASE64`
+
+The script outputs a base64-encoded string. Copy the entire output (it will be very long).
+
+**Steps:**
+1. Click **"New repository secret"**
+2. Name: `CODESIGN_PFX_BASE64`
+3. Value: Paste the base64 string from script output
+4. Click **"Add secret"**
+
+### Optional Secret: `CODESIGN_CA_BASE64`
+
+This allows CI to verify the certificate chain (recommended but not required).
+
+**Steps:**
+1. Click **"New repository secret"**
+2. Name: `CODESIGN_CA_BASE64`
+3. Value: Paste the second base64 string from script output
+4. Click **"Add secret"**
+
+### Optional Secret: `CODESIGN_PFX_PASSWORD`
+
+Only needed if you set a password when generating certificates.
+
+**Steps:**
+1. Click **"New repository secret"**
+2. Name: `CODESIGN_PFX_PASSWORD`
+3. Value: The password you entered during certificate generation
+4. Click **"Add secret"**
+
+## 🧪 Step 4: Test Code Signing
+
+Trigger a release to test code signing:
+
+```bash
+# Update version and create a release tag
+git tag -a v3.2.7 -m "Test code signing"
+git push origin v3.2.7
+```
+
+Watch the workflow run:
+```bash
+gh run watch --repo Redwan002117/SysTracker
+```
+
+In the **"Sign Windows Executables"** step, you should see:
+```
+✓ Signed: agent\dist\systracker-agent-win.exe
+✓ Signed: server\dist\systracker-server-win.exe
+✓ Signed: server\dist\SysTrackerServer.exe
+✓ Signed: agent\dist\SysTracker-Agent-Setup.exe
+✓ Signed: server\dist\SysTracker-Server-Setup.exe
+```
+
+## 🛡️ Step 5: Secure the Private Keys
+
+After adding secrets to GitHub:
+
+1. **Backup the PFX files** to a secure location (encrypted USB drive, password manager, etc.)
+2. **Delete local copies**:
+   ```bash
+   rm SysTrackerCA.pfx
+   rm SysTracker.pfx
+   ```
+
+**Important:** If you lose the private keys, you'll need to regenerate certificates and re-sign all releases.
+
+## 📦 How It Works in CI/CD
+
+When you push a tag (e.g., `v3.2.6`), the workflow:
+
+1. **Builds** all executables (agent, server, installers)
+2. **Installs** the code signing certificate from `CODESIGN_PFX_BASE64`
+3. **Signs** each executable with `signtool.exe`
+4. **Timestamps** signatures via DigiCert (ensures validity after cert expires)
+5. **Verifies** signatures before creating the release
+
+If `CODESIGN_PFX_BASE64` is not set, the workflow gracefully skips signing with a warning.
+
+## 🔍 Verifying Signed Executables
+
+After downloading a release:
+
+**PowerShell:**
+```powershell
+Get-AuthenticodeSignature .\SysTracker-Agent-Setup.exe | Format-List *
+```
+
+**Windows Explorer:**
+- Right-click the `.exe` → **Properties** → **Digital Signatures** tab
+- You should see: **Signer: SysTracker**
+
+**signtool:**
+```cmd
+signtool verify /pa /v SysTracker-Agent-Setup.exe
+```
+
+## ⚡ Expected User Experience
+
+### First Installation
+1. User downloads `SysTracker-Agent-Setup.exe`
+2. Windows SmartScreen: **"Unknown Publisher"** (root CA not yet trusted)
+3. User clicks "More info" → "Run anyway"
+4. Installer runs and **automatically installs `SysTrackerCA.cer`** to Trusted Root
+
+### Subsequent Installations
+1. User downloads any SysTracker executable
+2. Windows UAC: **"Verified publisher: SysTracker"** ✅
+3. No SmartScreen warning — executes normally
+
+## 🔄 Certificate Renewal
+
+Certificates generated by this script are valid for:
+- **Root CA:** 15 years
+- **Code Signing:** 10 years
+
+When nearing expiration (check the script output):
+1. Run `create-codesign-cert.ps1` again
+2. Update GitHub secrets with new base64-encoded values
+3. Commit new `.cer` files
+4. Re-sign and re-release affected versions
+
+## 🚨 Troubleshooting
+
+### "Unknown Publisher" despite code signing
+
+**Cause:** Root CA not trusted on the user's machine.
+
+**Solutions:**
+- Install `scripts/SysTrackerCA.cer` manually:
+  ```powershell
+  Import-Certificate -FilePath scripts\SysTrackerCA.cer -CertStoreLocation Cert:\LocalMachine\Root
+  ```
+- Or run the installer (it installs the CA automatically)
+
+### CI signing fails with "Certificate not found"
+
+**Cause:** `CODESIGN_PFX_BASE64` secret not set or incorrect.
+
+**Solution:** Re-run `create-codesign-cert.ps1`, copy the full base64 output, and update the GitHub secret.
+
+### "Timestamp server not responding"
+
+**Cause:** DigiCert timestamp server is down or unreachable.
+
+**Solution:** Wait and retry the workflow. Timestamp servers are usually back online within minutes.
+
+## 📚 Additional Resources
+
+- [Microsoft Code Signing Best Practices](https://docs.microsoft.com/en-us/windows-hardware/drivers/dashboard/code-signing-best-practices)
+- [Self-Signed Certificates for Windows](https://docs.microsoft.com/en-us/powershell/module/pki/new-selfsignedcertificate)
+- [signtool.exe Documentation](https://docs.microsoft.com/en-us/windows/win32/seccrypto/signtool)
+
+---
+
+**Last Updated:** February 21, 2026  
+**Certificate Validity:** Check with `create-codesign-cert.ps1` output

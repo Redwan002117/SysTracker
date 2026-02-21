@@ -183,6 +183,27 @@ node server.js  # runs on :7777
 
 ---
 
+## Code Signing
+
+To sign Windows executables for release:
+
+1. **Generate certificates** (Windows only):
+   ```powershell
+   .\scripts\create-codesign-cert.ps1
+   ```
+
+2. **Add GitHub Secrets**:
+   - `CODESIGN_PFX_BASE64` — Base64-encoded PFX (from script output)
+   - `CODESIGN_CA_BASE64` — Base64-encoded CA cert (optional but recommended)
+   - `CODESIGN_PFX_PASSWORD` — PFX password (if you set one)
+
+3. **Test**: Push a tag to trigger the release workflow with code signing enabled.
+
+📚 **Full Guide:** [docs/CODE_SIGNING_SETUP.md](docs/CODE_SIGNING_SETUP.md)  
+⚡ **Quick Reference:** [docs/CODE_SIGNING_QUICK_REF.md](docs/CODE_SIGNING_QUICK_REF.md)
+
+---
+
 ## License
 
 **SysTracker Proprietary License** — Personal and non-commercial use is permitted free of charge.
