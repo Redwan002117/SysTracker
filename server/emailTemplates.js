@@ -384,4 +384,82 @@ module.exports = {
         `;
         return wrapHtml('Password Changed', headerHtml('#10b981', '#065f46') + contentWrap(body) + footerHtml());
     },
+
+    // 6. ROLE CHANGED EMAIL
+    roleChangedEmail: (username, oldRole, newRole) => {
+        const roleColors = { admin: COLOR.accent, moderator: '#7c3aed', viewer: COLOR.textMuted };
+        const newColor = roleColors[newRole] || COLOR.accent;
+        const body = `
+            <h2 style="margin:0 0 6px;font-size:22px;color:${COLOR.textPrim};font-weight:700;">Your Role Has Changed</h2>
+            <p style="margin:0 0 24px;font-size:14px;color:${COLOR.textMuted};">An administrator has updated your access level in SysTracker.</p>
+
+            ${infoCardHtml([
+            ['Account', `<strong>${username}</strong>`],
+            ['Previous Role', `<span style="color:${COLOR.textSec};text-transform:capitalize">${oldRole}</span>`],
+            ['New Role', `<strong style="color:${newColor};text-transform:capitalize">${newRole}</strong>`],
+            ['Changed At', new Date().toLocaleString()],
+        ])}
+
+            <p style="font-size:14px;color:${COLOR.textSec};line-height:1.7;margin:20px 0 0;">
+                Your permissions have been updated. Log out and back in for the change to take effect.
+            </p>
+            ${dividerHtml()}
+            ${signatureHtml()}
+        `;
+        return wrapHtml('Role Changed', headerHtml('#7c3aed', '#4c1d95') + contentWrap(body) + footerHtml());
+    },
+
+    // 7. MACHINE OFFLINE ALERT
+    machineOfflineEmail: (hostname, ip, lastSeen) => {
+        const body = `
+            <h2 style="margin:0 0 6px;font-size:22px;color:${COLOR.textPrim};font-weight:700;">Machine Offline Alert</h2>
+            <p style="margin:0 0 24px;font-size:14px;color:${COLOR.textMuted};">A monitored machine has gone offline and stopped reporting metrics.</p>
+
+            ${infoCardHtml([
+            ['Hostname', `<strong>${hostname}</strong>`],
+            ['IP Address', ip || 'Unknown'],
+            ['Last Seen', lastSeen ? new Date(lastSeen).toLocaleString() : 'Unknown'],
+            ['Status', `${badgeHtml('OFFLINE', COLOR.red)}`],
+        ])}
+
+            <table role="presentation" width="100%" style="
+                background:${COLOR.red}11;border:1px solid ${COLOR.red}44;
+                border-radius:12px;padding:16px;margin:20px 0;
+            ">
+                <tr><td>
+                    <span style="font-size:14px;color:${COLOR.red};font-weight:700;">⚠ Action Required</span>
+                    <p style="margin:6px 0 0;font-size:13px;color:${COLOR.textSec};">
+                        Check that the SysTracker agent is running and the machine has internet connectivity.
+                    </p>
+                </td></tr>
+            </table>
+
+            ${dividerHtml()}
+            ${signatureHtml()}
+        `;
+        return wrapHtml('Machine Offline', headerHtml('#ef4444', '#991b1b') + contentWrap(body) + footerHtml());
+    },
+
+    // 8. MAINTENANCE NOTICE
+    maintenanceEmail: (startTime, endTime, details) => {
+        const body = `
+            <h2 style="margin:0 0 6px;font-size:22px;color:${COLOR.textPrim};font-weight:700;">Scheduled Maintenance</h2>
+            <p style="margin:0 0 24px;font-size:14px;color:${COLOR.textMuted};">A maintenance window has been scheduled. The dashboard may be temporarily unavailable.</p>
+
+            ${infoCardHtml([
+            ['Start Time', startTime],
+            ['End Time', endTime],
+            ['Duration', `${Math.round((new Date(endTime) - new Date(startTime)) / 60000)} minutes`],
+        ])}
+
+            ${details ? `<p style="font-size:14px;color:${COLOR.textSec};line-height:1.7;margin:16px 0 0;background:#f8fafc;border-left:3px solid ${COLOR.accent};padding:12px 16px;border-radius:0 8px 8px 0;">${details}</p>` : ''}
+
+            <p style="font-size:13px;color:${COLOR.textMuted};margin:20px 0 0;">
+                If you have any questions, reply to this email or contact your system administrator.
+            </p>
+            ${dividerHtml()}
+            ${signatureHtml()}
+        `;
+        return wrapHtml('Maintenance Notice', headerHtml('#f59e0b', '#b45309') + contentWrap(body) + footerHtml());
+    },
 };

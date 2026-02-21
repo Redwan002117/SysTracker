@@ -277,6 +277,35 @@ function initializeDb() {
             if (err) console.error('Error creating password_reset_tokens table:', err.message);
         });
 
+        // Audit Logs
+        db.run(`CREATE TABLE IF NOT EXISTS audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            actor TEXT NOT NULL,
+            actor_id INTEGER,
+            action TEXT NOT NULL,
+            target TEXT,
+            detail TEXT,
+            ip TEXT,
+            ts DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, (err) => {
+            if (err) console.error('Error creating audit_logs table:', err.message);
+        });
+
+        // Internal Mail Messages
+        db.run(`CREATE TABLE IF NOT EXISTS mail_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_user TEXT NOT NULL,
+            to_user TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            template_key TEXT,
+            is_read INTEGER DEFAULT 0,
+            folder TEXT DEFAULT 'inbox',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, (err) => {
+            if (err) console.error('Error creating mail_messages table:', err.message);
+        });
+
         // Settings: Key-Value Store
         db.run(`CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -410,6 +439,24 @@ const requireAdmin = (req, res, next) => {
     }
 };
 
+// Middleware: Require Admin OR Moderator
+const requireAdminOrModerator = (req, res, next) => {
+    if (req.admin && ['admin', 'moderator'].includes(req.admin.role)) {
+        next();
+    } else {
+        res.status(403).json({ error: 'Forbidden: Admin or Moderator access required' });
+    }
+};
+
+// Helper: Write an audit log entry (fire-and-forget)
+function logAudit(actor, actorId, action, target, detail, ip) {
+    db.run(
+        "INSERT INTO audit_logs (actor, actor_id, action, target, detail, ip) VALUES (?, ?, ?, ?, ?, ?)",
+        [actor || 'system', actorId || null, action, target || null, detail || null, ip || null],
+        (err) => { if (err) console.error('[Audit] Log error:', err.message); }
+    );
+}
+
 // Middleware: Authenticate API (Agent)
 const authenticateAPI = async (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
@@ -482,6 +529,7 @@ app.post('/api/auth/login', (req, res) => {
                 { expiresIn: JWT_EXPIRES_IN }
             );
 
+            logAudit(user.username, user.id, 'login', null, `Login from ${req.ip}`, req.ip);
             res.json({ token, username: user.username, role: user.role || 'admin' });
         });
     });
@@ -917,9 +965,9 @@ app.post('/api/setup', (req, res) => {
 
 // --- User Management Endpoints (Admin Only) ---
 
-// List all users
+// List all users (include avatar + display_name)
 app.get('/api/users', authenticateDashboard, requireAdmin, (req, res) => {
-    db.all("SELECT id, username, email, role, created_at FROM admin_users ORDER BY created_at DESC", [], (err, users) => {
+    db.all("SELECT id, username, email, role, avatar, display_name, created_at FROM admin_users ORDER BY created_at DESC", [], (err, users) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(users);
     });
@@ -937,8 +985,8 @@ app.post('/api/users', authenticateDashboard, requireAdmin, (req, res) => {
         return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    if (role && !['admin', 'viewer'].includes(role)) {
-        return res.status(400).json({ error: 'Invalid role. Must be "admin" or "viewer"' });
+    if (role && !['admin', 'moderator', 'viewer'].includes(role)) {
+        return res.status(400).json({ error: 'Invalid role. Must be "admin", "moderator", or "viewer"' });
     }
 
     bcrypt.hash(password, 12, (err, hash) => {
@@ -954,6 +1002,7 @@ app.post('/api/users', authenticateDashboard, requireAdmin, (req, res) => {
                     return res.status(500).json({ error: err.message });
                 }
                 console.log(`[UserMgmt] User '${username}' created with role '${role || 'admin'}' by ${req.admin.username}`);
+                logAudit(req.admin.username, req.admin.id, 'user_created', username, `role=${role || 'admin'}`, req.ip);
                 res.json({ success: true, message: 'User created successfully', userId: this.lastID });
             }
         );
@@ -975,8 +1024,50 @@ app.delete('/api/users/:id', authenticateDashboard, requireAdmin, (req, res) => 
             return res.status(404).json({ error: 'User not found' });
         }
         console.log(`[UserMgmt] User ID ${id} deleted by ${req.admin.username}`);
+        logAudit(req.admin.username, req.admin.id, 'user_deleted', `user_id=${id}`, null, req.ip);
         res.json({ success: true, message: 'User deleted successfully' });
     });
+});
+
+// Update user info (admin only)
+app.put('/api/users/:id', authenticateDashboard, requireAdmin, (req, res) => {
+    const { id } = req.params;
+    const { username, email, display_name, password } = req.body;
+
+    const fieldsToUpdate = [];
+    const values = [];
+
+    if (username) { fieldsToUpdate.push('username = ?'); values.push(username); }
+    if (email) { fieldsToUpdate.push('email = ?'); values.push(email); }
+    if (display_name !== undefined) { fieldsToUpdate.push('display_name = ?'); values.push(display_name); }
+
+    if (fieldsToUpdate.length === 0 && !password) {
+        return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    const doUpdate = (extraFields, extraVals) => {
+        const allFields = [...fieldsToUpdate, ...extraFields];
+        const allVals = [...values, ...extraVals, id];
+        db.run(`UPDATE admin_users SET ${allFields.join(', ')} WHERE id = ?`, allVals, function(err) {
+            if (err) {
+                if (err.message.includes('UNIQUE')) return res.status(400).json({ error: 'Username or email already in use' });
+                return res.status(500).json({ error: err.message });
+            }
+            if (this.changes === 0) return res.status(404).json({ error: 'User not found' });
+            logAudit(req.admin.username, req.admin.id, 'user_updated', `user_id=${id}`, `fields=${allFields.join(',')}`, req.ip);
+            res.json({ success: true, message: 'User updated' });
+        });
+    };
+
+    if (password) {
+        if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        bcrypt.hash(password, 12, (err, hash) => {
+            if (err) return res.status(500).json({ error: 'Hashing error' });
+            doUpdate(['password_hash = ?'], [hash]);
+        });
+    } else {
+        doUpdate([], []);
+    }
 });
 
 // Update user role
@@ -984,8 +1075,8 @@ app.patch('/api/users/:id/role', authenticateDashboard, requireAdmin, (req, res)
     const { id } = req.params;
     const { role } = req.body;
 
-    if (!role || !['admin', 'viewer'].includes(role)) {
-        return res.status(400).json({ error: 'Invalid role. Must be "admin" or "viewer"' });
+    if (!role || !['admin', 'moderator', 'viewer'].includes(role)) {
+        return res.status(400).json({ error: 'Invalid role. Must be "admin", "moderator", or "viewer"' });
     }
 
     // Prevent changing your own role
@@ -999,7 +1090,100 @@ app.patch('/api/users/:id/role', authenticateDashboard, requireAdmin, (req, res)
             return res.status(404).json({ error: 'User not found' });
         }
         console.log(`[UserMgmt] User ID ${id} role changed to '${role}' by ${req.admin.username}`);
+        logAudit(req.admin.username, req.admin.id, 'role_changed', `user_id=${id}`, `new_role=${role}`, req.ip);
         res.json({ success: true, message: 'User role updated successfully' });
+    });
+});
+
+// --- Audit Logs Endpoint ---
+app.get('/api/audit-logs', authenticateDashboard, requireAdmin, (req, res) => {
+    const { actor, action, from, to, limit } = req.query;
+    const conditions = [];
+    const params = [];
+    if (actor) { conditions.push('actor LIKE ?'); params.push(`%${actor}%`); }
+    if (action) { conditions.push('action = ?'); params.push(action); }
+    if (from) { conditions.push('ts >= ?'); params.push(from); }
+    if (to) { conditions.push('ts <= ?'); params.push(to); }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const maxRows = parseInt(limit) || 200;
+    db.all(`SELECT * FROM audit_logs ${where} ORDER BY ts DESC LIMIT ?`, [...params, maxRows], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// --- Internal Mail Endpoints ---
+// GET /api/mail?folder=inbox|sent
+app.get('/api/mail', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    const folder = req.query.folder || 'inbox';
+    let query, params;
+    if (folder === 'sent') {
+        query = 'SELECT * FROM mail_messages WHERE from_user = ? ORDER BY created_at DESC LIMIT 100';
+        params = [me];
+    } else {
+        query = 'SELECT * FROM mail_messages WHERE to_user = ? ORDER BY created_at DESC LIMIT 100';
+        params = [me];
+    }
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// GET /api/mail/unread-count
+app.get('/api/mail/unread-count', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    db.get('SELECT COUNT(*) as count FROM mail_messages WHERE to_user = ? AND is_read = 0', [me], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ count: row ? row.count : 0 });
+    });
+});
+
+// GET /api/mail/:id - single message + mark read
+app.get('/api/mail/:id', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    db.get('SELECT * FROM mail_messages WHERE id = ? AND (to_user = ? OR from_user = ?)', [req.params.id, me, me], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Message not found' });
+        if (row.to_user === me && !row.is_read) {
+            db.run('UPDATE mail_messages SET is_read = 1 WHERE id = ?', [row.id]);
+        }
+        res.json(row);
+    });
+});
+
+// POST /api/mail - compose
+app.post('/api/mail', authenticateDashboard, (req, res) => {
+    const { to_user, subject, body, template_key } = req.body;
+    const from_user = req.admin.username;
+    if (!to_user || !subject || !body) return res.status(400).json({ error: 'to_user, subject, and body are required' });
+    db.run(
+        'INSERT INTO mail_messages (from_user, to_user, subject, body, template_key) VALUES (?, ?, ?, ?, ?)',
+        [from_user, to_user, subject, body, template_key || null],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            logAudit(from_user, req.admin.id, 'mail_sent', to_user, subject, req.ip);
+            res.json({ success: true, id: this.lastID });
+        }
+    );
+});
+
+// DELETE /api/mail/:id
+app.delete('/api/mail/:id', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    db.run('DELETE FROM mail_messages WHERE id = ? AND (to_user = ? OR from_user = ?)', [req.params.id, me, me], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Message not found' });
+        res.json({ success: true });
+    });
+});
+
+// GET /api/mail-users - list all usernames for composing
+app.get('/api/mail-users', authenticateDashboard, (req, res) => {
+    db.all('SELECT username, display_name, avatar FROM admin_users', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
     });
 });
 
@@ -1732,8 +1916,20 @@ setInterval(() => {
     });
 }, 30000);
 
-// Log periodic status to console (optional)
-// setInterval(() => console.log(`[Server] Active. Clients: ${io.engine.clientsCount}`), 60000);
+// Log Retention — delete audit_logs older than 45 days, mail_messages older than 60 days (runs every 24h)
+setInterval(() => {
+    db.run("DELETE FROM audit_logs WHERE ts < datetime('now', '-45 days')", function(err) {
+        if (err) console.error('[Retention] audit_logs purge error:', err.message);
+        else if (this.changes > 0) console.log(`[Retention] Purged ${this.changes} audit log(s) older than 45 days`);
+    });
+    db.run("DELETE FROM mail_messages WHERE created_at < datetime('now', '-60 days')", function(err) {
+        if (err) console.error('[Retention] mail_messages purge error:', err.message);
+        else if (this.changes > 0) console.log(`[Retention] Purged ${this.changes} mail message(s) older than 60 days`);
+    });
+    db.run("DELETE FROM logs WHERE timestamp < datetime('now', '-45 days')", function(err) {
+        if (err) console.error('[Retention] logs purge error:', err.message);
+    });
+}, 24 * 60 * 60 * 1000); // 24 hours
 
 const PORT = process.env.PORT || 7777;
 server.listen(PORT, '0.0.0.0', () => {

@@ -15,7 +15,7 @@ export default function DashboardLayout({
 }) {
     return (
         <AuthGuard>
-            <div className="min-h-screen bg-slate-50/50 pb-10 pt-16">
+            <div className="min-h-screen pb-10 pt-16" style={{background: 'linear-gradient(135deg, #EEF3FF 0%, #F5F0FF 40%, #FFF0F5 80%, #F0F7FF 100%)', backgroundAttachment: 'fixed'}}>
                 <TopBar />
                 {children}
             </div>

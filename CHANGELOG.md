@@ -3,6 +3,41 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.5] - 2026-06-21
+
+### ✨ New Features
+
+- **Moderator role** — new middle-tier role (`admin > moderator > viewer`); moderators can view/delete machines, manage alerts, use terminal and performance history, and send internal mail — but cannot create/edit users or access Settings
+- **Internal mail system** — full mailbox UI at `/dashboard/mail` with inbox & sent folders, compose drawer, message preview pane, reply shortcuts, and 5 pre-built templates (`maintenance`, `machine offline`, `welcome`, `critical alert`, `custom`); unread badge shown on TopBar; messages auto-purged after 60 days
+- **Activity audit logs** — every login, user creation/deletion, role change, user update, and mail send is recorded in `audit_logs` table; accessible from Settings → Activity Logs tab with actor/action filter and CSV export; entries auto-purged after 45 days
+- **Settings → Activity Logs tab** — searchable, filterable audit trail with colour-coded action badges; supports linking directly via `?tab=logs`
+- **TopBar notification bell** — admin-only dropdown showing last 10 audit events with actor, action, target and time-ago formatting; red pulse dot for unseen events; "See all" link to Activity Logs tab; polls every 30 s
+- **TopBar mail badge** — mail icon with live unread-count badge; polls every 30 s
+- **Glassmorphism / iOS design system** — `globals.css` rewritten with glass utility classes (`.glass`, `.glass-card`, `.glass-panel`, `.matte-surface`, `.ios-button`), CSS custom properties for blur/border/shadow, and a soft gradient body background
+- **User management overhaul** — avatar display with gradient fallback colour per role; inline edit modal for username, email, display name, role, and password; role guide panel with per-role permission list; search filter across username/email/role; moderator role in create/edit flows
+
+### 📊 Dashboard Improvements
+
+- **Online/Offline ring chart** — SVG donut showing online vs offline machine ratio with counts
+- **OS distribution bars** — per-OS breakdown with colour-coded progress bars for Windows / Linux / macOS / Other
+- **Network I/O totals** — aggregated upload and download across all online machines
+- **Top CPU load widget** — horizontal bar chart of top 5 online machines by CPU%, colour-coded by severity
+
+### 📧 Email Templates
+
+- Added `roleChangedEmail(username, oldRole, newRole)` — notifies users of access level changes
+- Added `machineOfflineEmail(hostname, ip, lastSeen)` — offline machine alert with action guidance
+- Added `maintenanceEmail(startTime, endTime, details)` — scheduled maintenance notice
+
+### 🔧 Technical Improvements
+
+- **`server.js`**: new `audit_logs` and `mail_messages` SQLite tables created at DB init
+- **`server.js`**: `requireAdminOrModerator` middleware for shared admin/moderator endpoints
+- **`server.js`**: `logAudit()` helper — fire-and-forget audit logging with actor, action, target, detail, IP
+- **`server.js`**: 24 h cron to purge `audit_logs` (>45 d), `mail_messages` (>60 d), and system `logs` (>45 d)
+- **`auth.ts`**: added `isModerator()` and `isAdminOrModerator()` helpers
+- **`server.js`**: 8 new API routes — `/api/audit-logs`, `/api/mail`, `/api/mail/unread-count`, `/api/mail/:id`, `/api/mail-users`
+
 ## [3.2.4] - 2026-02-21
 
 ### 🐛 Bug Fixes

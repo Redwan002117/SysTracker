@@ -8,7 +8,7 @@ import MachineDetails from '../../components/MachineDetails';
 import SystemLoadChart from '../../components/SystemLoadChart';
 import { Machine } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Search, Cpu, Wifi, Server, Lock, X } from 'lucide-react';
+import { Activity, Search, Cpu, Wifi, Server, Lock, X, Network, HardDrive } from 'lucide-react';
 import { fetchWithAuth, clearToken, isViewer } from '../../lib/auth';
 
 const container = {
@@ -176,10 +176,39 @@ export default function Dashboard() {
     return true;
   });
 
-  // Stats
   const totalAgents = machines.length;
   const onlineAgents = machines.filter(m => m.status === 'online').length;
+  const offlineAgents = totalAgents - onlineAgents;
   const criticalAlerts = machines.filter(m => (m.metrics?.cpu || 0) > 90 || (m.metrics?.ram || 0) > 90).length;
+
+  // OS distribution
+  const osDist = machines.reduce<Record<string, number>>((acc, m) => {
+    const name = m.os
+      ? m.os.includes('Windows') ? 'Windows'
+        : m.os.includes('Ubuntu') || m.os.includes('Debian') ? 'Linux (Debian)'
+        : m.os.includes('Linux') ? 'Linux'
+        : m.os.includes('Mac') ? 'macOS'
+        : 'Other'
+      : 'Unknown';
+    acc[name] = (acc[name] || 0) + 1;
+    return acc;
+  }, {});
+  const osColors: Record<string, string> = {
+    'Windows': '#3b82f6', 'Linux (Debian)': '#f59e0b', 'Linux': '#f59e0b',
+    'macOS': '#10b981', 'Other': '#6366f1', 'Unknown': '#94a3b8'
+  };
+
+  // Network I/O totals (from all online machines)
+  const totalNetUp = machines.reduce((acc, m) => acc + (m.metrics?.network_up_kbps || 0), 0);
+  const totalNetDown = machines.reduce((acc, m) => acc + (m.metrics?.network_down_kbps || 0), 0);
+  const fmtNet = (kbps: number) => kbps > 1024 ? `${(kbps/1024).toFixed(1)} MB/s` : `${Math.round(kbps)} KB/s`;
+
+  // Top 5 machines by CPU
+  const topCPU = [...machines].filter(m => m.status === 'online').sort((a, b) => (b.metrics?.cpu || 0) - (a.metrics?.cpu || 0)).slice(0, 5);
+
+  // Online/Offline ring
+  const ringR = 28; const ringCircum = 2 * Math.PI * ringR;
+  const onlinePct = totalAgents > 0 ? onlineAgents / totalAgents : 0;
 
   return (
     <>
@@ -263,6 +292,96 @@ export default function Dashboard() {
 
         <div className="mb-6">
           <SystemLoadChart />
+        </div>
+
+        {/* Extra Metric Panels */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          {/* Online / Offline Ring */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
+            <svg width={72} height={72} className="shrink-0">
+              <circle cx={36} cy={36} r={ringR} fill="none" stroke="#f1f5f9" strokeWidth={8} />
+              <circle cx={36} cy={36} r={ringR} fill="none" stroke="#ef4444" strokeWidth={8}
+                strokeDasharray={ringCircum}
+                strokeDashoffset={ringCircum * onlinePct}
+                style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%', strokeLinecap: 'round' }} />
+              <circle cx={36} cy={36} r={ringR} fill="none" stroke="#22c55e" strokeWidth={8}
+                strokeDasharray={ringCircum * onlinePct}
+                strokeDashoffset={0}
+                style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%', strokeLinecap: 'round' }} />
+              <text x={36} y={40} textAnchor="middle" fontSize={14} fontWeight={700} fill="#1e293b">{totalAgents}</text>
+            </svg>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-slate-700">Machines</p>
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />{onlineAgents} Online</div>
+              <div className="flex items-center gap-1.5 text-xs text-red-500"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" />{offlineAgents} Offline</div>
+            </div>
+          </div>
+
+          {/* OS Distribution */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-3">OS Distribution</p>
+            {Object.keys(osDist).length === 0 ? (
+              <p className="text-slate-400 text-sm">No data</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {Object.entries(osDist).map(([os, count]) => {
+                  const pct = Math.round((count / totalAgents) * 100);
+                  return (
+                    <div key={os}>
+                      <div className="flex justify-between text-xs mb-0.5">
+                        <span className="text-slate-600 truncate max-w-[120px]">{os}</span>
+                        <span className="text-slate-500 font-medium">{count}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div style={{ width: `${pct}%`, backgroundColor: osColors[os] || '#94a3b8' }} className="h-full rounded-full transition-all" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Network I/O */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col justify-between">
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-3 flex items-center gap-1.5"><Network size={13} />Network I/O (total)</p>
+            <div className="flex flex-col gap-3">
+              <div className="bg-blue-50 rounded-xl px-4 py-2.5">
+                <p className="text-xs text-blue-500 font-medium">Upload</p>
+                <p className="text-xl font-bold text-blue-700">{fmtNet(totalNetUp)}</p>
+              </div>
+              <div className="bg-emerald-50 rounded-xl px-4 py-2.5">
+                <p className="text-xs text-emerald-500 font-medium">Download</p>
+                <p className="text-xl font-bold text-emerald-700">{fmtNet(totalNetDown)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Top machines by CPU */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-3 flex items-center gap-1.5"><Cpu size={13} />Top CPU Load</p>
+            {topCPU.length === 0 ? (
+              <p className="text-slate-400 text-sm">No online machines</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {topCPU.map(m => {
+                  const cpu = m.metrics?.cpu || 0;
+                  const col = cpu > 80 ? 'bg-red-500' : cpu > 50 ? 'bg-amber-500' : 'bg-emerald-500';
+                  return (
+                    <div key={m.id}>
+                      <div className="flex justify-between text-xs mb-0.5">
+                        <span className="text-slate-600 truncate max-w-[100px]">{m.nickname || m.hostname}</span>
+                        <span className={`font-semibold ${cpu > 80 ? 'text-red-500' : cpu > 50 ? 'text-amber-500' : 'text-emerald-600'}`}>{cpu}%</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div style={{ width: `${cpu}%` }} className={`h-full rounded-full transition-all ${col}`} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         <motion.div

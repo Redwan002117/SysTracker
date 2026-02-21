@@ -36,6 +36,15 @@ export function isAdmin(): boolean {
     return getRole() === 'admin';
 }
 
+export function isModerator(): boolean {
+    return getRole() === 'moderator';
+}
+
+export function isAdminOrModerator(): boolean {
+    const r = getRole();
+    return r === 'admin' || r === 'moderator';
+}
+
 export function isViewer(): boolean {
     return getRole() === 'viewer';
 }

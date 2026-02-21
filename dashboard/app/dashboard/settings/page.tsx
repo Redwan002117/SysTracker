@@ -1,12 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { fetchWithAuth } from '../../../lib/auth';
-import { Mail, Save, Server, Shield, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw, Download, Upload, Package } from 'lucide-react';
+import { Mail, Save, Server, Shield, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw, Download, Upload, Package, ClipboardList, Filter, ChevronDown, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function Settings() {
-    const [activeTab, setActiveTab] = useState<'general' | 'smtp' | 'agent'>('general');
+interface AuditLog {
+    id: number;
+    actor: string;
+    action: string;
+    target?: string;
+    detail?: string;
+    ip?: string;
+    ts: string;
+}
+
+const ACTION_COLORS: Record<string, string> = {
+    login: 'bg-emerald-100 text-emerald-700',
+    logout: 'bg-slate-100 text-slate-600',
+    user_created: 'bg-blue-100 text-blue-700',
+    user_deleted: 'bg-red-100 text-red-700',
+    role_changed: 'bg-violet-100 text-violet-700',
+    user_updated: 'bg-indigo-100 text-indigo-700',
+    mail_sent: 'bg-sky-100 text-sky-700',
+};
+
+function SettingsInner() {
+    const searchParams = useSearchParams();
+    const [activeTab, setActiveTab] = useState<'general' | 'smtp' | 'agent' | 'logs'>(
+        (searchParams?.get('tab') as 'general' | 'smtp' | 'agent' | 'logs') || 'general'
+    );
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
@@ -34,6 +58,37 @@ export default function Settings() {
     const [uploadingAgent, setUploadingAgent] = useState(false);
     const [agentFile, setAgentFile] = useState<File | null>(null);
     const [newVersion, setNewVersion] = useState('');
+
+    // Logs State
+    const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+    const [logsLoading, setLogsLoading] = useState(false);
+    const [logsFilter, setLogsFilter] = useState({ actor: '', action: '' });
+
+    const loadAuditLogs = useCallback(async () => {
+        setLogsLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (logsFilter.actor) params.set('actor', logsFilter.actor);
+            if (logsFilter.action) params.set('action', logsFilter.action);
+            params.set('limit', '200');
+            const res = await fetchWithAuth(`/api/audit-logs?${params}`);
+            if (res.ok) setAuditLogs(await res.json());
+        } finally { setLogsLoading(false); }
+    }, [logsFilter]);
+
+    useEffect(() => {
+        if (activeTab === 'logs') loadAuditLogs();
+    }, [activeTab, loadAuditLogs]);
+
+    const exportLogsCSV = () => {
+        const rows = [['ID', 'Actor', 'Action', 'Target', 'Detail', 'IP', 'Timestamp'], ...auditLogs.map(l => [l.id, l.actor, l.action, l.target || '', l.detail || '', l.ip || '', l.ts])];
+        const csv = rows.map(r => r.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `systracker-audit-${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+    };
 
     const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Unknown error');
 
@@ -234,6 +289,13 @@ export default function Settings() {
                         }`}
                 >
                     <Package size={16} /> Agent Management
+                </button>
+                <button
+                    onClick={() => setActiveTab('logs')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'logs' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                        }`}
+                >
+                    <ClipboardList size={16} /> Activity Logs
                 </button>
             </div>
 
@@ -588,7 +650,95 @@ export default function Settings() {
                         </div>
                     </motion.div>
                 )}
+                {activeTab === 'logs' && (
+                    <motion.div
+                        key="logs"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+                    >
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                                    <ClipboardList size={18} className="text-slate-400" /> Activity Logs
+                                </h2>
+                                <p className="text-sm text-slate-500 mt-1">User & system activity for the last 45 days. Older entries are purged automatically.</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={loadAuditLogs} disabled={logsLoading} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500" title="Refresh"><RefreshCw size={16} className={logsLoading ? 'animate-spin' : ''} /></button>
+                                <button onClick={exportLogsCSV} disabled={auditLogs.length === 0} className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors disabled:opacity-50">
+                                    <Download size={15} /> Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        {/* Filters */}
+                        <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
+                            <Filter size={14} className="text-slate-400" />
+                            <input type="text" placeholder="Filter by actor..." value={logsFilter.actor} onChange={e => setLogsFilter({...logsFilter, actor: e.target.value})} className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-400/40 w-40" />
+                            <select value={logsFilter.action} onChange={e => setLogsFilter({...logsFilter, action: e.target.value})} className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 focus:outline-none bg-white focus:ring-2 focus:ring-blue-400/40">
+                                <option value="">All actions</option>
+                                <option value="login">login</option>
+                                <option value="logout">logout</option>
+                                <option value="user_created">user_created</option>
+                                <option value="user_deleted">user_deleted</option>
+                                <option value="role_changed">role_changed</option>
+                                <option value="user_updated">user_updated</option>
+                                <option value="mail_sent">mail_sent</option>
+                            </select>
+                            <button onClick={loadAuditLogs} className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">Apply</button>
+                            {(logsFilter.actor || logsFilter.action) && (
+                                <button onClick={() => setLogsFilter({ actor: '', action: '' })} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
+                            )}
+                        </div>
+                        <div className="overflow-x-auto">
+                            {logsLoading ? (
+                                <div className="flex items-center justify-center py-12"><RefreshCw size={20} className="text-blue-400 animate-spin" /></div>
+                            ) : auditLogs.length === 0 ? (
+                                <div className="text-center py-12 text-slate-400">
+                                    <ClipboardList size={32} className="mx-auto mb-2 opacity-30" />
+                                    <p className="text-sm">No audit logs found</p>
+                                </div>
+                            ) : (
+                                <table className="w-full text-sm">
+                                    <thead className="border-b border-slate-100">
+                                        <tr>
+                                            {['Actor', 'Action', 'Target', 'Detail', 'IP', 'Time'].map(h => (
+                                                <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {auditLogs.map(log => (
+                                            <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-4 py-2.5 font-medium text-slate-800">{log.actor}</td>
+                                                <td className="px-4 py-2.5">
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${ACTION_COLORS[log.action] || 'bg-slate-100 text-slate-600'}`}>
+                                                        {log.action}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-2.5 text-slate-600 max-w-[120px] truncate">{log.target || '—'}</td>
+                                                <td className="px-4 py-2.5 text-slate-500 max-w-[160px] truncate text-xs">{log.detail || '—'}</td>
+                                                <td className="px-4 py-2.5 text-slate-400 font-mono text-xs">{log.ip || '—'}</td>
+                                                <td className="px-4 py-2.5 text-slate-400 text-xs whitespace-nowrap">{new Date(log.ts).toLocaleString()}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
             </AnimatePresence>
         </main>
+    );
+}
+
+export default function Settings() {
+    return (
+        <Suspense fallback={<div className="max-w-4xl mx-auto px-4 pt-24 text-slate-500">Loading...</div>}>
+            <SettingsInner />
+        </Suspense>
     );
 }
