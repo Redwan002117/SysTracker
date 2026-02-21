@@ -18,6 +18,9 @@
 
 .EXAMPLE
     # Run directly from PowerShell (as Admin):
+    irm https://systracker.rico.bd/install | iex
+
+    # Or from the GitHub release directly:
     irm https://github.com/Redwan002117/SysTracker/releases/latest/download/Install-SysTracker.ps1 | iex
 
 .EXAMPLE

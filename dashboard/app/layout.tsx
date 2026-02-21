@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'SysTracker Dashboard',
     description: 'Monitor your infrastructure in real-time.',
-    url: 'https://monitor.rico.bd', // Default/Placeholder domain
+    url: 'https://systracker.rico.bd/',
     siteName: 'SysTracker',
     images: [
       {

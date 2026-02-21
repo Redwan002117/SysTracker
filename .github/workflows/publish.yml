@@ -279,7 +279,7 @@ jobs:
             2. Run **SysTracker-Agent-Setup.exe** on each machine to monitor
             3. Open your browser to `http://[server-ip]:7777`
 
-            See [full release notes](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) and the [Wiki](https://github.com/${{ github.repository }}/wiki) for setup guides.
+            See [full release notes](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) and the [SysTracker website](https://systracker.rico.bd/) for setup guides.
           files: |
             agent/dist/SysTracker-Agent-Setup.exe
             server/dist/SysTracker-Server-Setup.exe

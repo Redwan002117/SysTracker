@@ -33,8 +33,8 @@ VIAddVersionKey      "LegalCopyright"   "© 2026 Redwan002117"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN          "$INSTDIR\SysTrackerServer.exe"
 !define MUI_FINISHPAGE_RUN_TEXT     "Launch SysTracker Server now"
-!define MUI_FINISHPAGE_LINK         "Open Documentation"
-!define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/Redwan002117/SysTracker/wiki"
+!define MUI_FINISHPAGE_LINK         "Visit the SysTracker website"
+!define MUI_FINISHPAGE_LINK_LOCATION "https://systracker.rico.bd/"
 !define MUI_WELCOMEPAGE_TITLE       "Welcome to SysTracker Server Setup"
 !define MUI_WELCOMEPAGE_TEXT        "This wizard will install the SysTracker Server on your computer.$\r$\n$\r$\nSysTracker Server provides a real-time dashboard for monitoring all your connected machines. It runs as a background process accessible via your web browser.$\r$\n$\r$\nClick Next to continue."
 
@@ -182,13 +182,13 @@ Section "SysTracker Server" SecServer
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "DisplayVersion"   "3.1.6"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
-        "Publisher"        "Redwan002117"
+        "Publisher"        "SysTracker"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "UninstallString"  "$INSTDIR\Uninstall.exe"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "DisplayIcon"      "$INSTDIR\SysTrackerServer.exe"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
-        "URLInfoAbout"     "https://github.com/Redwan002117/SysTracker"
+        "URLInfoAbout"     "https://systracker.rico.bd/"
     WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "EstimatedSize"    50000
     WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \

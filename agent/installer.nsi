@@ -33,8 +33,8 @@ VIAddVersionKey      "LegalCopyright"   "© 2026 Redwan002117"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN          "$INSTDIR\systracker-agent.exe"
 !define MUI_FINISHPAGE_RUN_TEXT     "Start SysTracker Agent service now"
-!define MUI_FINISHPAGE_LINK         "View SysTracker on GitHub"
-!define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/Redwan002117/SysTracker"
+!define MUI_FINISHPAGE_LINK         "Visit the SysTracker website"
+!define MUI_FINISHPAGE_LINK_LOCATION "https://systracker.rico.bd/"
 !define MUI_WELCOMEPAGE_TITLE       "Welcome to SysTracker Agent Setup"
 !define MUI_WELCOMEPAGE_TEXT        "This wizard will install the SysTracker Agent on your computer.$\r$\n$\r$\nThe agent runs as a background task and sends system metrics (CPU, RAM, disk, network) to your SysTracker server in real-time. It starts automatically when Windows boots.$\r$\n$\r$\nClick Next to continue."
 
@@ -145,13 +145,13 @@ Section "SysTracker Agent" SecMain
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "DisplayVersion"  "3.1.6"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
-        "Publisher"       "Redwan002117"
+        "Publisher"       "SysTracker"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "UninstallString" "$INSTDIR\Uninstall.exe"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "DisplayIcon"     "$INSTDIR\systracker-agent.exe"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
-        "URLInfoAbout"    "https://github.com/Redwan002117/SysTracker"
+        "URLInfoAbout"    "https://systracker.rico.bd/"
     WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "NoModify" 1
     WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
