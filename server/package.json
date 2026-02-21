@@ -4,9 +4,9 @@
   "main": "server.js",
   "bin": "server.js",
   "scripts": {
-    "build:win": "pkg . --targets node18-win-x64 --output systracker-server-win.exe",
+    "build:win": "pkg . --targets node18-win-x64 --output systracker-server-win.exe && node ./scripts/add-icon.js",
     "build:linux": "pkg . --targets node18-linux-x64 --output systracker-server-linux",
-    "build:all": "pkg . --targets node18-win-x64,node18-linux-x64 --out-path dist"
+    "build:all": "pkg . --targets node18-win-x64,node18-linux-x64 --out-path dist && node ./scripts/add-icon.js"
   },
   "pkg": {
     "assets": [
@@ -20,6 +20,7 @@
       "migrate_processes.js",
       "init_db.js",
       "bin/**/*",
+      "app.ico",
       ".env"
     ],
     "targets": [
@@ -46,6 +47,7 @@
     "sqlite3": "^5.1.6"
   },
   "devDependencies": {
-    "pkg": "^5.8.1"
+    "pkg": "^5.8.1",
+    "rcedit": "^1.1.2"
   }
 }

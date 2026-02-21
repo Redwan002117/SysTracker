@@ -1,12 +1,16 @@
 {
   "name": "agent",
   "version": "2.2.1",
-  "description": "",
+  "description": "SysTracker System Monitoring Agent",
   "bin": "client_agent.js",
+  "scripts": {
+    "build:win": "pkg . --targets node18-win-x64 --output dist/systracker-agent-win.exe && node ../server/scripts/add-icon.js"
+  },
   "pkg": {
     "scripts": "client_agent.js",
     "assets": [
-      "node_modules/**/*"
+      "node_modules/**/*",
+      "app.ico"
     ],
     "targets": [
       "node18-win-x64"
@@ -19,5 +23,9 @@
     "axios": "^1.13.5",
     "socket.io-client": "^4.8.3",
     "systeminformation": "^5.31.0"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1",
+    "rcedit": "^1.1.1"
   }
 }
