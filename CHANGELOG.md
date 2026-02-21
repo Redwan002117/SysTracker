@@ -3,6 +3,17 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.6] - 2026-02-21
+
+### 🐛 Bug Fixes
+
+- **Dashboard build**: fixed CI workflow to copy `dashboard/out` (static export) instead of `dashboard/.next` to `server/dashboard-dist` — ensures the latest built dashboard is included in releases
+- **Code signing conditions**: fixed workflow conditional checks to properly evaluate secret existence — `secrets.CODESIGN_PFX_BASE64` instead of `env.CODESIGN_PFX_BASE64`
+
+### 🔧 Technical Improvements
+
+- Dashboard now properly included in server releases with latest compiled assets
+
 ## [3.2.5] - 2026-06-21
 
 ### ✨ New Features

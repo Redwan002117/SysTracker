@@ -55,12 +55,12 @@ jobs:
           
       - name: Verify Dashboard Build
         run: |
-          if [ ! -d "dashboard/.next" ]; then
+          if [ ! -d "dashboard/out" ]; then
             echo "Error: Dashboard build failed"
             exit 1
           fi
           echo "✓ Dashboard built successfully"
-          du -sh dashboard/.next
+          du -sh dashboard/out
 
   # 3. Build Standalone Server & Release (Windows)
   build-server-release:
@@ -90,8 +90,8 @@ jobs:
           
       - name: Copy Dashboard to Server
         run: |
-          if (Test-Path "dashboard\.next") {
-            Copy-Item -Path "dashboard\.next" -Destination "server\dashboard-dist" -Recurse -Force
+          if (Test-Path "dashboard\out") {
+            Copy-Item -Path "dashboard\out\*" -Destination "server\dashboard-dist" -Recurse -Force
           } else {
             Write-Error "Dashboard build failed"
             exit 1
@@ -158,7 +158,7 @@ jobs:
       # If secret is absent the signing steps are skipped gracefully.
 
       - name: Install Code Signing Certificate
-        if: ${{ env.CODESIGN_PFX_BASE64 != '' }}
+        if: ${{ secrets.CODESIGN_PFX_BASE64 != '' }}
         env:
           CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
           CODESIGN_PFX_PASSWORD: ${{ secrets.CODESIGN_PFX_PASSWORD }}
@@ -190,7 +190,7 @@ jobs:
           }
 
       - name: Sign Windows Executables
-        if: ${{ env.CODESIGN_PFX_BASE64 != '' }}
+        if: ${{ secrets.CODESIGN_PFX_BASE64 != '' }}
         env:
           CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
         run: |
@@ -309,7 +309,7 @@ jobs:
           
       - name: Verify Dashboard Build
         run: |
-          if [ ! -d "dashboard/.next" ]; then
+          if [ ! -d "dashboard/out" ]; then
             echo "Error: Dashboard build failed"
             exit 1
           fi
