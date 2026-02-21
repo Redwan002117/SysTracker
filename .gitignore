@@ -59,6 +59,10 @@ build/
 dist/
 Release/
 RELEASE/
+*.exe
+systracker-server-win.exe
+systracker-agent-win.exe
+make-gui.js
 
 # IDE
 .vscode/
