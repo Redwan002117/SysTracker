@@ -69,12 +69,12 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
     };
 
     return (
-        <div className="relative overflow-hidden rounded-3xl bg-white/60 backdrop-blur-xl border border-white/60 shadow-xl transition-all duration-300 hover:shadow-2xl group w-full" style={{ minHeight: '520px' }}>
+        <div className="relative overflow-hidden rounded-3xl bg-white/60 backdrop-blur-xl border border-white/60 shadow-xl transition-all duration-300 hover:shadow-2xl group w-full">
             {/* Gradient Background Effect */}
             <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl group-hover:bg-blue-500/30 transition-colors pointer-events-none"></div>
             <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl group-hover:bg-purple-500/30 transition-colors pointer-events-none"></div>
 
-            <div className="relative z-10 flex flex-col items-center text-center p-6 lg:p-8 h-full">
+            <div className={`relative z-10 flex flex-col items-center text-center h-full ${isEditing ? 'p-4' : 'p-6 lg:p-8'}`}>
                 <div className="absolute top-4 right-4 z-50">
                     {!isEditing && (
                         <button
@@ -88,13 +88,13 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
                 </div>
 
                 {/* Avatar */}
-                <div className="relative mb-8 group/avatar mt-2">
-                    <div className="w-40 h-40 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 p-2 shadow-inner relative mx-auto ring-4 ring-white/50">
+                <div className={`relative group/avatar mt-2 ${isEditing ? 'mb-3' : 'mb-8'}`}>
+                    <div className={`rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 p-2 shadow-inner relative mx-auto ring-4 ring-white/50 ${isEditing ? 'w-20 h-20' : 'w-40 h-40'}`}>
                         <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden relative">
                             {profile.avatar ? (
-                                <img src={profile.avatar} alt="Profile" className="w-full h-full object-cover" />
+                                <img src={isEditing ? tempProfile.avatar! : profile.avatar} alt="Profile" className="w-full h-full object-cover" />
                             ) : (
-                                <User size={64} className="text-slate-300" />
+                                <User size={isEditing ? 32 : 64} className="text-slate-300" />
                             )}
 
                             {/* Hover Overlay for Edit Mode suggestion */}
@@ -127,64 +127,60 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
 
                 {/* Name & Role */}
                 {isEditing ? (
-                    <div className="w-full space-y-3 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        <div>
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block text-left px-1">Identity</label>
-                            <div className="space-y-2">
-                                <input
-                                    type="text"
-                                    value={tempProfile.name}
-                                    onChange={e => setTempProfile({ ...tempProfile, name: e.target.value })}
-                                    className="w-full text-center font-bold text-xl bg-white/80 rounded-xl px-4 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm transition-all placeholder:text-slate-300"
-                                    placeholder="Full Name"
-                                />
-                                <input
-                                    type="text"
-                                    value={tempProfile.role}
-                                    onChange={e => setTempProfile({ ...tempProfile, role: e.target.value })}
-                                    className="w-full text-center text-slate-600 text-sm bg-white/80 rounded-xl px-4 py-2 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm transition-all placeholder:text-slate-300"
-                                    placeholder="Job Title / Role"
-                                />
-                            </div>
+                    <div className="w-full space-y-2 mb-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <div className="space-y-1.5">
+                            <input
+                                type="text"
+                                value={tempProfile.name}
+                                onChange={e => setTempProfile({ ...tempProfile, name: e.target.value })}
+                                className="w-full text-center font-bold text-base bg-white/80 rounded-xl px-3 py-1.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm transition-all placeholder:text-slate-300"
+                                placeholder="Full Name"
+                            />
+                            <input
+                                type="text"
+                                value={tempProfile.role}
+                                onChange={e => setTempProfile({ ...tempProfile, role: e.target.value })}
+                                className="w-full text-center text-slate-600 text-sm bg-white/80 rounded-xl px-3 py-1.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm transition-all placeholder:text-slate-300"
+                                placeholder="Job Title / Role"
+                            />
                         </div>
 
-                        {/* New Fields Grid */}
-                        <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-200/60">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block text-left px-1">Location & Contact</label>
-                            <div className="grid grid-cols-2 gap-3">
+                        {/* Fields Grid */}
+                        <div className="bg-slate-50/50 p-2.5 rounded-xl border border-slate-200/60">
+                            <div className="grid grid-cols-2 gap-1.5">
                                 <input
                                     type="text"
                                     value={tempProfile.email || ''}
                                     onChange={e => setTempProfile({ ...tempProfile, email: e.target.value })}
-                                    className="col-span-2 w-full text-center text-sm bg-white rounded-lg px-2 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    className="col-span-2 w-full text-center text-sm bg-white rounded-lg px-2 py-1.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                     placeholder="Email Address"
                                 />
                                 <input
                                     type="text"
                                     value={tempProfile.department || ''}
                                     onChange={e => setTempProfile({ ...tempProfile, department: e.target.value })}
-                                    className="col-span-2 w-full text-center text-sm bg-white rounded-lg px-2 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    className="col-span-2 w-full text-center text-sm bg-white rounded-lg px-2 py-1.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                     placeholder="Department"
                                 />
                                 <input
                                     type="text"
                                     value={tempProfile.floor_name || ''}
                                     onChange={e => setTempProfile({ ...tempProfile, floor_name: e.target.value })}
-                                    className="w-full text-center text-sm bg-white rounded-lg px-2 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    className="w-full text-center text-sm bg-white rounded-lg px-2 py-1.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                     placeholder="Floor (e.g. 3rd)"
                                 />
                                 <input
                                     type="text"
                                     value={tempProfile.desk_name || ''}
                                     onChange={e => setTempProfile({ ...tempProfile, desk_name: e.target.value })}
-                                    className="w-full text-center text-sm bg-white rounded-lg px-2 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    className="w-full text-center text-sm bg-white rounded-lg px-2 py-1.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                     placeholder="Desk (e.g. D-12)"
                                 />
                                 <input
                                     type="text"
                                     value={tempProfile.pc_number || ''}
                                     onChange={e => setTempProfile({ ...tempProfile, pc_number: e.target.value })}
-                                    className="col-span-2 w-full text-center text-sm bg-white rounded-lg px-2 py-2.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                    className="col-span-2 w-full text-center text-sm bg-white rounded-lg px-2 py-1.5 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                                     placeholder="Asset ID (e.g. PC-2024-X)"
                                 />
                             </div>
@@ -221,19 +217,19 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
                 )}
 
                 {/* Tags */}
-                <div className="flex flex-wrap justify-center gap-2.5 mb-10">
-                    {(isEditing ? (tempProfile.tags || []) : (profile.tags || ['Design', 'UX'])).map((tag, i) => (
-                        <span key={i} className="px-4 py-1.5 rounded-full bg-slate-50 text-slate-600 text-sm font-bold border border-slate-200/80 hover:bg-white hover:border-blue-200 hover:text-blue-600 transition-all cursor-default uppercase tracking-wide">
+                <div className={`flex flex-wrap justify-center gap-2 ${isEditing ? 'mb-2' : 'mb-10'}`}>
+                    {(isEditing ? [] : (profile.tags || ['Design', 'UX'])).map((tag, i) => (
+                        <span key={i} className="px-3 py-1 rounded-full bg-slate-50 text-slate-600 text-xs font-bold border border-slate-200/80 hover:bg-white hover:border-blue-200 hover:text-blue-600 transition-all cursor-default uppercase tracking-wide">
                             {tag}
                         </span>
                     ))}
                 </div>
 
                 {/* Stats Grid - Live Data */}
-                <div className="grid grid-cols-3 gap-px bg-slate-200/50 rounded-2xl overflow-hidden border border-slate-200/50 w-full mb-8 shadow-sm">
+                <div className={`grid grid-cols-3 gap-px bg-slate-200/50 rounded-2xl overflow-hidden border border-slate-200/50 w-full shadow-sm ${isEditing ? 'mb-3' : 'mb-8'}`}>
                     {/* Location */}
-                    <div className="flex flex-col items-center bg-white/50 p-4 hover:bg-white transition-colors group/stat">
-                        <span className="text-slate-900 font-bold text-xl truncate w-full text-center" title={profile.desk_name || profile.floor_name || 'N/A'}>
+                    <div className={`flex flex-col items-center bg-white/50 hover:bg-white transition-colors group/stat ${isEditing ? 'p-2' : 'p-4'}`}>
+                        <span className={`text-slate-900 font-bold truncate w-full text-center ${isEditing ? 'text-sm' : 'text-xl'}`} title={profile.desk_name || profile.floor_name || 'N/A'}>
                             {profile.desk_name || profile.floor_name || 'N/A'}
                         </span>
                         <span className="text-slate-400 text-xs uppercase tracking-wider font-semibold mt-0.5 flex items-center gap-1">
@@ -242,8 +238,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
                     </div>
 
                     {/* Uptime */}
-                    <div className="flex flex-col items-center bg-white/50 p-4 hover:bg-white transition-colors group/stat">
-                        <span className="text-slate-900 font-bold text-xl font-mono">
+                    <div className={`flex flex-col items-center bg-white/50 hover:bg-white transition-colors group/stat ${isEditing ? 'p-2' : 'p-4'}`}>
+                        <span className={`text-slate-900 font-bold font-mono ${isEditing ? 'text-sm' : 'text-xl'}`}>
                             {(() => {
                                 const seconds = machine.metrics?.uptime_seconds || 0;
                                 const days = Math.floor(seconds / 86400);
@@ -259,8 +255,8 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
                     </div>
 
                     {/* Asset ID */}
-                    <div className="flex flex-col items-center bg-white/50 p-4 hover:bg-white transition-colors group/stat">
-                        <span className="text-slate-900 font-bold text-xl truncate w-full text-center" title={profile.pc_number || 'N/A'}>
+                    <div className={`flex flex-col items-center bg-white/50 hover:bg-white transition-colors group/stat ${isEditing ? 'p-2' : 'p-4'}`}>
+                        <span className={`text-slate-900 font-bold truncate w-full text-center ${isEditing ? 'text-sm' : 'text-xl'}`} title={profile.pc_number || 'N/A'}>
                             {profile.pc_number || 'N/A'}
                         </span>
                         <span className="text-slate-400 text-xs uppercase tracking-wider font-semibold mt-0.5 flex items-center gap-1">
@@ -273,13 +269,13 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
                 {isEditing ? (
                     <div className="flex flex-col gap-2 w-full animate-in fade-in slide-in-from-bottom-2">
                         <div className="flex gap-3">
-                            <button onClick={handleSave} disabled={isSaving} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 active:scale-[0.98] text-base">
+                            <button onClick={handleSave} disabled={isSaving} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 active:scale-[0.98] text-sm">
                                 {isSaving
-                                    ? <><Loader size={18} className="animate-spin" /> Saving...</>
-                                    : <><Check size={20} strokeWidth={2.5} /> Save Profile</>}
+                                    ? <><Loader size={15} className="animate-spin" /> Saving...</>
+                                    : <><Check size={16} strokeWidth={2.5} /> Save Profile</>}
                             </button>
-                            <button onClick={handleCancel} disabled={isSaving} className="bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 font-semibold p-4 rounded-2xl transition-all border border-slate-200 hover:border-red-200 flex items-center justify-center active:scale-[0.98] disabled:opacity-60">
-                                <XIcon size={24} />
+                            <button onClick={handleCancel} disabled={isSaving} className="bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 font-semibold p-2.5 rounded-xl transition-all border border-slate-200 hover:border-red-200 flex items-center justify-center active:scale-[0.98] disabled:opacity-60">
+                                <XIcon size={18} />
                             </button>
                         </div>
                         {saveError && (
