@@ -45,9 +45,11 @@ jobs:
         id: version
         run: |
           VERSION=$(node -p "require('./server/package.json').version")
-          PREV_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          # Strip leading 'v' from tag so comparison works (tag = v3.1.5, package = 3.1.5)
+          PREV_VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
           
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Previous tag version: $PREV_VERSION, Current version: $VERSION"
           
           if [ "$VERSION" != "$PREV_VERSION" ]; then
             echo "should_release=true" >> $GITHUB_OUTPUT
@@ -132,9 +134,9 @@ jobs:
           VERSION=${{ needs.detect-version.outputs.version }}
           TAG="v${VERSION}"
           
-          # Check if tag already exists
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists"
+          # Check if tag already exists on remote
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+            echo "Tag $TAG already exists on remote, skipping."
           else
             git tag -a "$TAG" -m "Release $TAG"
             git push origin "$TAG"
@@ -144,7 +146,7 @@ jobs:
   # 4. Create GitHub Release
   create-github-release:
     runs-on: windows-latest
-    needs: [detect-version, create-release-notes]
+    needs: [detect-version, create-release-notes, create-tag]
     if: needs.detect-version.outputs.should_release == 'true'
     permissions:
       contents: write
@@ -154,7 +156,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Download Release Notes
         uses: actions/download-artifact@v4
@@ -214,7 +216,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Configure npm Registry
         run: |
