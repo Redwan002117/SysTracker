@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import PortfolioNavbar from '../../components/PortfolioNavbar';
-import { AlertTriangle, Zap } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import SiteFooter from '../../components/SiteFooter';
 
 export default function AcceptableUsePolicy() {
     const lastUpdated = 'February 18, 2026';
@@ -80,7 +81,7 @@ export default function AcceptableUsePolicy() {
                     </Section>
                 </div>
             </main>
-            <Footer />
+            <SiteFooter />
         </div>
     );
 }
@@ -91,26 +92,5 @@ function Section({ title, children }: { title: string; children: React.ReactNode
             <h2 className="text-xl font-bold text-slate-900 mb-3 pb-2 border-b border-slate-200">{title}</h2>
             <div className="text-slate-600 leading-relaxed space-y-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:space-y-2 [&_strong]:text-slate-800">{children}</div>
         </section>
-    );
-}
-
-function Footer() {
-    return (
-        <footer className="border-t border-slate-200 bg-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-2">
-                    <div className="bg-blue-600 text-white p-1 rounded-md"><Zap size={16} fill="currentColor" /></div>
-                    <span className="font-bold text-slate-900">SysTracker</span>
-                </div>
-                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
-                    <Link href="/download" className="hover:text-blue-600 transition-colors">Download</Link>
-                    <Link href="/privacy" className="hover:text-blue-600 transition-colors">Privacy Policy</Link>
-                    <Link href="/terms" className="hover:text-blue-600 transition-colors">Terms of Use</Link>
-                    <Link href="/data-retention" className="hover:text-blue-600 transition-colors">Data Retention</Link>
-                    <Link href="/acceptable-use" className="hover:text-blue-600 transition-colors">Acceptable Use</Link>
-                </div>
-                <p className="text-slate-400 text-sm">© {new Date().getFullYear()} SysTracker. Open Source.</p>
-            </div>
-        </footer>
     );
 }

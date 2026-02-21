@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import PortfolioNavbar from '../../components/PortfolioNavbar';
+import SiteFooter from '../../components/SiteFooter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Download, Github, Package, Tag, Clock, Monitor,
@@ -742,22 +743,7 @@ export default function DownloadPage() {
             )}
 
             {/* ── Footer ── */}
-            <footer className="border-t border-slate-200 bg-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <Link href="/" className="flex items-center gap-2">
-                        <div className="bg-blue-600 text-white p-1 rounded-md"><ZapIcon size={16} fill="currentColor" /></div>
-                        <span className="font-bold text-slate-900">SysTracker</span>
-                    </Link>
-                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
-                        <Link href="/" className="hover:text-blue-600 transition-colors">Home</Link>
-                        <Link href="/download" className="hover:text-blue-600 transition-colors">Download</Link>
-                        <Link href="/contact" className="hover:text-blue-600 transition-colors">Contact</Link>
-                        <Link href="/privacy" className="hover:text-blue-600 transition-colors">Privacy Policy</Link>
-                        <Link href="/terms" className="hover:text-blue-600 transition-colors">Terms of Use</Link>
-                    </div>
-                    <p className="text-slate-400 text-sm">© {new Date().getFullYear()} SysTracker. MIT License.</p>
-                </div>
-            </footer>
+            <SiteFooter showContact />
         </div>
     );
 }

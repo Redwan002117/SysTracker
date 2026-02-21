@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import PortfolioNavbar from '../components/PortfolioNavbar';
+import SiteFooter from '../components/SiteFooter';
 import { motion } from 'framer-motion';
 import {
     Download, Github, Package, Star, GitFork, Tag,
@@ -433,7 +434,7 @@ export default function HomePage() {
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
                     {[
-                        { icon: <Github size={24} />, title: 'Source Code', desc: 'Full source on GitHub. MIT Licensed.', href: `https://github.com/${REPO}`, color: 'text-slate-900', bg: 'bg-slate-100' },
+                        { icon: <Github size={24} />, title: 'Source Code', desc: 'Full source on GitHub. Proprietary License.', href: `https://github.com/${REPO}`, color: 'text-slate-900', bg: 'bg-slate-100' },
                         { icon: <Package size={24} />, title: 'Docker Image', desc: 'ghcr.io/redwan002117/systracker', href: `https://github.com/${REPO}/pkgs/container/systracker`, color: 'text-blue-600', bg: 'bg-blue-50' },
                         { icon: <Tag size={24} />, title: 'All Releases', desc: 'Changelog and binary downloads.', href: '/download', color: 'text-purple-600', bg: 'bg-purple-50', internal: true },
                         { icon: <FileCode size={24} />, title: 'Dashboard Repo', desc: 'Separate dashboard source code.', href: 'https://github.com/Redwan002117/dashboard', color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -456,23 +457,7 @@ export default function HomePage() {
             </section>
 
             {/* ── Footer ── */}
-            <footer className="border-t border-slate-200 bg-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <div className="bg-blue-600 text-white p-1 rounded-md"><Zap size={16} fill="currentColor" /></div>
-                        <span className="font-bold text-slate-900">SysTracker</span>
-                    </div>
-                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
-                        <Link href="/download" className="hover:text-blue-600 transition-colors">Download</Link>
-                        <Link href="/contact" className="hover:text-blue-600 transition-colors">Contact</Link>
-                        <Link href="/privacy" className="hover:text-blue-600 transition-colors">Privacy Policy</Link>
-                        <Link href="/terms" className="hover:text-blue-600 transition-colors">Terms of Use</Link>
-                        <Link href="/data-retention" className="hover:text-blue-600 transition-colors">Data Retention</Link>
-                        <Link href="/acceptable-use" className="hover:text-blue-600 transition-colors">Acceptable Use</Link>
-                    </div>
-                    <p className="text-slate-400 text-sm">© {new Date().getFullYear()} SysTracker. MIT License.</p>
-                </div>
-            </footer>
+            <SiteFooter showContact />
 
             {/* ── FAB ── */}
             <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">

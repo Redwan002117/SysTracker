@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import PortfolioNavbar from '../../components/PortfolioNavbar';
+import SiteFooter from '../../components/SiteFooter';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Mail, Github, MessageSquare, Send, CheckCircle,
-    AlertCircle, Loader2, Zap, ExternalLink, Bug,
+    AlertCircle, Loader2, ExternalLink, Bug,
     Lightbulb, HelpCircle, Shield, ChevronDown, ChevronUp
 } from 'lucide-react';
 
@@ -187,22 +188,7 @@ export default function ContactPage() {
                     </div>
                 </div>
             </main>
-            <footer className="border-t border-slate-200 bg-white mt-20">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <div className="bg-blue-600 text-white p-1 rounded-md"><Zap size={16} fill="currentColor" /></div>
-                        <span className="font-bold text-slate-900">SysTracker</span>
-                    </div>
-                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
-                        <Link href="/download" className="hover:text-blue-600 transition-colors">Download</Link>
-                        <Link href="/privacy" className="hover:text-blue-600 transition-colors">Privacy Policy</Link>
-                        <Link href="/terms" className="hover:text-blue-600 transition-colors">Terms of Use</Link>
-                        <Link href="/data-retention" className="hover:text-blue-600 transition-colors">Data Retention</Link>
-                        <Link href="/acceptable-use" className="hover:text-blue-600 transition-colors">Acceptable Use</Link>
-                    </div>
-                    <p className="text-slate-400 text-sm">© {new Date().getFullYear()} SysTracker. MIT License.</p>
-                </div>
-            </footer>
+            <SiteFooter showContact extraTopMargin />
         </div>
     );
 }
