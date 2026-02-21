@@ -1,0 +1,53 @@
+# Windows Server Container
+# Use Windows Server Core for maximum compatibility
+
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
+
+# Install Node.js
+RUN powershell -Command \
+    $ProgressPreference = 'SilentlyContinue'; \
+    Invoke-WebRequest -Uri 'https://nodejs.org/dist/v18.19.0/node-v18.19.0-win-x64.zip' -OutFile 'node.zip'; \
+    Expand-Archive -Path 'node.zip' -DestinationPath 'C:\'; \
+    Rename-Item -Path 'C:\node-v18.19.0-win-x64' -NewName 'C:\nodejs'; \
+    Remove-Item -Path 'node.zip' -Force
+
+# Add Node to PATH
+ENV PATH="C:\nodejs;${PATH}"
+
+# Set working directory
+WORKDIR /app
+
+# Copy application files
+COPY server/package.json /app/
+COPY server/package-lock.json /app/
+COPY server/server.js /app/
+COPY server/schema_sqlite.sql /app/
+COPY server/emailTemplates.js /app/
+COPY server/errorLogger.js /app/
+COPY server/dataValidation.js /app/
+COPY dashboard-dist /app/dashboard-dist
+
+# Copy entrypoint scripts
+COPY Docker/entrypoint-windows.ps1 /app/entrypoint.ps1
+
+# Install dependencies
+RUN npm install --production
+
+# Create data directory
+RUN powershell -Command New-Item -ItemType Directory -Path '/app/data' -Force
+
+# Expose port
+EXPOSE 7777
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD powershell -Command \
+    try { \
+        $response = Invoke-WebRequest -Uri 'http://localhost:7777/api/auth/status' -UseBasicParsing; \
+        if ($response.StatusCode -eq 200) { exit 0 } else { exit 1 } \
+    } catch { \
+        exit 1 \
+    }
+
+# Run application
+ENTRYPOINT ["powershell", "-File", "entrypoint.ps1"]
