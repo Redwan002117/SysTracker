@@ -1,0 +1,129 @@
+name: Portfolio Build & Verify
+
+on:
+  push:
+    branches: [ 'Portfolio' ]
+  pull_request:
+    branches: [ 'Portfolio' ]
+  workflow_dispatch:
+
+jobs:
+  # ── 1. Next.js Static Build ─────────────────────────────────────────────────
+  build-next:
+    name: Next.js Static Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js static export
+        run: npm run build
+
+      - name: Verify static output exists
+        run: |
+          if [ ! -d "out" ]; then
+            echo "❌ 'out/' directory not found — static export failed"
+            exit 1
+          fi
+          echo "✓ Static export generated ($(du -sh out/ | cut -f1))"
+          echo ""
+          echo "Pages built:"
+          find out -name "*.html" | sort | sed 's|out/||' | sed 's|/index.html||'
+
+      - name: Upload static export as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-static-export
+          path: out/
+          retention-days: 7
+
+  # ── 2. nginx Config Validation ───────────────────────────────────────────────
+  verify-nginx:
+    name: Validate nginx Config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Test nginx configuration syntax
+        run: |
+          docker run --rm \
+            -v "$PWD/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+            nginx:alpine nginx -t
+          echo "✓ nginx.conf syntax valid"
+
+  # ── 3. Docker Image Build + Smoke Tests ────────────────────────────────────
+  build-docker:
+    name: Docker Build & Smoke Test
+    runs-on: ubuntu-latest
+    needs: [ build-next, verify-nginx ]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: systracker-portfolio:ci-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true
+
+      - name: Start container
+        run: |
+          docker run -d --name portfolio-ci -p 8080:80 systracker-portfolio:ci-test
+          sleep 3
+
+      - name: Smoke test — root page (HTTP 200)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/)
+          echo "GET /  →  HTTP $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ Root page returned $STATUS, expected 200"
+            docker logs portfolio-ci
+            exit 1
+          fi
+          echo "✓ Root page OK"
+
+      - name: Smoke test — /install redirect (HTTP 302)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/install)
+          LOCATION=$(curl -s -D - -o /dev/null http://localhost:8080/install | grep -i location | tr -d '\r')
+          echo "GET /install  →  HTTP $STATUS"
+          echo "Location: $LOCATION"
+          if [ "$STATUS" != "302" ] && [ "$STATUS" != "301" ]; then
+            echo "❌ /install returned $STATUS, expected 301/302"
+            docker logs portfolio-ci
+            exit 1
+          fi
+          echo "✓ /install redirects correctly"
+
+      - name: Smoke test — key pages return 200
+        run: |
+          PAGES=("/download" "/contact" "/privacy" "/terms")
+          FAILED=0
+          for PAGE in "${PAGES[@]}"; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8080$PAGE")
+            echo "GET $PAGE  →  HTTP $STATUS"
+            if [ "$STATUS" != "200" ]; then
+              echo "❌ $PAGE returned $STATUS"
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" = "1" ]; then exit 1; fi
+          echo "✓ All key pages OK"
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f portfolio-ci || true
