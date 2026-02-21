@@ -48,7 +48,7 @@ export default function HomePage() {
     const [latestRelease, setLatestRelease] = useState<GithubRelease | null>(null);
     const [repoStats, setRepoStats] = useState<RepoStats | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'agent' | 'server' | 'docker'>('agent');
+    const [activeTab, setActiveTab] = useState<'powershell' | 'agent' | 'server' | 'docker'>('powershell');
     const [policyPopup, setPolicyPopup] = useState(false);
 
     const REPO = process.env.NEXT_PUBLIC_GITHUB_REPO || 'Redwan002117/SysTracker';
@@ -71,6 +71,12 @@ export default function HomePage() {
     }, [REPO]);
 
     const installTabs = {
+        powershell: {
+            label: 'Quick Install',
+            icon: <Terminal size={16} />,
+            code: `# Run in PowerShell as Administrator (recommended):\nirm https://systracker.rico.bd/install | iex\n\n# Downloads and installs Agent + Server, then removes MOTW so SmartScreen never prompts.`,
+            lang: 'powershell',
+        },
         agent: {
             label: 'Windows Agent',
             icon: <Monitor size={16} />,
@@ -175,6 +181,23 @@ export default function HomePage() {
                                     Live Dashboard
                                 </a>
                             </motion.div>
+
+                            {/* ── Quick Install One-liner ── */}
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.4 }}
+                                className="mt-6 flex items-center gap-3 px-4 py-3 bg-slate-900 rounded-xl border border-slate-800 max-w-fit justify-center lg:justify-start"
+                            >
+                                <Terminal size={14} className="text-slate-400 flex-shrink-0" />
+                                <code className="text-green-400 text-xs sm:text-sm font-mono select-all">
+                                    irm https://systracker.rico.bd/install | iex
+                                </code>
+                                <CopyButton text="irm https://systracker.rico.bd/install | iex" />
+                            </motion.div>
+                            <p className="text-slate-400 text-xs mt-2 text-center lg:text-left pl-1">
+                                Run in PowerShell as Administrator &mdash; no SmartScreen prompts.
+                            </p>
 
                             {repoStats && (
                                 <motion.div

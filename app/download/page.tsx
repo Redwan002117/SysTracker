@@ -9,7 +9,7 @@ import {
     CheckCircle, AlertCircle, Loader2, Box, FileCode,
     Terminal, ExternalLink, Sparkles, Bug, Zap as ZapIcon,
     AlertTriangle, ChevronDown, ChevronUp, ArrowLeft,
-    BarChart2, Users2, Cpu, GitCommit, Code2
+    BarChart2, Users2, Cpu, GitCommit, Code2, Copy, Check
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -83,6 +83,19 @@ function getAssetPlatform(name: string): string {
     if (n.includes('linux') || n.endsWith('.deb') || n.endsWith('.rpm') || n.endsWith('.tar.gz')) return 'Linux';
     if (n.includes('mac') || n.endsWith('.dmg') || n.endsWith('.pkg')) return 'macOS';
     return '';
+}
+
+function CopyInstallButton() {
+    const [copied, setCopied] = useState(false);
+    return (
+        <button
+            onClick={() => { navigator.clipboard.writeText('irm https://systracker.rico.bd/install | iex'); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+            className="p-1.5 rounded-md hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer flex-shrink-0"
+            title="Copy install command"
+        >
+            {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+        </button>
+    );
 }
 
 /** Parse release body markdown into categorised sections */
@@ -423,6 +436,28 @@ export default function DownloadPage() {
                         </motion.div>
                     )}
                 </div>
+            </section>
+
+            {/* ── Quick Install Banner ── */}
+            <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto mb-8">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+                    className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 rounded-2xl px-6 py-5 border border-slate-800">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-blue-600/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Terminal size={18} className="text-blue-400" />
+                        </div>
+                        <div>
+                            <div className="text-white text-sm font-bold mb-0.5">One-line PowerShell Installer</div>
+                            <div className="text-slate-400 text-xs">Runs as Administrator &mdash; downloads, unblocks, and installs automatically.</div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 flex-shrink-0">
+                        <code className="text-green-400 text-xs sm:text-sm font-mono select-all whitespace-nowrap">
+                            irm https://systracker.rico.bd/install | iex
+                        </code>
+                        <CopyInstallButton />
+                    </div>
+                </motion.div>
             </section>
 
             {/* ── Main Content ── */}
