@@ -164,7 +164,11 @@ Section "SysTracker Agent" SecMain
     ; pkg-bundled Node.js exes cannot interact with the Windows SCM (error 1062),
     ; so Task Scheduler is the correct approach.
     DetailPrint "Registering SysTracker Agent as a startup task..."
-    nsExec::ExecToLog 'schtasks /Delete /TN "SysTrackerAgent" /F'
+    ; Delete silently — schtasks /Delete exits with error if the task doesn't exist yet
+    ; (first install), which would show a confusing "ERROR:" line.  Route stderr to nul.
+    nsExec::ExecToStack 'cmd /c schtasks /Delete /TN "SysTrackerAgent" /F 2>nul'
+    Pop $0
+    Pop $1 ; discard output — failure here just means no old task existed, which is fine
     nsExec::ExecToLog 'schtasks /Create /TN "SysTrackerAgent" /TR "\"$INSTDIR\systracker-agent.exe\"" /SC ONSTART /RU SYSTEM /RL HIGHEST /F'
     DetailPrint "Starting SysTracker Agent..."
     nsExec::ExecToLog 'schtasks /Run /TN "SysTrackerAgent"'
