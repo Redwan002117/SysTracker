@@ -152,18 +152,21 @@ jobs:
           if ($LASTEXITCODE -ne 0) { Write-Error "Server NSIS build failed"; exit 1 }
           Write-Host "✓ SysTracker-Server-Setup.exe created"
 
-      # ── Code Signing ────────────────────────────────────────────────────────
+      # ──  Code Signing ────────────────────────────────────────────────────────
       # Requires GitHub Secret: CODESIGN_PFX_BASE64 (base64-encoded PFX).
       # Optional secret: CODESIGN_PFX_PASSWORD (PFX password, if set).
       # If secret is absent the signing steps are skipped gracefully.
 
       - name: Install Code Signing Certificate
-        if: ${{ secrets.CODESIGN_PFX_BASE64 != '' }}
         env:
           CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
           CODESIGN_PFX_PASSWORD: ${{ secrets.CODESIGN_PFX_PASSWORD }}
           CODESIGN_CA_BASE64: ${{ secrets.CODESIGN_CA_BASE64 }}
         run: |
+          if (-not $env:CODESIGN_PFX_BASE64) {
+            Write-Host "⚠️ Code signing certificate not configured, skipping..."
+            exit 0
+          }
           # --- Install code-signing cert (includes chain via BuildChain export) ---
           $pfxPath = "$env:RUNNER_TEMP\systracker-codesign.pfx"
           [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:CODESIGN_PFX_BASE64))
@@ -190,10 +193,13 @@ jobs:
           }
 
       - name: Sign Windows Executables
-        if: ${{ secrets.CODESIGN_PFX_BASE64 != '' }}
         env:
           CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
         run: |
+          if (-not $env:CODESIGN_PFX_BASE64) {
+            Write-Host "⚠️  Code signing certificate not configured, skipping..."
+            exit 0
+          }
           # Find signtool.exe from the Windows SDK
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" |
             Where-Object { $_.FullName -match "x64" } |
