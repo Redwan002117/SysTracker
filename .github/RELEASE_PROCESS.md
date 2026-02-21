@@ -20,6 +20,7 @@ Before creating a new release, ensure the following:
   - [ ] Server runs without errors
   - [ ] Agent executable works on Windows
 - [ ] Documentation is up to date
+- [ ] All changes are pushed to the `new reasese version with proper tags`
 
 ---
 
