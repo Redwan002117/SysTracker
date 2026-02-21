@@ -28,11 +28,13 @@ jobs:
           npm install
           npm run build:win
           
-      - name: Upload Agent Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: SysTracker_Agent
-          path: agent/dist/systracker-agent-win.exe
+      - name: Verify Agent Build
+        run: |
+          if (!(Test-Path "agent\dist\systracker-agent-win.exe")) {
+            Write-Error "Agent build failed"
+            exit 1
+          }
+          Write-Host "✓ Agent built successfully"
 
   # 2. Build Dashboard (Linux)
   build-dashboard:
@@ -48,14 +50,17 @@ jobs:
       - name: Build Dashboard
         run: |
           cd dashboard
-          npm install
+          npm install --prefer-offline --no-audit
           npm run build
           
-      - name: Upload Dashboard Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dashboard-dist
-          path: dashboard/.next/
+      - name: Verify Dashboard Build
+        run: |
+          if [ ! -d "dashboard/.next" ]; then
+            echo "Error: Dashboard build failed"
+            exit 1
+          fi
+          echo "✓ Dashboard built successfully"
+          du -sh dashboard/.next
 
   # 3. Build Standalone Server & Release (Windows)
   build-server-release:
@@ -71,17 +76,26 @@ jobs:
         with:
           node-version: 18
           
-      - name: Download Agent Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: SysTracker_Agent
-          path: server/bin/
+      - name: Rebuild Agent Locally
+        run: |
+          cd agent
+          npm install
+          npm run build:win
           
-      - name: Download Dashboard Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dashboard-dist
-          path: server/dashboard-dist/
+      - name: Rebuild Dashboard Locally
+        run: |
+          cd dashboard
+          npm install --prefer-offline --no-audit
+          npm run build
+          
+      - name: Copy Dashboard to Server
+        run: |
+          if (Test-Path "dashboard\.next") {
+            Copy-Item -Path "dashboard\.next" -Destination "server\dashboard-dist" -Recurse -Force
+          } else {
+            Write-Error "Dashboard build failed"
+            exit 1
+          }
           
       - name: Build Standalone Server (pkg + rcedit icon)
         run: |
@@ -95,9 +109,9 @@ jobs:
         with:
           generate_release_notes: true
           files: |
+            agent/dist/systracker-agent-win.exe
             server/dist/systracker-server-win.exe
             server/dist/systracker-server-linux
-            server/bin/systracker-agent-win.exe
 
   # 4. Build & Push Docker Image (Linux)
   docker-publish:
@@ -109,17 +123,18 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Download Agent Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: SysTracker_Agent
-          path: server/bin/
+      - name: Rebuild Dashboard Locally
+        run: |
+          cd dashboard
+          npm install --prefer-offline --no-audit
+          npm run build
           
-      - name: Download Dashboard Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dashboard-dist
-          path: server/dashboard-dist/
+      - name: Verify Dashboard Build
+        run: |
+          if [ ! -d "dashboard/.next" ]; then
+            echo "Error: Dashboard build failed"
+            exit 1
+          fi
           
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -148,6 +163,6 @@ jobs:
         with:
           context: server
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
