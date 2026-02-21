@@ -43,9 +43,6 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const emailTemplates = safeRequire('emailTemplates');
 const nodemailer = require('nodemailer');
-const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const cookieParser = require('cookie-parser');
 
 // Import validation and logging modules using safe require
 const { validateProcessData, validateHardwareInfo, validateDiskDetails } = safeRequire('dataValidation');
@@ -83,28 +80,6 @@ if (!JWT_SECRET) {
 }
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
-// Configure Google OAuth Strategy
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
-const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/api/auth/google/callback';
-
-if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
-    passport.use(new GoogleStrategy({
-        clientID: GOOGLE_CLIENT_ID,
-        clientSecret: GOOGLE_CLIENT_SECRET,
-        callbackURL: GOOGLE_CALLBACK_URL,
-        scope: ['profile', 'email']
-    }, (accessToken, refreshToken, profile, done) => {
-        // This callback is executed after Google authenticates the user
-        // We'll handle user creation/login in the callback route
-        return done(null, profile);
-    }));
-
-    console.log('✓ Google OAuth configured');
-} else {
-    console.log('⚠ Google OAuth not configured (missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET)');
-}
-
 const app = express();
 const server = http.createServer(app); // Changed from http.createServer(app);
 const io = new Server(server, {
@@ -113,9 +88,6 @@ const io = new Server(server, {
         methods: ["GET", "POST"]
     }
 });
-
-// Initialize Passport
-app.use(passport.initialize());
 
 // Serve the static dashboard (embedded read-only asset inside the pkg snapshot)
 const dashboardPath = path.join(ASSETS_DIR, 'dashboard-dist');
@@ -132,7 +104,6 @@ app.use(express.static(dashboardPath, { extensions: ['html'] }));
 app.set('trust proxy', 1); // Trust Nginx proxy headers
 app.use(cors());
 app.use(express.json({ limit: '5mb' })); // Enough for hardware_info payloads
-app.use(cookieParser()); // Parse cookies for OAuth redirect
 
 // Database Setup
 
@@ -277,26 +248,6 @@ function initializeDb() {
                     }
                 });
                 // Migration: Add location column
-                db.run("ALTER TABLE admin_users ADD COLUMN location TEXT", (err) => {
-                    if (err && !err.message.includes("duplicate column name")) {
-                        console.error("Migration error (admin_users location):", err.message);
-                    }
-                });
-                // Migration: Add google_id column for Google OAuth
-                db.run("ALTER TABLE admin_users ADD COLUMN google_id TEXT UNIQUE", (err) => {
-                    if (err && !err.message.includes("duplicate column name")) {
-                        console.error("Migration error (admin_users google_id):", err.message);
-                    }
-                });
-                // Migration: Add auth_provider column (values: 'local' or 'google')
-                db.run("ALTER TABLE admin_users ADD COLUMN auth_provider TEXT DEFAULT 'local'", (err) => {
-                    if (err && !err.message.includes("duplicate column name")) {
-                        console.error("Migration error (admin_users auth_provider):", err.message);
-                    }
-                });
-                // Migration: Allow password_hash to be NULL for OAuth users
-                // SQLite doesn't support ALTER COLUMN, so we'll handle NULL passwords in login logic
-                // Migration: Add location column (continuing...)
                 db.run("ALTER TABLE admin_users ADD COLUMN location TEXT", (err) => {
                     if (err && !err.message.includes("duplicate column name")) {
                         console.error("Migration error (admin_users location):", err.message);
@@ -669,33 +620,9 @@ app.get('/api/auth/status', (req, res) => {
 // Login Endpoint
 app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
-    
-    // Check both username and email fields
-    db.get("SELECT * FROM admin_users WHERE username = ? OR email = ?", [username, username], (err, user) => {
+    db.get("SELECT * FROM admin_users WHERE username = ?", [username], (err, user) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-
-        // Check if user is OAuth-only (no password set)
-        if (!user.password_hash && user.auth_provider === 'google') {
-            // If OAuth is configured, suggest using it
-            if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
-                return res.status(401).json({ 
-                    error: 'This account uses Google Sign-In. Please sign in with Google.',
-                    oauth_required: true 
-                });
-            } else {
-                // OAuth not configured - account can't login at all
-                return res.status(401).json({ 
-                    error: 'This account requires Google Sign-In, but OAuth is not configured. Please contact your administrator.',
-                    oauth_required: false
-                });
-            }
-        }
-
-        // Regular password authentication
-        if (!user.password_hash) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
 
         bcrypt.compare(password, user.password_hash, (err, match) => {
             if (err || !match) return res.status(401).json({ error: 'Invalid credentials' });
@@ -716,201 +643,6 @@ app.post('/api/auth/login', (req, res) => {
 // Route must exist to avoid 404 in the browser console.
 app.post('/api/auth/logout', (req, res) => {
     res.json({ message: 'Logged out' });
-});
-
-// Set Username after OAuth Signup - Authenticated endpoint
-app.post('/api/auth/set-username', authenticateDashboard, (req, res) => {
-    const { username } = req.body;
-    const userId = req.admin.id;
-    const currentUsername = req.admin.username;
-
-    // Validate username
-    if (!username || typeof username !== 'string') {
-        return res.status(400).json({ error: 'Username is required' });
-    }
-
-    // Username must be alphanumeric with underscores/hyphens, 3-30 chars
-    const usernameRegex = /^[a-zA-Z0-9_-]{3,30}$/;
-    if (!usernameRegex.test(username)) {
-        return res.status(400).json({ 
-            error: 'Username must be 3-30 characters and contain only letters, numbers, underscores, or hyphens' 
-        });
-    }
-
-    // Check if username is already taken (exclude current user)
-    db.get(
-        "SELECT id FROM admin_users WHERE username = ? AND id != ?",
-        [username, userId],
-        (err, existingUser) => {
-            if (err) {
-                console.error('Database error checking username:', err);
-                return res.status(500).json({ error: 'Database error' });
-            }
-
-            if (existingUser) {
-                return res.status(409).json({ error: 'Username already taken' });
-            }
-
-            // Update username
-            db.run(
-                "UPDATE admin_users SET username = ? WHERE id = ?",
-                [username, userId],
-                (updateErr) => {
-                    if (updateErr) {
-                        console.error('Error updating username:', updateErr);
-                        return res.status(500).json({ error: 'Failed to update username' });
-                    }
-
-                    // Generate new JWT with updated username
-                    const token = jwt.sign(
-                        { id: userId, username: username, role: req.admin.role || 'admin' },
-                        JWT_SECRET,
-                        { expiresIn: JWT_EXPIRES_IN }
-                    );
-
-                    logAudit(username, userId, 'username_change', null, `Username changed from ${currentUsername} to ${username}`, req.ip);
-
-                    res.json({ 
-                        success: true, 
-                        token, 
-                        username,
-                        message: 'Username updated successfully' 
-                    });
-                }
-            );
-        }
-    );
-});
-
-// --- Google OAuth Endpoints ---
-
-// Check if Google OAuth is configured (for frontend)
-app.get('/api/auth/oauth-status', (req, res) => {
-    res.json({
-        google_oauth_enabled: !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET)
-    });
-});
-
-// Google OAuth Login - Initiate authentication
-app.get('/api/auth/google', (req, res, next) => {
-    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-        return res.status(503).json({ 
-            error: 'Google OAuth not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.' 
-        });
-    }
-    
-    // Store redirect URL in session or cookie if needed
-    const redirectTo = req.query.redirect || '/dashboard';
-    res.cookie('oauth_redirect', redirectTo, { httpOnly: true, maxAge: 600000 }); // 10 min
-    
-    passport.authenticate('google', { 
-        session: false,
-        scope: ['profile', 'email']
-    })(req, res, next);
-});
-
-// Google OAuth Callback - Handle authentication response
-app.get('/api/auth/google/callback', (req, res, next) => {
-    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-        return res.redirect('/login?error=oauth_not_configured');
-    }
-
-    passport.authenticate('google', { session: false }, async (err, profile) => {
-        if (err || !profile) {
-            console.error('Google OAuth error:', err);
-            return res.redirect('/login?error=oauth_failed');
-        }
-
-        try {
-            const googleId = profile.id;
-            const email = profile.emails && profile.emails[0] ? profile.emails[0].value : null;
-            const displayName = profile.displayName || email?.split('@')[0] || 'User';
-            const avatar = profile.photos && profile.photos[0] ? profile.photos[0].value : null;
-
-            if (!email) {
-                return res.redirect('/login?error=no_email');
-            }
-
-            // Check if user exists by google_id or email
-            db.get(
-                "SELECT * FROM admin_users WHERE google_id = ? OR email = ?",
-                [googleId, email],
-                (err, existingUser) => {
-                    if (err) {
-                        console.error('Database error during Google OAuth:', err);
-                        return res.redirect('/login?error=database_error');
-                    }
-
-                    if (existingUser) {
-                        // User exists - link Google account if not already linked
-                        if (!existingUser.google_id) {
-                            // Link Google account to existing user (don't override auth_provider - keeps 'local' if set)
-                            db.run(
-                                "UPDATE admin_users SET google_id = ?, avatar = COALESCE(?, avatar), display_name = COALESCE(?, display_name) WHERE id = ?",
-                                [googleId, avatar, displayName, existingUser.id],
-                                (updateErr) => {
-                                    if (updateErr) {
-                                        console.error('Error linking Google account:', updateErr);
-                                    } else {
-                                        console.log(`[OAuth] Linked Google account to existing user: ${existingUser.username} (${email})`);
-                                    }
-                                }
-                            );
-                        }
-
-                        // Generate JWT token
-                        const token = jwt.sign(
-                            { id: existingUser.id, username: existingUser.username, role: existingUser.role || 'admin' },
-                            JWT_SECRET,
-                            { expiresIn: JWT_EXPIRES_IN }
-                        );
-
-                        logAudit(existingUser.username, existingUser.id, 'login', null, `Google OAuth login from ${req.ip}`, req.ip);
-
-                        // Redirect to dashboard with token in URL (frontend will extract it)
-                        const redirectTo = req.cookies.oauth_redirect || '/dashboard';
-                        res.clearCookie('oauth_redirect');
-                        return res.redirect(`${redirectTo}?token=${token}&username=${existingUser.username}&role=${existingUser.role || 'admin'}`);
-                    } else {
-                        // Create new user with Google OAuth
-                        // Generate temporary username from email (user will be required to change it)
-                        const tempUsername = `temp_${email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '')}_${Date.now().toString().slice(-6)}`;
-
-                        // Insert new user (password_hash can be NULL for OAuth users)
-                        db.run(
-                            `INSERT INTO admin_users (username, email, password_hash, role, google_id, auth_provider, display_name, avatar) 
-                             VALUES (?, ?, NULL, 'admin', ?, 'google', ?, ?)`,
-                            [tempUsername, email, googleId, displayName, avatar],
-                            function(insertErr) {
-                                if (insertErr) {
-                                    console.error('Error creating Google OAuth user:', insertErr);
-                                    return res.redirect('/login?error=user_creation_failed');
-                                }
-
-                                const newUserId = this.lastID;
-
-                                // Generate JWT token
-                                const token = jwt.sign(
-                                    { id: newUserId, username: tempUsername, role: 'admin' },
-                                    JWT_SECRET,
-                                    { expiresIn: JWT_EXPIRES_IN }
-                                );
-
-                                logAudit(tempUsername, newUserId, 'signup', null, `New user via Google OAuth from ${req.ip}`, req.ip);
-
-                                // Redirect to username setup page (required for new OAuth users)
-                                res.clearCookie('oauth_redirect');
-                                return res.redirect(`/setup-username?token=${token}&username=${tempUsername}&role=admin&email=${encodeURIComponent(email)}&name=${encodeURIComponent(displayName)}`);
-                            }
-                        );
-                    }
-                }
-            );
-        } catch (error) {
-            console.error('Error processing Google OAuth:', error);
-            return res.redirect('/login?error=processing_failed');
-        }
-    })(req, res, next);
 });
 
 // --- Settings Endpoints ---
@@ -1048,62 +780,28 @@ app.post('/api/settings/smtp/test', authenticateDashboard, (req, res) => {
     });
 });
 
-// Change password or Set initial password (for OAuth-only users)
+// Change password
 app.post('/api/auth/change-password', authenticateDashboard, (req, res) => {
     const { current_password, new_password } = req.body;
-    
-    if (!new_password) {
-        return res.status(400).json({ error: 'new_password is required' });
+    if (!current_password || !new_password) {
+        return res.status(400).json({ error: 'current_password and new_password are required' });
     }
     if (new_password.length < 8) {
         return res.status(400).json({ error: 'New password must be at least 8 characters' });
     }
-    
     db.get('SELECT * FROM admin_users WHERE id = ?', [req.admin.id], (err, user) => {
         if (err || !user) return res.status(500).json({ error: 'User not found' });
-        
-        // Check if user has existing password
-        if (user.password_hash) {
-            // User has password - require current password for security
-            if (!current_password) {
-                return res.status(400).json({ error: 'current_password is required to change password' });
-            }
-            
-            // Verify current password
-            bcrypt.compare(current_password, user.password_hash, (err, match) => {
-                if (err || !match) {
-                    return res.status(401).json({ error: 'Current password is incorrect' });
-                }
-                
-                // Hash and save new password
-                bcrypt.hash(new_password, 12, (err, hash) => {
-                    if (err) return res.status(500).json({ error: 'Error hashing password' });
-                    db.run('UPDATE admin_users SET password_hash = ? WHERE id = ?', [hash, user.id], (err) => {
-                        if (err) return res.status(500).json({ error: err.message });
-                        console.log(`[Auth] Password changed: ${user.username}`);
-                        logAudit(user.username, user.id, 'password_change', null, 'Password changed', req.ip);
-                        res.json({ success: true, message: 'Password changed successfully' });
-                    });
-                });
-            });
-        } else {
-            // OAuth-only user setting password for the first time
-            // No current password needed - allow setting initial password
+        bcrypt.compare(current_password, user.password_hash, (err, match) => {
+            if (err || !match) return res.status(401).json({ error: 'Current password is incorrect' });
             bcrypt.hash(new_password, 12, (err, hash) => {
                 if (err) return res.status(500).json({ error: 'Error hashing password' });
-                
-                // Update to have both OAuth and password (keep auth_provider as is)
                 db.run('UPDATE admin_users SET password_hash = ? WHERE id = ?', [hash, user.id], (err) => {
                     if (err) return res.status(500).json({ error: err.message });
-                    console.log(`[Auth] Initial password set for OAuth user: ${user.username}`);
-                    logAudit(user.username, user.id, 'password_set', null, 'Initial password set (OAuth account)', req.ip);
-                    res.json({ 
-                        success: true, 
-                        message: 'Password set successfully. You can now login with either Google or username/password.' 
-                    });
+                    console.log(`[Auth] Password changed: ${user.username}`);
+                    res.json({ success: true });
                 });
             });
-        }
+        });
     });
 });
 
@@ -1594,7 +1292,7 @@ app.delete('/api/users/:id', authenticateDashboard, requireAdmin, (req, res) => 
 // Update user info (admin only)
 app.put('/api/users/:id', authenticateDashboard, requireAdmin, (req, res) => {
     const { id } = req.params;
-    const { username, email, display_name, password, role } = req.body;
+    const { username, email, display_name, password } = req.body;
 
     const fieldsToUpdate = [];
     const values = [];
@@ -1602,14 +1300,6 @@ app.put('/api/users/:id', authenticateDashboard, requireAdmin, (req, res) => {
     if (username) { fieldsToUpdate.push('username = ?'); values.push(username); }
     if (email) { fieldsToUpdate.push('email = ?'); values.push(email); }
     if (display_name !== undefined) { fieldsToUpdate.push('display_name = ?'); values.push(display_name); }
-    if (role && ['admin', 'moderator', 'viewer'].includes(role)) { 
-        // Prevent changing your own role
-        if (parseInt(id) === req.admin.id) {
-            return res.status(400).json({ error: 'Cannot change your own role' });
-        }
-        fieldsToUpdate.push('role = ?'); 
-        values.push(role); 
-    }
 
     if (fieldsToUpdate.length === 0 && !password) {
         return res.status(400).json({ error: 'No fields to update' });
@@ -1683,8 +1373,8 @@ app.get('/api/audit-logs', authenticateDashboard, requireAdmin, (req, res) => {
 });
 
 // --- Internal Mail Endpoints ---
-// GET /api/mail?folder=inbox|sent (Admin only)
-app.get('/api/mail', authenticateDashboard, requireAdmin, (req, res) => {
+// GET /api/mail?folder=inbox|sent
+app.get('/api/mail', authenticateDashboard, (req, res) => {
     const me = req.admin.username;
     const folder = req.query.folder || 'inbox';
     let query, params;
@@ -1701,8 +1391,8 @@ app.get('/api/mail', authenticateDashboard, requireAdmin, (req, res) => {
     });
 });
 
-// GET /api/mail/unread-count (Admin only)
-app.get('/api/mail/unread-count', authenticateDashboard, requireAdmin, (req, res) => {
+// GET /api/mail/unread-count
+app.get('/api/mail/unread-count', authenticateDashboard, (req, res) => {
     const me = req.admin.username;
     db.get('SELECT COUNT(*) as count FROM mail_messages WHERE to_user = ? AND is_read = 0', [me], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -1710,8 +1400,8 @@ app.get('/api/mail/unread-count', authenticateDashboard, requireAdmin, (req, res
     });
 });
 
-// GET /api/mail/:id - single message + mark read (Admin only)
-app.get('/api/mail/:id', authenticateDashboard, requireAdmin, (req, res) => {
+// GET /api/mail/:id - single message + mark read
+app.get('/api/mail/:id', authenticateDashboard, (req, res) => {
     const me = req.admin.username;
     db.get('SELECT * FROM mail_messages WHERE id = ? AND (to_user = ? OR from_user = ?)', [req.params.id, me, me], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -1723,55 +1413,24 @@ app.get('/api/mail/:id', authenticateDashboard, requireAdmin, (req, res) => {
     });
 });
 
-// POST /api/mail - compose (supports internal users and external emails)
-app.post('/api/mail', authenticateDashboard, requireAdmin, async (req, res) => {
+// POST /api/mail - compose
+app.post('/api/mail', authenticateDashboard, (req, res) => {
     const { to_user, subject, body, template_key } = req.body;
     const from_user = req.admin.username;
-    
-    if (!to_user || !subject || !body) {
-        return res.status(400).json({ error: 'to_user, subject, and body are required' });
-    }
-
-    // Detect if to_user is an email address (contains @) or internal username
-    const isExternalEmail = to_user.includes('@');
-
-    if (isExternalEmail) {
-        // Send email via Brevo SMTP
-        try {
-            const emailSent = await sendEmail(to_user, subject, body, body.replace(/\n/g, '<br>'));
-            if (!emailSent) {
-                return res.status(500).json({ error: 'Failed to send external email' });
-            }
-            // Store in database as sent external mail
-            db.run(
-                'INSERT INTO mail_messages (from_user, to_user, subject, body, template_key, folder) VALUES (?, ?, ?, ?, ?, ?)',
-                [from_user, to_user, subject, body, template_key || null, 'sent'],
-                function(err) {
-                    if (err) return res.status(500).json({ error: err.message });
-                    logAudit(from_user, req.admin.id, 'mail_sent_external', to_user, subject, req.ip);
-                    res.json({ success: true, id: this.lastID, type: 'external' });
-                }
-            );
-        } catch (error) {
-            console.error('[Mail] External email error:', error);
-            return res.status(500).json({ error: 'Failed to send external email' });
+    if (!to_user || !subject || !body) return res.status(400).json({ error: 'to_user, subject, and body are required' });
+    db.run(
+        'INSERT INTO mail_messages (from_user, to_user, subject, body, template_key) VALUES (?, ?, ?, ?, ?)',
+        [from_user, to_user, subject, body, template_key || null],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            logAudit(from_user, req.admin.id, 'mail_sent', to_user, subject, req.ip);
+            res.json({ success: true, id: this.lastID });
         }
-    } else {
-        // Internal mail to SysTracker user
-        db.run(
-            'INSERT INTO mail_messages (from_user, to_user, subject, body, template_key) VALUES (?, ?, ?, ?, ?)',
-            [from_user, to_user, subject, body, template_key || null],
-            function(err) {
-                if (err) return res.status(500).json({ error: err.message });
-                logAudit(from_user, req.admin.id, 'mail_sent', to_user, subject, req.ip);
-                res.json({ success: true, id: this.lastID, type: 'internal' });
-            }
-        );
-    }
+    );
 });
 
-// DELETE /api/mail/:id (Admin only)
-app.delete('/api/mail/:id', authenticateDashboard, requireAdmin, (req, res) => {
+// DELETE /api/mail/:id
+app.delete('/api/mail/:id', authenticateDashboard, (req, res) => {
     const me = req.admin.username;
     db.run('DELETE FROM mail_messages WHERE id = ? AND (to_user = ? OR from_user = ?)', [req.params.id, me, me], function(err) {
         if (err) return res.status(500).json({ error: err.message });
@@ -1780,48 +1439,12 @@ app.delete('/api/mail/:id', authenticateDashboard, requireAdmin, (req, res) => {
     });
 });
 
-// GET /api/mail-users - list all usernames for composing (Admin only)
-app.get('/api/mail-users', authenticateDashboard, requireAdmin, (req, res) => {
-    db.all('SELECT DISTINCT username, display_name, avatar FROM admin_users ORDER BY username', [], (err, rows) => {
+// GET /api/mail-users - list all usernames for composing
+app.get('/api/mail-users', authenticateDashboard, (req, res) => {
+    db.all('SELECT username, display_name, avatar FROM admin_users', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
-});
-
-// POST /api/mail/webhook - Receive external email replies (from Brevo or other SMTP services)
-// This endpoint should be secured with a webhook secret in production
-app.post('/api/mail/webhook', express.json({ limit: '10mb' }), (req, res) => {
-    try {
-        const { from, to, subject, text, html } = req.body;
-        
-        // Basic validation
-        if (!from || !subject || !text) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
-
-        // Extract the original subject if this is a reply (Re: prefix)
-        const originalSubject = subject.replace(/^Re:\s*/i, '');
-        
-        // Store incoming external email in database
-        // We'll store it as from external email to the system (admin can see it)
-        db.run(
-            'INSERT INTO mail_messages (from_user, to_user, subject, body, folder, is_read) VALUES (?, ?, ?, ?, ?, ?)',
-            [from, to || 'admin', subject, text || html, 'inbox', 0],
-            function(err) {
-                if (err) {
-                    console.error('[Webhook] Database error:', err);
-                    return res.status(500).json({ error: 'Failed to store message' });
-                }
-                
-                console.log(`[Webhook] Received external email from ${from} - ID: ${this.lastID}`);
-                logAudit('webhook', null, 'mail_received_external', from, subject, req.ip);
-                res.json({ success: true, id: this.lastID });
-            }
-        );
-    } catch (error) {
-        console.error('[Webhook] Error processing incoming email:', error);
-        res.status(500).json({ error: 'Failed to process incoming email' });
-    }
 });
 
 // --- Internal Chat Endpoints (Phase 2: groups, uploads, receipts) ---
@@ -1838,33 +1461,10 @@ const getChatSettings = () => new Promise((resolve) => {
     });
 });
 
-// GET /api/chat/threads (Privacy-enforced: users only see their own threads)
+// GET /api/chat/threads
 app.get('/api/chat/threads', authenticateDashboard, (req, res) => {
     const me = req.admin.username;
-    const userRole = req.admin.role;
-    const adminView = req.query.admin_view === 'true' && userRole === 'admin';
-
-    // Privacy: Regular users can ONLY see threads they're members of
-    // Admin can optionally see all threads for moderation with admin_view=true
-    const query = adminView ? `
-        SELECT 
-            t.id,
-            t.is_group,
-            t.name,
-            t.created_at,
-            t.created_by,
-            m.body AS last_message,
-            m.attachment_name AS last_attachment_name,
-            m.created_at AS last_message_at,
-            m.sender AS last_sender,
-            (SELECT COUNT(*) FROM chat_thread_members WHERE thread_id = t.id) AS member_count,
-            (SELECT GROUP_CONCAT(username) FROM chat_thread_members WHERE thread_id = t.id) AS members
-        FROM chat_threads t
-        LEFT JOIN chat_messages m ON m.id = (
-            SELECT id FROM chat_messages WHERE thread_id = t.id ORDER BY created_at DESC LIMIT 1
-        )
-        ORDER BY (m.created_at IS NULL) ASC, m.created_at DESC, t.created_at DESC
-    ` : `
+    const query = `
         SELECT 
             t.id,
             t.is_group,
@@ -1889,20 +1489,13 @@ app.get('/api/chat/threads', authenticateDashboard, (req, res) => {
         WHERE tm.username = ?
         ORDER BY (m.created_at IS NULL) ASC, m.created_at DESC, t.created_at DESC
     `;
-
-    const params = adminView ? [] : [me, me, me];
-    
-    db.all(query, params, (err, rows) => {
+    db.all(query, [me, me, me], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         const enriched = (rows || []).map(r => {
             const lastAt = r.last_message_at || r.created_at;
             const unread = r.last_message_at && (!r.last_read_at || r.last_message_at > r.last_read_at);
             return { ...r, unread_count: unread ? 1 : 0, last_activity_at: lastAt };
         });
-        
-        // Audit log for privacy
-        logAudit(me, req.admin.id, adminView ? 'chat_admin_view' : 'chat_threads_view', null, `Viewed ${enriched.length} threads`, req.ip);
-        
         res.json(enriched);
     });
 });
@@ -2050,48 +1643,24 @@ app.delete('/api/chat/threads/:id/members/:username', authenticateDashboard, (re
     });
 });
 
-// GET /api/chat/threads/:id/messages (Privacy-enforced: strict membership check)
+// GET /api/chat/threads/:id/messages
 app.get('/api/chat/threads/:id/messages', authenticateDashboard, (req, res) => {
     const me = req.admin.username;
-    const userRole = req.admin.role;
     const threadId = req.params.id;
-    const adminOverride = req.query.admin_override === 'true' && userRole === 'admin';
 
-    // Privacy Check: Users can ONLY access threads they're members of (unless admin override)
-    if (!adminOverride) {
-        db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
-            if (err) {
-                console.error(`[Chat Privacy] Database error for user ${me} accessing thread ${threadId}:`, err);
-                return res.status(500).json({ error: err.message });
-            }
-            if (!row) {
-                console.warn(`[Chat Privacy] BLOCKED: User ${me} attempted to access thread ${threadId} without membership`);
-                logAudit(me, req.admin.id, 'chat_privacy_violation', threadId, 'Attempted to access non-member thread', req.ip);
-                return res.status(403).json({ error: 'Access denied: You are not a member of this thread' });
-            }
+    db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(403).json({ error: 'Access denied' });
 
-            // User is a member, fetch messages
-            fetchMessagesForThread(threadId, me, req, res);
-        });
-    } else {
-        // Admin override - log and allow
-        console.log(`[Chat Admin] Admin ${me} accessing thread ${threadId} with override`);
-        logAudit(me, req.admin.id, 'chat_admin_override', threadId, 'Admin viewed thread with override', req.ip);
-        fetchMessagesForThread(threadId, me, req, res);
-    }
+        db.all('SELECT id, thread_id, sender, body, attachment_url, attachment_name, attachment_size, attachment_type, created_at FROM chat_messages WHERE thread_id = ? ORDER BY created_at ASC LIMIT 500',
+            [threadId],
+            (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json(rows || []);
+            }
+        );
+    });
 });
-
-// Helper function to fetch messages
-function fetchMessagesForThread(threadId, username, req, res) {
-    db.all('SELECT id, thread_id, sender, body, attachment_url, attachment_name, attachment_size, attachment_type, created_at FROM chat_messages WHERE thread_id = ? ORDER BY created_at ASC LIMIT 500',
-        [threadId],
-        (err, rows) => {
-            if (err) return res.status(500).json({ error: err.message });
-            logAudit(username, req.admin.id, 'chat_messages_view', threadId, `Viewed ${(rows || []).length} messages`, req.ip);
-            res.json(rows || []);
-        }
-    );
-}
 
 // POST /api/chat/threads/:id/read
 app.post('/api/chat/threads/:id/read', authenticateDashboard, (req, res) => {
@@ -2113,25 +1682,13 @@ app.post('/api/chat/threads/:id/read', authenticateDashboard, (req, res) => {
     });
 });
 
-// POST /api/chat/threads/:id/messages (Privacy-enforced: strict membership check)
+// POST /api/chat/threads/:id/messages
 app.post('/api/chat/threads/:id/messages', authenticateDashboard, (req, res) => {
     const me = req.admin.username;
     const threadId = req.params.id;
     const { body } = req.body;
 
     if (!body || !body.trim()) return res.status(400).json({ error: 'Message body is required' });
-
-    // Privacy Check: Users can ONLY send messages to threads they're members of
-    db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
-        if (err) {
-            console.error(`[Chat Privacy] Database error for user ${me} sending to thread ${threadId}:`, err);
-            return res.status(500).json({ error: err.message });
-        }
-        if (!row) {
-            console.warn(`[Chat Privacy] BLOCKED: User ${me} attempted to send message to thread ${threadId} without membership`);
-            logAudit(me, req.admin.id, 'chat_send_blocked', threadId, 'Attempted to send message to non-member thread', req.ip);
-            return res.status(403).json({ error: 'Access denied: You are not a member of this thread' });
-        }
 
     db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -2966,27 +2523,6 @@ app.post('/api/alerts/policies', authenticateDashboard, (req, res) => {
         (err) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true, id });
-        }
-    );
-});
-
-app.put('/api/alerts/policies/:id', authenticateDashboard, (req, res) => {
-    const { id } = req.params;
-    const { name, metric, operator, threshold, duration_minutes, priority, enabled } = req.body;
-    
-    if (!name || !metric || !operator || threshold === undefined) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    db.run(
-        `UPDATE alert_policies 
-         SET name = ?, metric = ?, operator = ?, threshold = ?, duration_minutes = ?, priority = ?, enabled = ?
-         WHERE id = ?`,
-        [name, metric, operator, threshold, duration_minutes || 1, priority || 'high', enabled ? 1 : 0, id],
-        function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            if (this.changes === 0) return res.status(404).json({ error: 'Policy not found' });
-            res.json({ success: true, updated: this.changes });
         }
     );
 });
