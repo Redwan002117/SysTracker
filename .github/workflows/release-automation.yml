@@ -95,11 +95,10 @@ jobs:
           - [Installation Guide](https://github.com/${{ github.repository }}/blob/main/docs/guides/WINDOWS-APP-INSTALLATION-GUIDE.md)
           - [Wiki](https://github.com/${{ github.repository }}/wiki)
           
-          ## 🔧 Installation
+          ## 🔧 Quick Install
           \`\`\`powershell
-          # Run as Administrator
-          install-server.ps1
-          install-agent.ps1
+          # Run in PowerShell as Administrator:
+          irm https://systracker.rico.bd/install | iex
           \`\`\`
           
           See full [CHANGELOG](CHANGELOG.md) for all changes.

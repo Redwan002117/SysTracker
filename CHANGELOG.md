@@ -5,7 +5,23 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [v3.1.6] - 2026-02-21
+## [v3.1.7] - 2026-02-21
+
+### ✨ New Features
+- **Device removal** — Admin users can now delete a machine from the dashboard via the trash icon in `MachineDetails`. Cascades across all related tables (`metrics`, `events`, `logs`, `alerts`, `commands`); broadcasts `machine_removed` via WebSocket so all connected dashboards update instantly
+- **Two-tier PKI for code signing** — `scripts/create-codesign-cert.ps1` generates a self-signed Root CA (`CN=SysTracker Root CA`) and issues a code-signing cert (`CN=SysTracker`) chained to it, enabling UAC to show "SysTracker" as publisher instead of "Unknown Publisher"
+
+### 🔒 Security / SmartScreen Fixes
+- **RFC 3161 timestamping** — CI now uses `signtool /tr http://timestamp.digicert.com /td sha256` (RFC 3161) instead of the deprecated `/t` (SHA-1). Ensures signatures remain valid after the signing cert expires
+- **Mark-of-the-Web (MOTW) strip in installers** — Both NSIS installers now run `Unblock-File` on all EXEs in `$INSTDIR` at the end of installation, removing the Zone.Identifier ADS that triggers SmartScreen on downloaded files
+- **`signtool /n "SysTracker"`** — CI code-signing step now matches the leaf cert Subject CN exactly
+- **Two-factor cert chain trust** — CI installs both the leaf PFX and Root CA (`CODESIGN_CA_BASE64` secret) so `signtool verify /pa` passes without requiring a commercial root
+
+### 🌐 Branding / URLs
+- **Official website** set to `https://systracker.rico.bd/` across README, CI release notes, and install scripts
+- **Canonical install command** is now `irm https://systracker.rico.bd/install | iex` — the portfolio site proxies to the GitHub release asset, keeping the public URL stable
+- `Install-SysTracker.ps1` `.EXAMPLE` updated to use the official website URL
+
 
 ### 🐛 Bug Fixes
 - **Profile card save no longer silently fails** — `handleProfileUpdate` now returns `Promise<boolean>`; ProfileCard reverts on failure and shows an error message

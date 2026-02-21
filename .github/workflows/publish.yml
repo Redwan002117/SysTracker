@@ -121,7 +121,7 @@ jobs:
             & $rcedit "server\dist\SysTrackerServer.exe" --set-icon "server\app.ico"
             & $rcedit "server\dist\SysTrackerServer.exe" --set-version-string "ProductName" "SysTracker Server"
             & $rcedit "server\dist\SysTrackerServer.exe" --set-version-string "FileDescription" "SysTracker Server Launcher"
-            & $rcedit "server\dist\SysTrackerServer.exe" --set-file-version "3.1.6.0"
+            & $rcedit "server\dist\SysTrackerServer.exe" --set-file-version "3.1.7.0"
             Write-Host "✓ Icon embedded into tray launcher"
           } else {
             Write-Warning "rcedit not found, skipping icon embed for tray launcher"
@@ -260,11 +260,11 @@ jobs:
             Open **PowerShell as Administrator** and paste:
 
             ```powershell
-            # Install both Server and Agent:
-            irm https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Install-SysTracker.ps1 | iex
+            # Install both Server and Agent from the official website:
+            irm https://systracker.rico.bd/install | iex
 
             # — or install components separately:
-            irm https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Install-SysTracker.ps1 -OutFile $env:TEMP\Install-SysTracker.ps1
+            irm https://systracker.rico.bd/install -OutFile $env:TEMP\Install-SysTracker.ps1
             Unblock-File $env:TEMP\Install-SysTracker.ps1
             & $env:TEMP\Install-SysTracker.ps1 -Component Server   # on the server machine
             & $env:TEMP\Install-SysTracker.ps1 -Component Agent    # on each monitored PC
