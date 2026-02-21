@@ -73,23 +73,23 @@ jobs:
           
           # Create sidebar
           cat > _Sidebar.md << 'SIDEBAR'
-# Documentation
-
-## Getting Started
-- [[Home|Home]]
-- [[Installation|README]]
-
-## Features
-- [[Dashboard Features|FEATURES_AND_STATUS]]
-- [[Implementation Status|IMPLEMENTATION_COMPLETE_SUMMARY]]
-
-## Guides
-- [[Architecture|docs/architecture]]
-- [[Deployment|docs/deployment]]
-
----
-[GitHub](https://github.com/${{ github.repository }}) | [Issues](https://github.com/${{ github.repository }}/issues)
-SIDEBAR
+          # Documentation
+          
+          ## Getting Started
+          - [[Home|Home]]
+          - [[Installation|README]]
+          
+          ## Features
+          - [[Dashboard Features|FEATURES_AND_STATUS]]
+          - [[Implementation Status|IMPLEMENTATION_COMPLETE_SUMMARY]]
+          
+          ## Guides
+          - [[Architecture|docs/architecture]]
+          - [[Deployment|docs/deployment]]
+          
+          ---
+          [GitHub](https://github.com/${{ github.repository }}) | [Issues](https://github.com/${{ github.repository }}/issues)
+          SIDEBAR
 
           # Commit and push
           git add -A
