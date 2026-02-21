@@ -1,0 +1,500 @@
+# End User License Agreement (EULA)
+
+**SysTracker Version 3.1.2**  
+**Effective Date: February 21, 2026**
+
+---
+
+## IMPORTANT - READ CAREFULLY
+
+This End User License Agreement (EULA) is a legal agreement between you (either as an individual or on behalf of an entity) and Redwan Rashid Rico ("Developer" or "Licensor") for the software known as SysTracker ("Software" or "Application").
+
+By downloading, installing, copying, or otherwise using this Software, you agree to be bound by all of the terms and conditions of this EULA. If you do not agree to these terms, do not install or use this Software.
+
+---
+
+## 1. GRANT OF LICENSE
+
+Subject to the terms and conditions of this EULA, Developer grants you a limited, non-exclusive, non-transferable, revocable license to:
+
+- Install and use the Software on a single Windows computer
+- Access and use the Software's features and functionality
+- Create and store system monitoring data
+- Use the Web dashboard and reporting tools
+
+**License Restrictions:** You may NOT:
+
+- Copy, modify, or create derivative works of the Software
+- Reverse engineer, disassemble, or decompile the Software
+- Rent, lease, lend, sell, or distribute the Software
+- Use the Software for commercial purposes without agreement
+- Remove or modify any copyright notices or labels
+- Use the Software in violation of applicable law
+
+---
+
+## 2. INTELLECTUAL PROPERTY RIGHTS
+
+All title, ownership, and intellectual property rights in and to the Software are owned by Developer or its licensors. You do not own the Software; you have been granted a license to use it.
+
+### Ownership
+
+- **Source Code** - Owned by Developer
+- **Documentation** - Copyrighted by Developer
+- **User Interface** - Protected by copyright
+- **Data** - User owns collected monitoring data
+
+### Open Source Components
+
+The Software may contain open-source components licensed under various open-source licenses including but not limited to:
+
+- MIT License
+- Apache License 2.0
+- ISC License
+- BSD License
+
+A complete list of open-source components and their licenses is available in the SOFTWARE or at:
+[GitHub Repository]/docs/OPEN-SOURCE-LICENSES.md
+
+---
+
+## 3. USE RIGHTS AND RESTRICTIONS
+
+### Permitted Use
+
+- Monitor your own systems
+- Analyze performance metrics
+- Create custom reports
+- Store historical data
+- Access via multiple user accounts on same computer
+
+### Prohibited Use
+
+- Illegal activities
+- Unauthorized network monitoring
+- Commercial resale or distribution
+- Competitive analysis of the Software
+- Modification for redistribution
+- Use on multiple computers (except as single user)
+
+### System Modification
+
+You may NOT:
+
+- Modify the Software code
+- Patch or apply unofficial updates
+- Bypass security features
+- Interfere with license verification
+
+---
+
+## 4. EVALUATION / TRIAL VERSION
+
+If this is a Trial Version:
+
+- License is provided for **30 days** from installation
+- Functionality may be limited
+- Data may be deleted upon expiration
+- Conversion to Full Version requires purchase (when applicable)
+- Trial cannot be extended or renewed
+
+---
+
+## 5. WARRANTY DISCLAIMER
+
+**THE SOFTWARE IS PROVIDED "AS-IS" WITHOUT WARRANTY OF ANY KIND.**
+
+Developer DISCLAIMS ALL WARRANTIES, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO:
+
+- Fitness for a particular purpose
+- Merchantability
+- Non-infringement of third-party rights
+- Performance or availability
+- Accuracy of monitoring data
+- Compatibility with all systems
+
+### Data Accuracy
+
+While SysTracker attempts to provide accurate monitoring data:
+
+- Data may vary from system utilities
+- Real-time data subject to latency
+- Historical data depends on monitoring frequency
+- No warranty of data accuracy is provided
+
+### System Compatibility
+
+- Software works with supported Windows versions
+- Third-party software compatibility not guaranteed
+- Antivirus interference may occur
+- Performance dependent on system configuration
+
+---
+
+## 6. LIMITATION OF LIABILITY
+
+**TO THE MAXIMUM EXTENT PERMITTED BY LAW:**
+
+Developer shall NOT be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to:
+
+- Loss of data or hardware failure
+- Lost profits or business interruption
+- Personal injury or property damage
+- System downtime or unavailability
+- Inaccurate monitoring data leading to wrong decisions
+
+### Maximum Liability
+
+Even if Developer has been advised of the possibility of damages, Developer's total liability shall not exceed the amount you paid for the Software (if any).
+
+Some jurisdictions do not allow limitation of liability, so this may not apply to you.
+
+---
+
+## 7. TERMINATION
+
+### Your Rights
+
+You may terminate this license at any time by uninstalling the Software and ceasing all use.
+
+### Developer Rights
+
+Developer may terminate this license immediately if you:
+
+- Violate any terms of this EULA
+- Use the Software illegally or unethically
+- Exceed license scope
+- Attempt to circumvent licensing controls
+
+### Effect of Termination
+
+Upon termination:
+
+- Your right to use the Software ceases
+- You must uninstall all copies
+- Accumulated data may be retained or deleted
+- Liability limitations survive termination
+
+---
+
+## 8. PRIVACY AND DATA
+
+### Data Collection
+
+- System monitoring data is stored locally on your device
+- No automatic transmission to Developer's servers
+- Optional features may transmit data (with consent)
+- See Privacy Policy for complete information
+
+### User Responsibility
+
+You are responsible for:
+
+- Securing access to your monitoring data
+- Backing up your database
+- Complying with local privacy laws
+- Monitoring what metrics are collected
+- Protecting credentials and authentication tokens
+
+### Data Retention
+
+- Data is retained per your configuration
+- You can delete data at any time
+- Database is not automatically transmitted
+- Backups are your responsibility
+
+---
+
+## 9. UPDATES AND MODIFICATIONS
+
+### Software Updates
+
+Developer may:
+
+- Release updates and patches
+- Change features or remove functionality
+- Modify user interface design
+- Update system requirements
+
+### Your Responsibilities
+
+- Install updates to maintain support
+- Review release notes before updating
+- Back up data before installing updates
+- Test in non-production first (recommended)
+
+### Version Compatibility
+
+- Only current and previous major versions supported
+- Old versions may not work with new features
+- Updates may not be backward compatible
+- Migration tools provided where possible
+
+---
+
+## 10. SUPPORT AND SERVICE
+
+### Email Support
+
+Developer may provide support through:
+
+- GitHub Issues page
+- GitHub Discussions
+- Email (when available)
+
+**Support Conditions:**
+
+- Support is provided on "best effort" basis
+- No guaranteed response time
+- Support may be limited during holidays
+- Paid support may be available (when offered)
+
+### Technical Assistance
+
+- Installation assistance
+- Basic troubleshooting
+- Bug reports and fixes
+- Feature requests considered
+
+### Support Limitations
+
+Developer is NOT obligated to:
+
+- Fix compatibility issues with third-party software
+- Provide 24/7 support
+- Maintain specific performance levels
+- Support outdated OS versions
+
+---
+
+## 11. THIRD-PARTY SERVICES
+
+### Integration
+
+If Software integrates with or uses third-party services:
+
+- You agree to those services' terms
+- Developer not responsible for third-party services
+- Third-party services may change or discontinue
+- Your data may be subject to their privacy policies
+
+### Open Source Libraries
+
+Software includes open-source components:
+
+- See documentation for complete list
+- Each has its own license terms
+- You agree to all applicable licenses
+- Developer not responsible for open-source components
+
+---
+
+## 12. SECURITY AND COMPLIANCE
+
+### Your Responsibility
+
+You are responsible for:
+
+- Maintaining Windows security updates
+- Securing your system access
+- Protecting your credentials
+- Complying with security best practices
+- Regular backups of your data
+
+### Developer Responsibility
+
+Developer provides:
+
+- Security updates when vulnerabilities discovered
+- Secure coding practices
+- Regular security audits (as resources allow)
+- Clear information about known limitations
+
+### No Guarantee
+
+Developer provides NO guarantee that:
+
+- Software cannot be hacked or compromised
+- Data cannot be intercepted
+- System cannot be accessed by unauthorized users
+- Software will never fail or crash
+
+---
+
+## 13. GOVERNING LAW and JURISDICTION
+
+This EULA shall be governed by and construed in accordance with the laws of **[Your Jurisdiction]**, without regard to its conflict of law principles.
+
+You agree that any legal action or proceeding relating to this EULA shall be:
+
+- Brought exclusively in the courts of [Your Jurisdiction]
+- Subject to your consent to jurisdiction and venue
+
+### International Use
+
+If you are using this Software outside [Your Jurisdiction]:
+
+- You are responsible for complying with local laws
+- You are responsible for any applicable import/export compliance
+- Developer is not responsible for legal compliance in your jurisdiction
+
+---
+
+## 14. EXPORT CONTROLS
+
+The Software and underlying technologies are subject to U.S. export control laws, including the Export Administration Regulations (EAR).
+
+You agree to comply with all export laws and to:
+
+- Not sell, transfer, or re-export to embargoed countries or persons
+- Not use for prohibited end-uses (weapons, nuclear, missiles)
+- Not circumvent export controls or licensing
+
+---
+
+## 15. SEVERABILITY
+
+If any provision of this EULA is found to be invalid or unenforceable:
+
+- That provision shall be modified to minimum extent necessary
+- Other provisions remain in full force and effect
+- The parties will negotiate a replacement provision
+
+---
+
+## 16. ENTIRE AGREEMENT
+
+This EULA constitutes the entire agreement between you and Developer regarding the Software and supersedes all prior:
+
+- Agreements
+- Negotiations
+- Discussions
+- Statements
+
+No modification is valid unless in writing and signed by both parties.
+
+---
+
+## 17. AMENDMENTS
+
+Developer reserves the right to amend this EULA at any time. Changes become effective upon publication. Your continued use of the Software constitutes acceptance of amended terms.
+
+**Notification:** Material changes will be announced in-app or on the GitHub repository.
+
+---
+
+## 18. CONTACT INFORMATION
+
+For questions regarding this EULA or to report license violations:
+
+### GitHub Repository
+
+- **Repository:** https://github.com/Redwan002117/SysTracker
+- **Issues:** Report through GitHub Issues
+- **Discussions:** Engage via GitHub Discussions
+
+### Email
+
+- **Support:** support@systracker.app (when available)
+
+### Mailing Address
+
+[Your Address]  
+[Your City, State, ZIP]
+
+---
+
+## 19. ACKNOWLEDGMENT
+
+**BY INSTALLING OR USING SYSTRACKER, YOU ACKNOWLEDGE THAT:**
+
+1. ✅ You have read and understood this EULA
+2. ✅ You agree to be bound by all terms and conditions
+3. ✅ You understand the warranty disclaimers and liability limitations
+4. ✅ You have the authority to agree to this EULA on behalf of yourself or your organization
+5. ✅ You will use the Software in compliance with applicable laws
+
+---
+
+## 20. ADDITIONAL TERMS FOR SPECIFIC REGIONS
+
+### European Union
+
+If you are located in the EU, the following apply in addition to this EULA:
+
+- Statutory rights under Consumer Rights Directive apply
+- Some limitations of liability may not apply
+- GDPR compliance required for any personal data
+- Right of withdrawal available in some circumstances
+
+### California
+
+If you are located in California:
+
+- California Consumer Legal Remedies Act protections apply
+- California Consumer Privacy Act (CCPA) compliance required
+- Certain warranty disclaimers may be limited
+- Specific consumer rights may apply
+
+### Other Jurisdictions
+
+For other jurisdictions, consult local laws to determine how they affect this EULA.
+
+---
+
+## 21. COMMERCIAL USE
+
+### Non-Commercial License
+
+The standard license grants use for **personal use only**.
+
+### Commercial License
+
+For commercial use, including:
+
+- Business monitoring systems
+- Resale or distribution
+- Managed services
+- Consulting or managed IT
+- Educational/institutional use
+
+A separate commercial license agreement is required. Contact Developer for terms.
+
+---
+
+## 22. WARRANTY OF AUTHORITY
+
+You represent and warrant that you have the legal authority to:
+
+- Accept this EULA
+- Use the Software
+- Bind yourself or your organization
+- Enter into contractual agreements
+
+---
+
+## VERSION HISTORY
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | Feb 21, 2026 | Initial EULA for v3.1.2 |
+
+---
+
+## FINAL NOTICE
+
+**This is the complete and binding EULA for SysTracker v3.1.2**.
+
+If you do not accept these terms, do not download, install, or use the Software.
+
+---
+
+**SysTracker End User License Agreement (EULA)**  
+**Version 3.1.2 - February 21, 2026**
+
+**Status:** ✅ Ready for Microsoft Partner Center Certification
+
+---
+
+*Last revised: February 21, 2026*  
+*For updates, visit: https://github.com/Redwan002117/SysTracker*
