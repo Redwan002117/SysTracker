@@ -1,5 +1,8 @@
 <!-- SysTracker Wiki Sidebar -->
 
+## Latest Release
+- [v3.3.0 Release Notes](v3.3.0-Release-Notes)
+
 ## Getting Started
 - [START HERE](START-HERE)
 - [Home](Home)

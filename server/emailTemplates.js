@@ -462,4 +462,41 @@ module.exports = {
         `;
         return wrapHtml('Maintenance Notice', headerHtml('#f59e0b', '#b45309') + contentWrap(body) + footerHtml());
     },
+
+    // 9. PASSWORD SETUP (NEW USER)
+    passwordSetupEmail: (username, displayName, setupLink, expiresIn = '24 hours') => {
+        const body = `
+            <h2 style="margin:0 0 6px;font-size:22px;color:${COLOR.textPrim};font-weight:700;">Welcome to ${BRAND_NAME}!</h2>
+            <p style="margin:0 0 24px;font-size:14px;color:${COLOR.textMuted};">Your account has been created. Set your password to get started.</p>
+
+            ${infoCardHtml([
+            ['Username', `<strong>${username}</strong>`],
+            ['Display Name', displayName || username],
+            ['Link Expires', expiresIn],
+        ])}
+
+            <table role="presentation" width="100%" style="
+                background:${COLOR.accent}11;border:1px solid ${COLOR.accent}44;
+                border-radius:12px;padding:16px;margin:20px 0;
+            ">
+                <tr><td>
+                    <span style="font-size:14px;color:${COLOR.accent};font-weight:700;">🔐 Set Your Password</span>
+                    <p style="margin:6px 0 0;font-size:13px;color:${COLOR.textSec};">
+                        Click the button below to create your password. This link will expire in ${expiresIn}.
+                    </p>
+                </td></tr>
+            </table>
+
+            ${buttonHtml('Set Password', setupLink, COLOR.accent)}
+
+            <p style="font-size:12px;color:${COLOR.textMuted};margin:24px 0 0;line-height:1.6;">
+                If you didn't request this account, you can safely ignore this email.
+                <br>For security reasons, this link can only be used once.
+            </p>
+
+            ${dividerHtml()}
+            ${signatureHtml()}
+        `;
+        return wrapHtml('Set Your Password', headerHtml('#3b82f6', '#2563eb') + contentWrap(body) + footerHtml());
+    },
 };

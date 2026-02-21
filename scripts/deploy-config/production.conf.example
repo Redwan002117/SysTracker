@@ -1,0 +1,69 @@
+# Production Server Deployment Configuration
+# Copy this file to: deploy-config/production.conf
+# Edit the values below to match your production server
+
+# === SSH Configuration ===
+REMOTE_USER="your-username"                    # SSH username for production server
+REMOTE_HOST="your-server.com"                  # Production server hostname or IP
+REMOTE_PORT="22"                               # SSH port (default: 22)
+
+# === Server Paths ===
+REMOTE_PATH="/var/www/systracker"              # Root directory on server
+REMOTE_DASHBOARD_PATH="/var/www/systracker/server/dashboard-dist"  # Dashboard deployment path
+
+# === Process Management ===
+# Choose one: PM2 or systemd
+
+# Option 1: PM2 (recommended)
+USE_PM2=true
+PM2_APP_NAME="systracker"
+
+# Option 2: systemd
+USE_SYSTEMD=false
+SYSTEMD_SERVICE="systracker"
+
+# === Backup Configuration ===
+BACKUP_ENABLED=true                            # Create backup before deployment
+BACKUP_PATH="/var/www/systracker/backups"      # Backup directory on server
+MAX_BACKUPS=10                                 # Keep last N backups
+
+# === Deployment Options ===
+RESTART_AFTER_DEPLOY=true                      # Automatically restart server after deploy
+VERIFY_DEPLOYMENT=true                         # Verify deployment succeeded
+CLEANUP_OLD_BUILDS=true                        # Remove old build artifacts
+
+# === Notifications ===
+NOTIFY_ON_SUCCESS=false                        # Send notification on successful deployment
+NOTIFY_ON_FAILURE=true                         # Send notification on failed deployment
+
+# Slack webhook (optional)
+SLACK_WEBHOOK=""
+
+# Discord webhook (optional)
+DISCORD_WEBHOOK=""
+
+# === Build Configuration ===
+LOCAL_BUILD_PATH="dashboard/out"               # Local build output directory
+NODE_ENV="production"                          # Node environment
+
+# === SSH Key ===
+# Leave empty to use default SSH key (~/.ssh/id_rsa)
+# Or specify path to custom key
+SSH_KEY_PATH=""
+
+# === Advanced Options ===
+RSYNC_OPTIONS="-avz --delete --exclude='node_modules' --exclude='.git' --exclude='.env'"
+DEPLOYMENT_TIMEOUT=300                         # Timeout in seconds (default: 5 minutes)
+HEALTH_CHECK_URL="https://your-server.com/api/health"  # Health check endpoint
+
+# === Pre/Post Deployment Commands ===
+# Commands to run on remote server before/after deployment (optional)
+PRE_DEPLOY_COMMAND=""                          # e.g., "npm install" or "composer install"
+POST_DEPLOY_COMMAND=""                         # e.g., "npm run migrate" or custom scripts
+
+# === Notes ===
+# - Make sure your SSH key is added to the server's authorized_keys
+# - Test connection: ssh -p $REMOTE_PORT $REMOTE_USER@$REMOTE_HOST
+# - Verify paths exist on server before deploying
+# - For PM2: Install with `npm install -g pm2` on server
+# - For systemd: Create service file at /etc/systemd/system/$SYSTEMD_SERVICE.service

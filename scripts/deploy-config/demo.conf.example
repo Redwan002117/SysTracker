@@ -1,0 +1,76 @@
+# Demo Server Deployment Configuration
+# Copy this file to: deploy-config/demo.conf
+# Edit the values below to match your demo server
+
+# === SSH Configuration ===
+REMOTE_USER="your-username"                    # SSH username for demo server
+REMOTE_HOST="demo.your-server.com"             # Demo server hostname or IP
+REMOTE_PORT="22"                               # SSH port (default: 22)
+
+# === Server Paths ===
+REMOTE_PATH="/var/www/systracker-demo"         # Root directory on server
+REMOTE_DASHBOARD_PATH="/var/www/systracker-demo/server/dashboard-dist"  # Dashboard path
+
+# === Process Management ===
+# Choose one: PM2 or systemd
+
+# Option 1: PM2 (recommended)
+USE_PM2=true
+PM2_APP_NAME="systracker-demo"
+
+# Option 2: systemd
+USE_SYSTEMD=false
+SYSTEMD_SERVICE="systracker-demo"
+
+# === Backup Configuration ===
+BACKUP_ENABLED=false                           # Demos typically don't need backups
+BACKUP_PATH="/var/www/systracker-demo/backups" # Backup directory on server
+MAX_BACKUPS=3                                  # Keep minimal backups for demo
+
+# === Deployment Options ===
+RESTART_AFTER_DEPLOY=true                      # Automatically restart server after deploy
+VERIFY_DEPLOYMENT=false                        # Skip verification for rapid iterations
+CLEANUP_OLD_BUILDS=true                        # Remove old build artifacts
+
+# === Notifications ===
+NOTIFY_ON_SUCCESS=false                        # No notifications for demo
+NOTIFY_ON_FAILURE=false                        # No notifications for demo
+
+# Slack webhook (optional)
+SLACK_WEBHOOK=""
+
+# Discord webhook (optional)
+DISCORD_WEBHOOK=""
+
+# === Build Configuration ===
+LOCAL_BUILD_PATH="dashboard/out"               # Local build output directory
+NODE_ENV="development"                         # Node environment (can use dev for demos)
+
+# === SSH Key ===
+# Leave empty to use default SSH key (~/.ssh/id_rsa)
+# Or specify path to custom key
+SSH_KEY_PATH=""
+
+# === Advanced Options ===
+RSYNC_OPTIONS="-avz --delete --exclude='node_modules' --exclude='.git' --exclude='.env'"
+DEPLOYMENT_TIMEOUT=300                         # Timeout in seconds (default: 5 minutes)
+HEALTH_CHECK_URL="https://demo.your-server.com/api/health"  # Health check endpoint
+
+# === Pre/Post Deployment Commands ===
+# Commands to run on remote server before/after deployment (optional)
+PRE_DEPLOY_COMMAND=""                          # e.g., Reset demo data
+POST_DEPLOY_COMMAND=""                         # e.g., Seed demo database
+
+# === Demo-Specific Settings ===
+# More relaxed settings for demo environments
+SKIP_HEALTH_CHECK=true                         # Skip health check for faster deployments
+ALLOW_DIRTY_DEPLOY=true                        # Allow deployment with uncommitted changes
+RESET_DEMO_DATA=false                          # Reset demo data after deployment
+
+# === Notes ===
+# - Demo environments are for showcasing features to clients/stakeholders
+# - Can be frequently updated without strict procedures
+# - No need for extensive backups
+# - Consider auto-resetting demo data daily
+# - Use sample/mock data, never production data
+# - Can use development mode for better debugging

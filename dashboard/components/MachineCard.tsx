@@ -42,20 +42,20 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick, isViewerMod
             onClick={() => onClick(machine)}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            whileHover={isViewerMode ? { scale: 1.01 } : { y: -5, scale: 1.01 }}
+            whileHover={isViewerMode ? { scale: 1.01 } : { y: -8, scale: 1.02 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             className={`
-                group relative p-4 rounded-xl border transition-all duration-300 overflow-hidden
+                group relative p-5 rounded-2xl border transition-all duration-300 overflow-hidden
                 ${isViewerMode ? 'cursor-not-allowed' : 'cursor-pointer'}
                 ${isOnline
-                    ? 'bg-white/90 backdrop-blur-xl border-white/60 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-200/40 ring-1 ring-slate-900/5'
+                    ? 'bg-white/95 backdrop-blur-xl border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.15)] ring-1 ring-slate-900/5'
                     : 'bg-slate-50/50 backdrop-blur-sm border-slate-200/60 opacity-70 grayscale-[0.8] hover:opacity-100 hover:grayscale-0'}
             `}
         >
             {/* Lock Icon Overlay for Viewers */}
             {isViewerMode && (
                 <div className="absolute inset-0 bg-slate-900/5 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 pointer-events-none">
-                    <div className="bg-amber-500 text-white p-3 rounded-full shadow-xl shadow-amber-500/30">
+                    <div className="bg-gradient-to-br from-amber-500 to-orange-600 text-white p-3 rounded-2xl shadow-2xl shadow-amber-500/40 ring-2 ring-white/50">
                         <Lock size={20} />
                     </div>
                 </div>
@@ -63,7 +63,7 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick, isViewerMod
 
             {/* Online Glow Effect */}
             {isOnline && (
-                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-blue-400/20 blur-3xl rounded-full pointer-events-none group-hover:bg-blue-500/30 transition-colors duration-700" />
+                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-40 h-40 bg-gradient-to-br from-blue-400/20 to-purple-400/20 blur-3xl rounded-full pointer-events-none group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all duration-700" />
             )}
 
             {/* Header */}
@@ -72,7 +72,7 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick, isViewerMod
                     <div className={`
                         p-2.5 rounded-xl shadow-sm ring-1 ring-inset transition-all duration-300
                         ${isOnline
-                            ? 'bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 ring-blue-100 group-hover:ring-blue-200 group-hover:scale-105'
+                            ? 'bg-gradient-to-br from-blue-100 via-indigo-50 to-purple-100 text-blue-600 ring-blue-200/50 group-hover:ring-blue-300 group-hover:scale-110 group-hover:shadow-md'
                             : 'bg-slate-100 text-slate-400 ring-slate-200'}
                     `}>
                         <Server size={20} strokeWidth={1.5} />

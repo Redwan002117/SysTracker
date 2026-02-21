@@ -3,6 +3,47 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.3.0] - 2026-02-21
+
+### 🎨 UI/UX Improvements
+
+- **Modern Dashboard Design** — Complete redesign with Soft UI Evolution and Glassmorphism patterns
+  - Smooth animations (200-300ms) throughout all pages
+  - Blue-to-purple gradient theme with enhanced shadows
+  - WCAG AA+ accessibility compliance
+  - Fully responsive design for all screen sizes
+
+- **Glassmorphism Components** — Implemented across all dashboard pages with backdrop blur, translucent backgrounds, layered depth, and colored glows
+
+- **Enhanced Pages** — 13 pages updated: dashboard, alerts, chat, mail, profile, settings, users, login, and authentication pages
+
+### 🚀 Deployment & DevOps
+
+- **Production Deployment Infrastructure** — Complete production-ready system
+  - Remote SSH deployment via `deploy-remote.sh` script
+  - GitHub Actions CI/CD workflow for automated deployments
+  - Automatic backup and rollback capabilities
+  - Multi-environment support (production/staging/demo)
+  - Slack/Discord webhook notifications
+
+- **Local Deployment Automation** — One-command deployment with VS Code integration (Ctrl+Shift+D)
+
+- **Docker Improvements** — Fixed UID conflict, multi-stage build optimization, security improvements
+
+### 📚 Documentation
+
+- **PRODUCTION_DEPLOYMENT.md** — Comprehensive 600+ line server setup guide
+- **PRODUCTION_CHECKLIST.md** — 350+ line deployment verification checklist
+- **QUICK_REFERENCE.md** — Printable command reference
+- **PRODUCTION_SETUP_COMPLETE.md** — Overview and quick start
+- **deploy-config/** — Multi-environment deployment templates
+
+### 🔧 Technical Improvements
+
+- Deployment configuration system with .env.production.example (90+ options)
+- Verified production builds (Dashboard, Server, Agent)
+- Docker builds without errors
+
 ## [3.2.6] - 2026-02-21
 
 ### 🐛 Bug Fixes
@@ -13,6 +54,22 @@ This project follows [Semantic Versioning](https://semver.org/).
 ### 🔧 Technical Improvements
 
 - Dashboard now properly included in server releases with latest compiled assets
+
+## [3.2.7] - 2026-02-22
+
+### ✨ New Features
+
+- **Password setup flow**: admins can create users without setting a password and send a one-time setup email to let users choose their own password
+- **Agent logging**: agent now writes rotating logs to `C:\\ProgramData\\SysTracker\\Agent\\logs` with a helper `view-agent-log.bat` to open the latest log
+
+### 🐛 Bug Fixes
+
+- **Mail inbox access**: added TopBar navigation with unread badge so users can find the mail inbox
+
+### 🔧 Technical Improvements
+
+- **Password setup endpoint**: added `/api/auth/setup-password` and a `passwordSetupEmail` template
+- **User management**: new admin action to re-send password setup email to any user
 
 ## [3.2.5] - 2026-06-21
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { fetchWithAuth } from '../../../lib/auth';
-import { Mail, Save, Server, Shield, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw, Download, Upload, Package, ClipboardList, Filter, ChevronDown, X } from 'lucide-react';
+import { Mail, Save, Server, Shield, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw, Download, Upload, Package, ClipboardList, Filter, X, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AuditLog {
@@ -28,8 +28,8 @@ const ACTION_COLORS: Record<string, string> = {
 
 function SettingsInner() {
     const searchParams = useSearchParams();
-    const [activeTab, setActiveTab] = useState<'general' | 'smtp' | 'agent' | 'logs'>(
-        (searchParams?.get('tab') as 'general' | 'smtp' | 'agent' | 'logs') || 'general'
+    const [activeTab, setActiveTab] = useState<'general' | 'smtp' | 'agent' | 'logs' | 'chat'>(
+        (searchParams?.get('tab') as 'general' | 'smtp' | 'agent' | 'logs' | 'chat') || 'general'
     );
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -64,6 +64,14 @@ function SettingsInner() {
     const [logsLoading, setLogsLoading] = useState(false);
     const [logsFilter, setLogsFilter] = useState({ actor: '', action: '' });
 
+    // Chat Settings State
+    const [chatSettings, setChatSettings] = useState({
+        max_file_mb: 100,
+        max_files_per_message: 5,
+        allowed_mime: 'image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/zip',
+        history_days: 180
+    });
+
     const loadAuditLogs = useCallback(async () => {
         setLogsLoading(true);
         try {
@@ -92,11 +100,7 @@ function SettingsInner() {
 
     const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Unknown error');
 
-    useEffect(() => {
-        loadSettings();
-    }, []);
-
-    const loadSettings = async () => {
+    const loadSettings = useCallback(async () => {
         setLoading(true);
         try {
             // Load API Key
@@ -126,12 +130,28 @@ function SettingsInner() {
                 setReleaseDate(agentData.upload_date);
                 setReleaseHash(agentData.file_hash);
             }
+
+            // Load Chat Settings
+            const chatRes = await fetchWithAuth('/api/settings/chat');
+            if (chatRes.ok) {
+                const chatData = await chatRes.json();
+                setChatSettings({
+                    max_file_mb: chatData.max_file_mb ?? 100,
+                    max_files_per_message: chatData.max_files_per_message ?? 5,
+                    allowed_mime: chatData.allowed_mime || '',
+                    history_days: chatData.history_days ?? 180
+                });
+            }
         } catch (err: unknown) {
             setMessage({ type: 'error', text: 'Failed to load settings: ' + getErrorMessage(err) });
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        loadSettings();
+    }, [loadSettings]);
 
     const handleSaveSmtp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -146,6 +166,26 @@ function SettingsInner() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             setMessage({ type: 'success', text: 'SMTP Settings saved successfully!' });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: getErrorMessage(err) });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSaveChat = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+        setMessage(null);
+
+        try {
+            const res = await fetchWithAuth('/api/settings/chat', {
+                method: 'PUT',
+                body: JSON.stringify(chatSettings)
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            setMessage({ type: 'success', text: 'Chat settings saved successfully!' });
         } catch (err: unknown) {
             setMessage({ type: 'error', text: getErrorMessage(err) });
         } finally {
@@ -250,52 +290,71 @@ function SettingsInner() {
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
 
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <Server className="text-blue-600" /> System Settings
-                </h1>
-                <p className="text-slate-500 mt-1">Configure global application settings.</p>
+                <div className="flex items-center gap-3 mb-3">
+                    <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25">
+                        <Server className="text-white" size={28} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            System Settings
+                        </h1>
+                        <p className="text-slate-500 mt-1">Configure global application settings.</p>
+                    </div>
+                </div>
             </div>
 
             {message && (
                 <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`p-4 rounded-lg mb-6 flex items-center gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}
+                    className={`p-4 rounded-2xl mb-6 flex items-center gap-2 backdrop-blur-xl border shadow-lg ${message.type === 'success' ? 'bg-emerald-50/90 text-emerald-700 border-emerald-200/60 shadow-emerald-500/20' : 'bg-red-50/90 text-red-700 border-red-200/60 shadow-red-500/20'}`}
                 >
-                    {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                    {message.type === 'success' ? <CheckCircle size={20} strokeWidth={2.5} /> : <AlertCircle size={20} strokeWidth={2.5} />}
                     {message.text}
                 </motion.div>
             )}
 
             {/* Tabs */}
-            <div className="flex space-x-1 rounded-xl bg-slate-200/50 p-1 mb-6 w-fit">
+            <div className="flex space-x-1 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] p-1 mb-6 w-fit">
                 <button
                     onClick={() => setActiveTab('general')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'general' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                        }`}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all  duration-200 ${
+                        activeTab === 'general' ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                    }`}
                 >
-                    <Shield size={16} /> General & Security
+                    <Shield size={16} strokeWidth={2.5} /> General & Security
                 </button>
                 <button
                     onClick={() => setActiveTab('smtp')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'smtp' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                        }`}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all  duration-200 ${
+                        activeTab === 'smtp' ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                    }`}
                 >
-                    <Mail size={16} /> SMTP Configuration
+                    <Mail size={16} strokeWidth={2.5} /> SMTP Configuration
                 </button>
                 <button
                     onClick={() => setActiveTab('agent')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'agent' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                        }`}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all  duration-200 ${
+                        activeTab === 'agent' ? 'bg-gradient-to-r from-blue-500 to-purple-600  text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                    }`}
                 >
-                    <Package size={16} /> Agent Management
+                    <Package size={16} strokeWidth={2.5} /> Agent Management
+                </button>
+                <button
+                    onClick={() => setActiveTab('chat')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all  duration-200 ${
+                        activeTab === 'chat' ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                    }`}
+                >
+                    <MessageCircle size={16} strokeWidth={2.5} /> Chat Settings
                 </button>
                 <button
                     onClick={() => setActiveTab('logs')}
-                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'logs' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                        }`}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all  duration-200 ${
+                        activeTab === 'logs' ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                    }`}
                 >
-                    <ClipboardList size={16} /> Activity Logs
+                    <ClipboardList size={16} strokeWidth={2.5} /> Activity Logs
                 </button>
             </div>
 
@@ -307,11 +366,11 @@ function SettingsInner() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.2 }}
-                        className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+                        className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden"
                     >
-                        <div className="p-6 border-b border-slate-100">
-                            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                                <Key size={18} className="text-slate-400" /> API Authentication
+                        <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
+                            <h2 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                                <Key size={18} strokeWidth={2.5} /> API Authentication
                             </h2>
                             <p className="text-sm text-slate-500 mt-1">Manage the API Key used by Agents to authenticate with the server.</p>
                         </div>
@@ -359,9 +418,9 @@ function SettingsInner() {
                                 <button
                                     onClick={handleSaveApiKey}
                                     disabled={saving || loading}
-                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg hover:shadow-blue-500/30 text-white font-medium rounded-xl transition-all duration-200 flex items-center gap-2 disabled:opacity-50 hover:scale-[1.02]"
                                 >
-                                    {saving ? 'Saving...' : <><Save size={18} /> Save Changes</>}
+                                    {saving ? 'Saving...' : <><Save size={18} strokeWidth={2.5} /> Save Changes</>}
                                 </button>
                             </div>
                         </div>
@@ -375,11 +434,11 @@ function SettingsInner() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.2 }}
-                        className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+                        className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden"
                     >
-                        <div className="p-6 border-b border-slate-100">
-                            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                                <Mail size={18} className="text-slate-400" /> SMTP Configuration
+                        <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
+                            <h2 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                                <Mail size={18} strokeWidth={2.5} /> SMTP Configuration
                             </h2>
                             <p className="text-sm text-slate-500 mt-1">Configure email server settings for notifications and password resets.</p>
                         </div>
@@ -648,6 +707,80 @@ function SettingsInner() {
                                 </div>
                             </div>
                         </div>
+                    </motion.div>
+                )}
+
+                {activeTab === 'chat' && (
+                    <motion.div
+                        key="chat"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+                    >
+                        <div className="p-6 border-b border-slate-100">
+                            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                                <MessageCircle size={18} className="text-slate-400" /> Chat Settings
+                            </h2>
+                            <p className="text-sm text-slate-500 mt-1">Configure file limits, allowed types, and retention for chat.</p>
+                        </div>
+
+                        <form onSubmit={handleSaveChat} className="p-6 space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Max File Size (MB)</label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={chatSettings.max_file_mb}
+                                        onChange={e => setChatSettings({ ...chatSettings, max_file_mb: Number(e.target.value) })}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Max Files Per Message</label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={chatSettings.max_files_per_message}
+                                        onChange={e => setChatSettings({ ...chatSettings, max_files_per_message: Number(e.target.value) })}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Message Retention (days)</label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={chatSettings.history_days}
+                                        onChange={e => setChatSettings({ ...chatSettings, history_days: Number(e.target.value) })}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Allowed MIME Types</label>
+                                    <input
+                                        type="text"
+                                        value={chatSettings.allowed_mime}
+                                        onChange={e => setChatSettings({ ...chatSettings, allowed_mime: e.target.value })}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="image/jpeg,image/png,application/pdf"
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">Comma-separated list of allowed file types.</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-end pt-6 border-t border-slate-100">
+                                <button
+                                    type="submit"
+                                    disabled={saving || loading}
+                                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    {saving ? 'Saving...' : <><Save size={18} /> Save Chat Settings</>}
+                                </button>
+                            </div>
+                        </form>
                     </motion.div>
                 )}
                 {activeTab === 'logs' && (

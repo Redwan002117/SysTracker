@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS saved_scripts (
 CREATE TABLE IF NOT EXISTS alert_policies (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    metric TEXT NOT NULL, -- cpu, ram, disk, offline
+    metric TEXT NOT NULL, -- cpu, ram, disk, offline, network, crash
     operator TEXT NOT NULL, -- >, <, =
     threshold REAL NOT NULL,
     duration_minutes INTEGER DEFAULT 1,
@@ -114,7 +114,46 @@ CREATE TABLE IF NOT EXISTS alerts (
     FOREIGN KEY(policy_id) REFERENCES alert_policies(id)
 );
 
+-- Internal Chat (Phase 1: 1:1 text)
+CREATE TABLE IF NOT EXISTS chat_threads (
+    id TEXT PRIMARY KEY,
+    is_group INTEGER DEFAULT 0,
+    name TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS chat_thread_members (
+    thread_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(thread_id, username),
+    FOREIGN KEY(thread_id) REFERENCES chat_threads(id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL,
+    sender TEXT NOT NULL,
+    body TEXT NOT NULL,
+    attachment_url TEXT,
+    attachment_name TEXT,
+    attachment_size INTEGER,
+    attachment_type TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(thread_id) REFERENCES chat_threads(id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_thread_reads (
+    thread_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    last_read_at DATETIME,
+    PRIMARY KEY(thread_id, username),
+    FOREIGN KEY(thread_id) REFERENCES chat_threads(id)
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_metrics_machine_id_timestamp ON metrics(machine_id, timestamp);
 CREATE INDEX IF NOT EXISTS idx_events_machine_id_timestamp ON events(machine_id, timestamp);
 CREATE INDEX IF NOT EXISTS idx_logs_machine_id_timestamp ON logs(machine_id, timestamp);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_id ON chat_messages(thread_id, created_at);

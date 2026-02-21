@@ -1,25 +1,47 @@
-version: '3'
+# ====================================================
+# SysTracker Docker Compose - CasaOS Compatible
+# ====================================================
+# NOTE: The main docker-compose.yml is now at the repository root.
+# This file is kept for CasaOS compatibility.
+# ====================================================
+
+version: '3.8'
 
 services:
   systracker:
     image: ghcr.io/redwan002117/systracker:latest
-    container_name: systracker-admin
+    container_name: systracker
     restart: unless-stopped
     ports:
       - "7777:7777"
     volumes:
       # Persist the SQLite database
       # In CasaOS, you might want to map this to a specific path on your drive
-      - /DATA/AppData/Monitor:/app/data
+      - /DATA/AppData/systracker/data:/app/data
+      - /DATA/AppData/systracker/uploads:/app/uploads
+      - /DATA/AppData/systracker/logs:/app/logs
     environment:
       - PORT=7777
+      - NODE_ENV=production
+      - DATABASE_PATH=./data/systracker.db
+      # IMPORTANT: Change these secrets in production!
+      - JWT_SECRET=your-secret-key-change-this-in-production-min-32-chars
+      - API_KEY=your-api-key-change-this-in-production-min-32-chars
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:7777/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     x-casaos:
       architectures:
         - amd64
         - arm64
         - arm
       main: systracker
-      description: "Real-time fleet monitoring solution."
+      description: "Real-time fleet monitoring and management solution with modern UI."
       icon: "https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/logo.svg"
       title: "SysTracker"
       category: "Monitoring"
+      tagline: "Self-hosted Windows fleet monitoring"
+      port_map: "7777"

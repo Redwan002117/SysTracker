@@ -5,7 +5,7 @@ Real-time telemetry, hardware inventory, process monitoring, Windows Event Logs 
 
 ![SysTracker Banner](https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/banner.svg)
 
-[![Version](https://img.shields.io/badge/version-3.2.1-blue.svg)](https://github.com/Redwan002117/SysTracker/releases/latest)
+[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](https://github.com/Redwan002117/SysTracker/releases/latest)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 [![Website](https://img.shields.io/badge/website-systracker.rico.bd-informational)](https://systracker.rico.bd)
 
@@ -114,6 +114,63 @@ cp -r dashboard/out/* server/dashboard-dist/
 # 3. Start the server
 cd server && npm install && node server.js
 ```
+
+---
+
+## Production Deployment
+
+SysTracker includes a complete production deployment system with automation, CI/CD, and comprehensive documentation.
+
+### Quick Deploy Options
+
+**Local Development:**
+```bash
+# One-command build and deploy
+./scripts/deploy-dashboard.sh
+
+# Or use keyboard shortcut: Ctrl+Shift+D
+```
+
+**Remote Production:**
+```bash
+# Deploy to production server via SSH
+./scripts/deploy-remote.sh production --restart
+
+# Deploy to staging
+./scripts/deploy-remote.sh staging --restart
+```
+
+**Automated CI/CD:**
+```bash
+# GitHub Actions deploys automatically on push to main
+git push origin main
+```
+
+### Complete Production Setup
+
+📚 **[PRODUCTION_SETUP_COMPLETE.md](PRODUCTION_SETUP_COMPLETE.md)** — Production deployment overview and quick start
+
+📘 **[PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)** — Complete server setup guide:
+- Server prerequisites and configuration
+- Nginx reverse proxy with SSL (Let's Encrypt)
+- PM2/systemd process management
+- Security hardening and best practices
+- Monitoring, logging, and backup strategies
+
+✅ **[PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md)** — Pre-launch verification checklist
+
+⚡ **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** — Quick deployment reference
+
+### Features
+
+- 🚀 One-command deployment (local or remote)
+- 🌐 SSH-based remote deployment with rsync
+- 🤖 GitHub Actions CI/CD automation
+- 💾 Automatic backups before deployment
+- 🔄 Rollback capability on failure
+- 📢 Slack/Discord webhook notifications
+- ✅ Automated deployment verification
+- 🧪 Dry-run testing mode
 
 ---
 

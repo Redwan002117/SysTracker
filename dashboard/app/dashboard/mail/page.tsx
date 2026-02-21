@@ -147,40 +147,39 @@ export default function MailboxPage() {
         m.to_user.toLowerCase().includes(search.toLowerCase())
     );
 
-    const cardStyle: React.CSSProperties = {
-        background: 'rgba(255,255,255,0.82)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        border: '1px solid rgba(255,255,255,0.6)',
-        borderRadius: '20px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
-    };
-
     return (
         <main className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <Mail className="text-blue-500" /> Mailbox
-                </h1>
+                <div className="flex items-center gap-3">
+                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-2xl shadow-lg shadow-blue-500/25">
+                        <Mail className="text-white" size={24} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            Mailbox
+                        </h1>
+                        <p className="text-sm text-slate-500">Internal messaging system</p>
+                    </div>
+                </div>
                 <button
                     onClick={() => { setComposeOpen(true); setForm({ to_user: '', subject: '', body: '' }); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 hover:scale-105"
                 >
-                    <Plus size={16} /> Compose
+                    <Plus size={16} strokeWidth={2.5} /> Compose
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_420px] gap-4" style={{ height: 'calc(100vh - 180px)' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr_420px] gap-4" style={{ height: 'calc(100vh - 200px)' }}>
                 {/* Sidebar */}
-                <div style={cardStyle} className="flex flex-col gap-1 p-3 overflow-hidden">
+                <div className="flex flex-col gap-1 p-3 overflow-hidden bg-white/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
                     <p className="text-xs font-semibold text-slate-400 uppercase px-2 mb-2">Folders</p>
                     {(['inbox', 'sent'] as const).map(f => (
                         <button
                             key={f}
                             onClick={() => { setFolder(f); setSelected(null); }}
-                            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${folder === f ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100/60'}`}
+                            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${folder === f ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:scale-[1.02]'}`}
                         >
-                            {f === 'inbox' ? <Inbox size={16} /> : <Send size={16} />}
+                            {f === 'inbox' ? <Inbox size={16} strokeWidth={2.5} /> : <Send size={16} strokeWidth={2.5} />}
                             {f.charAt(0).toUpperCase() + f.slice(1)}
                         </button>
                     ))}
@@ -200,7 +199,7 @@ export default function MailboxPage() {
                 </div>
 
                 {/* Message list */}
-                <div style={cardStyle} className="flex flex-col overflow-hidden">
+                <div className="flex flex-col overflow-hidden bg-white/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
                     <div className="px-4 pt-4 pb-2 border-b border-slate-100/60 flex items-center gap-2">
                         <div className="relative flex-1">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -209,11 +208,11 @@ export default function MailboxPage() {
                                 placeholder="Search messages..."
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-50/80 border border-slate-200/60 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/30"
+                                className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50/80 border border-slate-200/60 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-200 hover:shadow-sm"
                             />
                         </div>
-                        <button onClick={loadMessages} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors" title="Refresh">
-                            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+                        <button onClick={loadMessages} className="p-2 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl text-slate-400 hover:text-blue-500 transition-all duration-200 hover:scale-110" title="Refresh">
+                            <RefreshCw size={15} strokeWidth={2.5} className={loading ? 'animate-spin' : ''} />
                         </button>
                     </div>
                     <div className="flex-1 overflow-y-auto divide-y divide-slate-100/60">
@@ -263,10 +262,12 @@ export default function MailboxPage() {
                 </div>
 
                 {/* Preview pane */}
-                <div style={cardStyle} className="flex flex-col overflow-hidden">
+                <div className="flex flex-col overflow-hidden bg-white/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
                     {!selected ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-                            <Eye size={40} className="opacity-20 mb-3" />
+                            <div className="bg-gradient-to-br from-blue-100 to-purple-100 p-6 rounded-2xl mb-4">
+                                <Eye size={40} className="text-blue-500 opacity-60" strokeWidth={2} />
+                            </div>
                             <p className="text-sm font-medium">Select a message to preview</p>
                         </div>
                     ) : (
@@ -314,15 +315,14 @@ export default function MailboxPage() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 40, scale: 0.97 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-                        className="fixed bottom-6 right-6 w-[480px] z-50 flex flex-col"
-                        style={{ ...cardStyle, maxHeight: '560px' }}
+                        className="fixed bottom-6 right-6 w-[480px] z-50 flex flex-col bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-[0_24px_48px_rgba(0,0,0,0.12)] max-h-[560px]"
                     >
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100/60">
-                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <Send size={14} className="text-blue-500" /> New Message
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100/60 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
+                            <h3 className="text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                                <Send size={14} className="text-blue-500" strokeWidth={2.5} /> New Message
                             </h3>
-                            <button onClick={() => setComposeOpen(false)} className="text-slate-400 hover:text-slate-600">
-                                <X size={16} />
+                            <button onClick={() => setComposeOpen(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-all duration-200 hover:scale-110">
+                                <X size={16} strokeWidth={2.5} />
                             </button>
                         </div>
                         <div className="flex flex-col gap-2 px-4 py-3 overflow-y-auto flex-1">
@@ -392,9 +392,9 @@ export default function MailboxPage() {
                             <button
                                 onClick={sendMail}
                                 disabled={sending}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 transition-all duration-200 hover:scale-[1.02]"
                             >
-                                {sending ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+                                {sending ? <RefreshCw size={14} strokeWidth={2.5} className="animate-spin" /> : <Send size={14} strokeWidth={2.5} />}
                                 {sending ? 'Sending...' : 'Send Message'}
                             </button>
                         </div>

@@ -1,8 +1,8 @@
 # SysTracker — System Monitoring Platform
 
-**Latest Version:** 3.2.1
+**Latest Version:** 3.3.0
 **Status:** Production Ready
-**Updated:** February 2026
+**Updated:** February 21, 2026
 
 ---
 

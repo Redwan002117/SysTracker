@@ -5,6 +5,7 @@ import psutil
 import requests
 import json
 import logging
+import logging.handlers
 import datetime
 import socketio
 import threading
@@ -16,8 +17,39 @@ import hashlib
 # Initialize Socket.IO Client
 sio = socketio.Client()
 
-# Configure Logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure Logging to file and console
+LOG_DIR = os.path.join(os.environ.get('PROGRAMDATA', 'C:\\ProgramData'), 'SysTracker', 'Agent', 'logs')
+if not os.path.exists(LOG_DIR):
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+    except:
+        LOG_DIR = os.path.dirname(os.path.abspath(__file__))  # Fallback to script directory
+
+LOG_FILE = os.path.join(LOG_DIR, f'agent_{datetime.datetime.now().strftime("%Y%m%d")}.log')
+
+# Create handlers
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+file_handler = logging.handlers.RotatingFileHandler(
+    LOG_FILE, 
+    maxBytes=5*1024*1024,  # 5MB per file
+    backupCount=5,  # Keep 5 backup files
+    encoding='utf-8'
+)
+file_handler.setLevel(logging.DEBUG)
+
+# Create formatter
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+file_handler.setFormatter(formatter)
+
+# Configure root logger
+logging.basicConfig(
+    level=logging.DEBUG,
+    handlers=[console_handler, file_handler]
+)
+
+logging.info(f"Logging to: {LOG_FILE}")
 
 # Try initializing Windows Event Log modules
 try:
@@ -35,7 +67,7 @@ TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 UPDATE_CHECK_INTERVAL = 3600  # seconds (60 minutes)
 MACHINE_ID = socket.gethostname() 
-VERSION = "2.8.5"
+VERSION = "3.2.7"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 

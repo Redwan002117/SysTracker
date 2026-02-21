@@ -79,13 +79,13 @@ function LoginForm() {
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col items-center mb-8"
+                    className="flex flex-col items-center mb-10"
                 >
-                    <div className="bg-blue-600 text-white p-3 rounded-2xl shadow-2xl shadow-blue-500/40 mb-4">
-                        <Zap size={32} fill="currentColor" />
+                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white p-4 rounded-2xl shadow-2xl shadow-blue-500/50 mb-5 ring-4 ring-white/20">
+                        <Zap size={36} fill="currentColor" strokeWidth={2} />
                     </div>
-                    <h1 className="text-2xl font-extrabold text-white">SysTracker</h1>
-                    <p className="text-slate-400 text-sm mt-1">Admin Dashboard</p>
+                    <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">SysTracker</h1>
+                    <p className="text-slate-400 text-sm mt-2 font-medium">Admin Dashboard</p>
                 </motion.div>
 
                 {/* Setup required banner */}
@@ -115,9 +115,9 @@ function LoginForm() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl"
+                    className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-10 shadow-[0_24px_48px_rgba(0,0,0,0.3)] hover:shadow-[0_32px_64px_rgba(0,0,0,0.4)] transition-all duration-300"
                 >
-                    <h2 className="text-xl font-bold text-white mb-1">Sign in</h2>
+                    <h2 className="text-2xl font-bold text-white mb-2">Sign in</h2>
                     <p className="text-slate-400 text-sm mb-7">Enter your admin credentials to continue</p>
 
                     <form onSubmit={handleSubmit} className="space-y-4">

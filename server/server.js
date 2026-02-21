@@ -306,6 +306,76 @@ function initializeDb() {
             if (err) console.error('Error creating mail_messages table:', err.message);
         });
 
+        // Internal Chat (Phase 1: 1:1 text)
+        db.run(`CREATE TABLE IF NOT EXISTS chat_threads (
+            id TEXT PRIMARY KEY,
+            is_group INTEGER DEFAULT 0,
+            name TEXT,
+            created_by TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, (err) => {
+            if (err) console.error('Error creating chat_threads table:', err.message);
+        });
+
+        db.run(`CREATE TABLE IF NOT EXISTS chat_thread_members (
+            thread_id TEXT NOT NULL,
+            username TEXT NOT NULL,
+            added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(thread_id, username),
+            FOREIGN KEY(thread_id) REFERENCES chat_threads(id)
+        )`, (err) => {
+            if (err) console.error('Error creating chat_thread_members table:', err.message);
+        });
+
+        db.run(`CREATE TABLE IF NOT EXISTS chat_messages (
+            id TEXT PRIMARY KEY,
+            thread_id TEXT NOT NULL,
+            sender TEXT NOT NULL,
+            body TEXT NOT NULL,
+            attachment_url TEXT,
+            attachment_name TEXT,
+            attachment_size INTEGER,
+            attachment_type TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(thread_id) REFERENCES chat_threads(id)
+        )`, (err) => {
+            if (err) console.error('Error creating chat_messages table:', err.message);
+        });
+
+        db.run(`CREATE TABLE IF NOT EXISTS chat_thread_reads (
+            thread_id TEXT NOT NULL,
+            username TEXT NOT NULL,
+            last_read_at DATETIME,
+            PRIMARY KEY(thread_id, username),
+            FOREIGN KEY(thread_id) REFERENCES chat_threads(id)
+        )`, (err) => {
+            if (err) console.error('Error creating chat_thread_reads table:', err.message);
+        });
+
+        db.run('CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_id ON chat_messages(thread_id, created_at)');
+
+        // Chat message migrations (attachments)
+        db.run('ALTER TABLE chat_messages ADD COLUMN attachment_url TEXT', (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('Migration error (chat_messages attachment_url):', err.message);
+            }
+        });
+        db.run('ALTER TABLE chat_messages ADD COLUMN attachment_name TEXT', (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('Migration error (chat_messages attachment_name):', err.message);
+            }
+        });
+        db.run('ALTER TABLE chat_messages ADD COLUMN attachment_size INTEGER', (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('Migration error (chat_messages attachment_size):', err.message);
+            }
+        });
+        db.run('ALTER TABLE chat_messages ADD COLUMN attachment_type TEXT', (err) => {
+            if (err && !err.message.includes('duplicate column name')) {
+                console.error('Migration error (chat_messages attachment_type):', err.message);
+            }
+        });
+
         // Settings: Key-Value Store
         db.run(`CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -313,6 +383,40 @@ function initializeDb() {
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`, (err) => {
             if (err) console.error('Error creating settings table:', err.message);
+        });
+
+        // Alerts: Seed default policies if none exist
+        db.get('SELECT COUNT(*) as count FROM alert_policies', (err, row) => {
+            if (err) return;
+            if (row && row.count > 0) return;
+
+            const defaultPolicies = [
+                { name: 'High CPU Usage', metric: 'cpu', operator: '>', threshold: 90, duration_minutes: 5, priority: 'high', enabled: 1 },
+                { name: 'Critical CPU Usage', metric: 'cpu', operator: '>', threshold: 95, duration_minutes: 5, priority: 'high', enabled: 1 },
+                { name: 'High RAM Usage', metric: 'ram', operator: '>', threshold: 90, duration_minutes: 5, priority: 'high', enabled: 1 },
+                { name: 'Critical RAM Usage', metric: 'ram', operator: '>', threshold: 95, duration_minutes: 5, priority: 'high', enabled: 1 },
+                { name: 'Disk Usage High', metric: 'disk', operator: '>', threshold: 90, duration_minutes: 10, priority: 'medium', enabled: 1 },
+                { name: 'Disk Usage Critical', metric: 'disk', operator: '>', threshold: 95, duration_minutes: 10, priority: 'high', enabled: 1 },
+                { name: 'Machine Offline', metric: 'offline', operator: '=', threshold: 1, duration_minutes: 5, priority: 'high', enabled: 1 },
+                { name: 'Network Disconnected', metric: 'network', operator: '<', threshold: 1, duration_minutes: 5, priority: 'medium', enabled: 1 },
+                { name: 'Agent Crash Detected', metric: 'crash', operator: '=', threshold: 1, duration_minutes: 10, priority: 'high', enabled: 1 }
+            ];
+
+            const stmt = db.prepare(`INSERT INTO alert_policies (id, name, metric, operator, threshold, duration_minutes, priority, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+            defaultPolicies.forEach(policy => {
+                stmt.run([
+                    crypto.randomUUID(),
+                    policy.name,
+                    policy.metric,
+                    policy.operator,
+                    policy.threshold,
+                    policy.duration_minutes,
+                    policy.priority,
+                    policy.enabled
+                ]);
+            });
+            stmt.finalize();
+            console.log('[Alert] Default alert policies seeded.');
         });
 
         // Agent Releases: Auto-Updater Support
@@ -614,6 +718,43 @@ app.put('/api/settings/smtp', authenticateDashboard, (req, res) => {
     });
 });
 
+// Get Chat Settings (Admin only)
+app.get('/api/settings/chat', authenticateDashboard, requireAdmin, (req, res) => {
+    db.all("SELECT key, value FROM settings WHERE key LIKE 'chat_%'", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const settings = {};
+        if (rows) rows.forEach(r => settings[r.key] = r.value);
+
+        res.json({
+            max_file_mb: parseInt(settings.chat_max_file_mb || '100', 10),
+            max_files_per_message: parseInt(settings.chat_max_files_per_message || '5', 10),
+            allowed_mime: settings.chat_allowed_mime || 'image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,application/zip',
+            history_days: parseInt(settings.chat_history_days || '180', 10)
+        });
+    });
+});
+
+// Update Chat Settings (Admin only)
+app.put('/api/settings/chat', authenticateDashboard, requireAdmin, (req, res) => {
+    const { max_file_mb, max_files_per_message, allowed_mime, history_days } = req.body;
+
+    const updates = [
+        { key: 'chat_max_file_mb', value: String(max_file_mb ?? 100) },
+        { key: 'chat_max_files_per_message', value: String(max_files_per_message ?? 5) },
+        { key: 'chat_allowed_mime', value: String(allowed_mime || '') },
+        { key: 'chat_history_days', value: String(history_days ?? 180) }
+    ];
+
+    db.serialize(() => {
+        const stmt = db.prepare("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP");
+        updates.forEach(u => stmt.run([u.key, u.value]));
+        stmt.finalize((err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true, message: 'Chat settings updated' });
+        });
+    });
+});
+
 // Test SMTP Settings
 app.post('/api/settings/smtp/test', authenticateDashboard, (req, res) => {
     const { email: testToEmail } = req.body;
@@ -735,11 +876,38 @@ app.post('/api/auth/reset-password', (req, res) => {
         });
 });
 
+// Setup Password (same as reset, but for newly created users)
+app.post('/api/auth/setup-password', (req, res) => {
+    const { token, new_password } = req.body;
+    if (!token || !new_password) return res.status(400).json({ error: 'Token and new password required' });
+    if (new_password.length < 8) return res.status(400).json({ error: 'Password must be 8+ chars' });
+
+    db.get('SELECT * FROM password_reset_tokens WHERE token = ? AND expires_at > ?',
+        [token, new Date().toISOString()],
+        (err, tokenRow) => {
+            if (err || !tokenRow) return res.status(400).json({ error: 'Invalid or expired token' });
+
+            bcrypt.hash(new_password, 12, (err, hash) => {
+                if (err) return res.status(500).json({ error: 'Hashing error' });
+
+                db.serialize(() => {
+                    db.run('UPDATE admin_users SET password_hash = ? WHERE id = ?', [hash, tokenRow.user_id]);
+                    db.run('DELETE FROM password_reset_tokens WHERE token = ?', [token]);
+                    res.json({ success: true, message: 'Password setup successful. Please login.' });
+                });
+            });
+        });
+});
+
 // --- Upload Handling (Multer) ---
 const multer = require('multer');
 const uploadDir = path.join(BASE_DIR, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
+}
+const chatUploadDir = path.join(uploadDir, 'chat');
+if (!fs.existsSync(chatUploadDir)) {
+    fs.mkdirSync(chatUploadDir, { recursive: true });
 }
 app.use('/uploads', express.static(uploadDir));
 
@@ -975,23 +1143,26 @@ app.get('/api/users', authenticateDashboard, requireAdmin, (req, res) => {
 
 // Create new user
 app.post('/api/users', authenticateDashboard, requireAdmin, (req, res) => {
-    const { username, email, password, role } = req.body;
+    const { username, email, password, role, sendSetupEmail } = req.body;
 
-    if (!username || !password || !email) {
-        return res.status(400).json({ error: 'Username, email, and password are required' });
+    if (!username || !email) {
+        return res.status(400).json({ error: 'Username and email are required' });
     }
 
-    if (password.length < 8) {
+    // Password can be optional if sendSetupEmail is true
+    if (password && password.length < 8) {
         return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    if (!password && !sendSetupEmail) {
+        return res.status(400).json({ error: 'Either password or sendSetupEmail must be provided' });
     }
 
     if (role && !['admin', 'moderator', 'viewer'].includes(role)) {
         return res.status(400).json({ error: 'Invalid role. Must be "admin", "moderator", or "viewer"' });
     }
 
-    bcrypt.hash(password, 12, (err, hash) => {
-        if (err) return res.status(500).json({ error: 'Hashing error' });
-
+    const createUserWithHash = (hash) => {
         db.run("INSERT INTO admin_users (username, email, password_hash, role) VALUES (?, ?, ?, ?)",
             [username, email, hash, role || 'admin'],
             function (err) {
@@ -1001,11 +1172,100 @@ app.post('/api/users', authenticateDashboard, requireAdmin, (req, res) => {
                     }
                     return res.status(500).json({ error: err.message });
                 }
+                const userId = this.lastID;
                 console.log(`[UserMgmt] User '${username}' created with role '${role || 'admin'}' by ${req.admin.username}`);
                 logAudit(req.admin.username, req.admin.id, 'user_created', username, `role=${role || 'admin'}`, req.ip);
-                res.json({ success: true, message: 'User created successfully', userId: this.lastID });
+
+                // If sendSetupEmail is true, send welcome email then setup email
+                if (sendSetupEmail) {
+                    const welcomeHtml = emailTemplates.welcomeEmail(username);
+                    const welcomeText = `Welcome to SysTracker, ${username}! Your account has been created.`;
+
+                    sendEmail(email, 'Welcome to SysTracker', welcomeText, welcomeHtml)
+                        .then(() => {
+                            const token = crypto.randomBytes(32).toString('hex');
+                            const expiresAt = new Date(Date.now() + 86400000).toISOString(); // 24 hours
+
+                            db.run('INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?, ?, ?)',
+                                [token, userId, expiresAt],
+                                async (err) => {
+                                    if (err) {
+                                        console.error('[UserMgmt] Failed to create setup token:', err);
+                                        return res.json({ success: true, message: 'User created but failed to send setup email', userId });
+                                    }
+
+                                    const setupLink = `${req.protocol}://${req.get('host')}/login/setup-password?token=${token}`;
+                                    const htmlContent = emailTemplates.passwordSetupEmail(username, null, setupLink, '24 hours');
+                                    const textContent = `Hello ${username},\n\nYour account has been created. Set your password here: ${setupLink}\n\nLink expires in 24 hours.`;
+
+                                    try {
+                                        await sendEmail(email, 'Set Your Password - SysTracker', textContent, htmlContent);
+                                        console.log(`[UserMgmt] Password setup email sent to ${username}`);
+                                        logAudit(req.admin.username, req.admin.id, 'password_setup_sent', username, null, req.ip);
+                                        res.json({ success: true, message: 'User created and setup email sent', userId });
+                                    } catch (emailErr) {
+                                        console.error('[Email] Failed to send password setup:', emailErr);
+                                        res.json({ success: true, message: 'User created but failed to send setup email', userId });
+                                    }
+                                });
+                        })
+                        .catch((emailErr) => {
+                            console.error('[Email] Failed to send welcome email:', emailErr);
+                            res.json({ success: true, message: 'User created but failed to send welcome email', userId });
+                        });
+                } else {
+                    res.json({ success: true, message: 'User created successfully', userId });
+                }
             }
         );
+    };
+
+    if (password) {
+        bcrypt.hash(password, 12, (err, hash) => {
+            if (err) return res.status(500).json({ error: 'Hashing error' });
+            createUserWithHash(hash);
+        });
+    } else {
+        // Generate a random temporary password that will be overwritten when user sets their password
+        const tempPassword = crypto.randomBytes(32).toString('hex');
+        bcrypt.hash(tempPassword, 12, (err, hash) => {
+            if (err) return res.status(500).json({ error: 'Hashing error' });
+            createUserWithHash(hash);
+        });
+    }
+});
+
+// Send Password Setup Email
+app.post('/api/users/:id/send-password-setup', authenticateDashboard, requireAdmin, (req, res) => {
+    const { id } = req.params;
+
+    db.get('SELECT id, username, email, display_name FROM admin_users WHERE id = ?', [id], async (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+        if (!user.email) return res.status(400).json({ error: 'User has no email address' });
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 86400000).toISOString(); // 24 hours
+
+        db.run('INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES (?, ?, ?)',
+            [token, user.id, expiresAt],
+            async (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+
+                const setupLink = `${req.protocol}://${req.get('host')}/login/setup-password?token=${token}`;
+                const htmlContent = emailTemplates.passwordSetupEmail(user.username, user.display_name, setupLink, '24 hours');
+                const textContent = `Hello ${user.username},\n\nYour account has been created. Set your password here: ${setupLink}\n\nLink expires in 24 hours.`;
+
+                try {
+                    await sendEmail(user.email, 'Set Your Password - SysTracker', textContent, htmlContent);
+                    console.log(`[UserMgmt] Password setup email sent to ${user.username} by ${req.admin.username}`);
+                    logAudit(req.admin.username, req.admin.id, 'password_setup_sent', user.username, null, req.ip);
+                    res.json({ success: true, message: 'Password setup email sent successfully' });
+                } catch (emailErr) {
+                    console.error('[Email] Failed to send password setup:', emailErr);
+                    res.status(500).json({ error: 'Failed to send email', details: emailErr.message });
+                }
+            });
     });
 });
 
@@ -1187,6 +1447,364 @@ app.get('/api/mail-users', authenticateDashboard, (req, res) => {
     });
 });
 
+// --- Internal Chat Endpoints (Phase 2: groups, uploads, receipts) ---
+const getChatSettings = () => new Promise((resolve) => {
+    db.all("SELECT key, value FROM settings WHERE key LIKE 'chat_%'", [], (err, rows) => {
+        const settings = {};
+        if (rows) rows.forEach(r => settings[r.key] = r.value);
+        resolve({
+            max_file_mb: parseInt(settings.chat_max_file_mb || '100', 10),
+            max_files_per_message: parseInt(settings.chat_max_files_per_message || '5', 10),
+            allowed_mime: (settings.chat_allowed_mime || '').split(',').map(s => s.trim()).filter(Boolean),
+            history_days: parseInt(settings.chat_history_days || '180', 10)
+        });
+    });
+});
+
+// GET /api/chat/threads
+app.get('/api/chat/threads', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    const query = `
+        SELECT 
+            t.id,
+            t.is_group,
+            t.name,
+            t.created_at,
+            r.last_read_at,
+            m.body AS last_message,
+            m.attachment_name AS last_attachment_name,
+            m.created_at AS last_message_at,
+            u.username AS other_username,
+            u.display_name AS other_display_name,
+            u.avatar AS other_avatar,
+            (SELECT COUNT(*) FROM chat_thread_members WHERE thread_id = t.id) AS member_count
+        FROM chat_threads t
+        JOIN chat_thread_members tm ON tm.thread_id = t.id
+        LEFT JOIN chat_thread_members tm2 ON tm2.thread_id = t.id AND tm2.username != ?
+        LEFT JOIN admin_users u ON u.username = tm2.username
+        LEFT JOIN chat_thread_reads r ON r.thread_id = t.id AND r.username = ?
+        LEFT JOIN chat_messages m ON m.id = (
+            SELECT id FROM chat_messages WHERE thread_id = t.id ORDER BY created_at DESC LIMIT 1
+        )
+        WHERE tm.username = ?
+        ORDER BY (m.created_at IS NULL) ASC, m.created_at DESC, t.created_at DESC
+    `;
+    db.all(query, [me, me, me], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const enriched = (rows || []).map(r => {
+            const lastAt = r.last_message_at || r.created_at;
+            const unread = r.last_message_at && (!r.last_read_at || r.last_message_at > r.last_read_at);
+            return { ...r, unread_count: unread ? 1 : 0, last_activity_at: lastAt };
+        });
+        res.json(enriched);
+    });
+});
+
+// POST /api/chat/threads { target_user }
+app.post('/api/chat/threads', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    const { target_user } = req.body;
+
+    if (!target_user) return res.status(400).json({ error: 'target_user is required' });
+    if (target_user === me) return res.status(400).json({ error: 'Cannot chat with yourself' });
+
+    db.get('SELECT username FROM admin_users WHERE username = ?', [target_user], (err, userRow) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!userRow) return res.status(404).json({ error: 'User not found' });
+
+        const existingQuery = `
+            SELECT t.id FROM chat_threads t
+            JOIN chat_thread_members a ON a.thread_id = t.id
+            JOIN chat_thread_members b ON b.thread_id = t.id
+            WHERE t.is_group = 0 AND a.username = ? AND b.username = ?
+            LIMIT 1
+        `;
+        db.get(existingQuery, [me, target_user], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (row) return res.json({ success: true, thread_id: row.id, existing: true });
+
+            const threadId = crypto.randomUUID();
+            db.run('INSERT INTO chat_threads (id, is_group, name, created_by) VALUES (?, 0, NULL, ?)',
+                [threadId, me],
+                (err) => {
+                    if (err) return res.status(500).json({ error: err.message });
+
+                    const stmt = db.prepare('INSERT INTO chat_thread_members (thread_id, username) VALUES (?, ?)');
+                    stmt.run([threadId, me]);
+                    stmt.run([threadId, target_user]);
+                    stmt.finalize();
+
+                    res.json({ success: true, thread_id: threadId, existing: false });
+                }
+            );
+        });
+    });
+});
+
+// POST /api/chat/groups { name, members[] }
+app.post('/api/chat/groups', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    const { name, members } = req.body;
+    const memberList = Array.isArray(members) ? members.filter(Boolean) : [];
+
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Group name is required' });
+    if (memberList.length === 0) return res.status(400).json({ error: 'At least one member is required' });
+
+    const uniqueMembers = Array.from(new Set([me, ...memberList]));
+    const placeholders = uniqueMembers.map(() => '?').join(',');
+
+    db.all(`SELECT username FROM admin_users WHERE username IN (${placeholders})`, uniqueMembers, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!rows || rows.length !== uniqueMembers.length) return res.status(400).json({ error: 'One or more users not found' });
+
+        const threadId = crypto.randomUUID();
+        db.run('INSERT INTO chat_threads (id, is_group, name, created_by) VALUES (?, 1, ?, ?)',
+            [threadId, name.trim(), me],
+            (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                const stmt = db.prepare('INSERT INTO chat_thread_members (thread_id, username) VALUES (?, ?)');
+                uniqueMembers.forEach(u => stmt.run([threadId, u]));
+                stmt.finalize();
+                res.json({ success: true, thread_id: threadId });
+            }
+        );
+    });
+});
+
+// GET /api/chat/threads/:id/members
+app.get('/api/chat/threads/:id/members', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    const threadId = req.params.id;
+
+    db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(403).json({ error: 'Access denied' });
+
+        db.all('SELECT u.username, u.display_name, u.avatar FROM chat_thread_members m JOIN admin_users u ON u.username = m.username WHERE m.thread_id = ?',
+            [threadId],
+            (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json(rows || []);
+            }
+        );
+    });
+});
+
+// POST /api/chat/threads/:id/members { username }
+app.post('/api/chat/threads/:id/members', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    const threadId = req.params.id;
+    const { username } = req.body;
+
+    if (!username) return res.status(400).json({ error: 'username is required' });
+
+    db.get('SELECT created_by, is_group FROM chat_threads WHERE id = ?', [threadId], (err, thread) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!thread) return res.status(404).json({ error: 'Thread not found' });
+        if (!thread.is_group) return res.status(400).json({ error: 'Not a group thread' });
+
+        db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(403).json({ error: 'Access denied' });
+
+            db.get('SELECT username FROM admin_users WHERE username = ?', [username], (err, userRow) => {
+                if (err) return res.status(500).json({ error: err.message });
+                if (!userRow) return res.status(404).json({ error: 'User not found' });
+
+                db.run('INSERT OR IGNORE INTO chat_thread_members (thread_id, username) VALUES (?, ?)', [threadId, username], function (err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ success: true, added: this.changes > 0 });
+                });
+            });
+        });
+    });
+});
+
+// DELETE /api/chat/threads/:id/members/:username
+app.delete('/api/chat/threads/:id/members/:username', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    const threadId = req.params.id;
+    const username = req.params.username;
+
+    db.get('SELECT is_group FROM chat_threads WHERE id = ?', [threadId], (err, thread) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!thread) return res.status(404).json({ error: 'Thread not found' });
+        if (!thread.is_group) return res.status(400).json({ error: 'Not a group thread' });
+
+        db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(403).json({ error: 'Access denied' });
+
+            db.run('DELETE FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, username], function (err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ success: true, removed: this.changes > 0 });
+            });
+        });
+    });
+});
+
+// GET /api/chat/threads/:id/messages
+app.get('/api/chat/threads/:id/messages', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    const threadId = req.params.id;
+
+    db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(403).json({ error: 'Access denied' });
+
+        db.all('SELECT id, thread_id, sender, body, attachment_url, attachment_name, attachment_size, attachment_type, created_at FROM chat_messages WHERE thread_id = ? ORDER BY created_at ASC LIMIT 500',
+            [threadId],
+            (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json(rows || []);
+            }
+        );
+    });
+});
+
+// POST /api/chat/threads/:id/read
+app.post('/api/chat/threads/:id/read', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    const threadId = req.params.id;
+
+    db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(403).json({ error: 'Access denied' });
+
+        db.run('INSERT INTO chat_thread_reads (thread_id, username, last_read_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(thread_id, username) DO UPDATE SET last_read_at = CURRENT_TIMESTAMP',
+            [threadId, me],
+            (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                io.emit('chat_read', { thread_id: threadId, username: me, read_at: new Date().toISOString() });
+                res.json({ success: true });
+            }
+        );
+    });
+});
+
+// POST /api/chat/threads/:id/messages
+app.post('/api/chat/threads/:id/messages', authenticateDashboard, (req, res) => {
+    const me = req.admin.username;
+    const threadId = req.params.id;
+    const { body } = req.body;
+
+    if (!body || !body.trim()) return res.status(400).json({ error: 'Message body is required' });
+
+    db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(403).json({ error: 'Access denied' });
+
+        const msgId = crypto.randomUUID();
+        db.run('INSERT INTO chat_messages (id, thread_id, sender, body) VALUES (?, ?, ?, ?)',
+            [msgId, threadId, me, body.trim()],
+            (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+
+                const payload = { id: msgId, thread_id: threadId, sender: me, body: body.trim(), created_at: new Date().toISOString() };
+                io.emit('chat_message', payload);
+                res.json({ success: true, message: payload });
+            }
+        );
+    });
+});
+
+// POST /api/chat/threads/:id/upload (multipart)
+app.post('/api/chat/threads/:id/upload', authenticateDashboard, async (req, res) => {
+    const me = req.admin.username;
+    const threadId = req.params.id;
+
+    const settings = await getChatSettings();
+    const maxFiles = settings.max_files_per_message || 5;
+    const allowedMime = settings.allowed_mime || [];
+
+    const storage = multer.diskStorage({
+        destination: (req, file, cb) => cb(null, chatUploadDir),
+        filename: (req, file, cb) => {
+            const sanitized = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '');
+            cb(null, `${Date.now()}-${sanitized}`);
+        }
+    });
+
+    const uploadChat = multer({
+        storage,
+        limits: { fileSize: (settings.max_file_mb || 100) * 1024 * 1024, files: maxFiles },
+        fileFilter: (req, file, cb) => {
+            if (allowedMime.length === 0 || allowedMime.includes(file.mimetype)) return cb(null, true);
+            cb(new Error('File type not allowed'));
+        }
+    }).array('files', maxFiles);
+
+    uploadChat(req, res, (err) => {
+        if (err) return res.status(400).json({ error: err.message });
+        const files = req.files || [];
+        const body = (req.body?.body || '').trim();
+
+        if (!Array.isArray(files) || files.length === 0) {
+            return res.status(400).json({ error: 'No files uploaded' });
+        }
+
+        db.get('SELECT 1 FROM chat_thread_members WHERE thread_id = ? AND username = ?', [threadId, me], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(403).json({ error: 'Access denied' });
+
+            const created = [];
+            const stmt = db.prepare('INSERT INTO chat_messages (id, thread_id, sender, body, attachment_url, attachment_name, attachment_size, attachment_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+            files.forEach((file) => {
+                const msgId = crypto.randomUUID();
+                const messageBody = body || `Sent a file: ${file.originalname}`;
+                const attachmentUrl = `/uploads/chat/${file.filename}`;
+                stmt.run([
+                    msgId,
+                    threadId,
+                    me,
+                    messageBody,
+                    attachmentUrl,
+                    file.originalname,
+                    file.size,
+                    file.mimetype
+                ]);
+                const payload = {
+                    id: msgId,
+                    thread_id: threadId,
+                    sender: me,
+                    body: messageBody,
+                    attachment_url: attachmentUrl,
+                    attachment_name: file.originalname,
+                    attachment_size: file.size,
+                    attachment_type: file.mimetype,
+                    created_at: new Date().toISOString()
+                };
+                created.push(payload);
+                io.emit('chat_message', payload);
+            });
+            stmt.finalize();
+            res.json({ success: true, messages: created });
+        });
+    });
+});
+
+// Chat history retention (daily)
+setInterval(async () => {
+    try {
+        const settings = await getChatSettings();
+        const days = settings.history_days || 180;
+        const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+        db.all('SELECT id, attachment_url FROM chat_messages WHERE created_at < ?', [cutoff], (err, rows) => {
+            if (err || !rows) return;
+            rows.forEach(row => {
+                if (row.attachment_url && row.attachment_url.startsWith('/uploads/')) {
+                    const filePath = path.join(BASE_DIR, row.attachment_url.replace('/uploads/', 'uploads/'));
+                    if (fs.existsSync(filePath)) {
+                        try { fs.unlinkSync(filePath); } catch {}
+                    }
+                }
+            });
+            db.run('DELETE FROM chat_messages WHERE created_at < ?', [cutoff]);
+        });
+    } catch {}
+}, 24 * 60 * 60 * 1000);
+
 // --- Background Jobs ---
 
 // Periodic Offline Check (every 60s)
@@ -1199,6 +1817,10 @@ setInterval(() => {
             if (err) console.error("[Job] Error updating offline status:", err.message);
             else if (this.changes > 0) {
                 console.log(`[Job] Marked ${this.changes} machine(s) as offline.`);
+                db.all("SELECT id FROM machines WHERE status = 'offline'", (err, rows) => {
+                    if (err || !rows) return;
+                    rows.forEach(row => evaluateAlerts(row.id, { status: 'offline' }));
+                });
             }
         }
     );
@@ -1332,7 +1954,9 @@ app.post('/api/telemetry', authenticateAPI, (req, res) => {
                 evaluateAlerts(machine.id, {
                     cpu: metrics.cpu_usage,
                     ram: metrics.ram_usage,
-                    disk: metrics.disk_total_gb > 0 ? ((metrics.disk_total_gb - metrics.disk_free_gb) / metrics.disk_total_gb) * 100 : 0
+                    disk: metrics.disk_total_gb > 0 ? ((metrics.disk_total_gb - metrics.disk_free_gb) / metrics.disk_total_gb) * 100 : 0,
+                    network: (metrics.network_up_kbps || 0) + (metrics.network_down_kbps || 0),
+                    status: 'online'
                 });
             }
         );
@@ -1697,6 +2321,16 @@ io.on('connection', (socket) => {
         );
     });
 
+    // Chat typing indicators
+    socket.on('chat_typing', (data) => {
+        if (!data || !data.thread_id || !data.username) return;
+        io.emit('chat_typing', {
+            thread_id: data.thread_id,
+            username: data.username,
+            is_typing: !!data.is_typing
+        });
+    });
+
     socket.on('disconnect', () => { });
 });
 
@@ -1780,64 +2414,79 @@ const evaluateAlerts = (machineId, metrics) => {
     db.all('SELECT * FROM alert_policies WHERE enabled = 1', (err, policies) => {
         if (err || !policies) return;
 
+        const handlePolicyDecision = (policy, value, triggered) => {
+            if (triggered) {
+                db.get('SELECT id FROM alerts WHERE machine_id = ? AND policy_id = ? AND status = "active"',
+                    [machineId, policy.id],
+                    (err, existing) => {
+                        if (!existing) {
+                            const alertId = crypto.randomUUID();
+                            console.log(`[Alert] Triggered: ${policy.name} on ${machineId} (Value: ${value})`);
+                            db.run('INSERT INTO alerts (id, machine_id, policy_id, value, status, created_at) VALUES (?, ?, ?, ?, "active", CURRENT_TIMESTAMP)',
+                                [alertId, machineId, policy.id, value]);
+
+                            db.run('INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, 9999, "Alert System", ?, "Warning", CURRENT_TIMESTAMP)',
+                                [machineId, `Triggered: ${policy.name} (${value} ${policy.operator} ${policy.threshold})`]);
+
+                            db.get('SELECT hostname FROM machines WHERE id = ?', [machineId], (err, machineParams) => {
+                                if (machineParams) {
+                                    db.get('SELECT email FROM admin_users LIMIT 1', (err, admin) => {
+                                        if (admin && admin.email) {
+                                            const alertsList = [{ type: policy.name, message: `Value: ${value} (Threshold: ${policy.threshold})` }];
+                                            const html = emailTemplates.alertEmail(machineParams.hostname, alertsList);
+                                            sendEmail(admin.email, `[Alert] ${policy.name} on ${machineParams.hostname}`,
+                                                `Machine ${machineParams.hostname} triggered ${policy.name}. Value: ${value}`, html);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+            } else {
+                db.run('UPDATE alerts SET status = "resolved", resolved_at = CURRENT_TIMESTAMP WHERE machine_id = ? AND policy_id = ? AND status = "active"',
+                    [machineId, policy.id],
+                    function (err) {
+                        if (this.changes > 0) {
+                            console.log(`[Alert] Resolved: ${policy.name} on ${machineId}`);
+                            db.run('INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, 9998, "Alert System", ?, "Info", CURRENT_TIMESTAMP)',
+                                [machineId, `Resolved: ${policy.name}`]);
+                        }
+                    }
+                );
+            }
+        };
+
         policies.forEach(policy => {
+            if (policy.metric === 'crash') {
+                const crashWindow = new Date(Date.now() - 10 * 60 * 1000).toISOString(); // 10 minutes
+                const crashQuery = `
+                    SELECT id FROM logs
+                    WHERE machine_id = ?
+                      AND timestamp >= ?
+                      AND (level IN ('error', 'critical') OR message LIKE '%crash%' OR message LIKE '%exception%')
+                    LIMIT 1
+                `;
+                db.get(crashQuery, [machineId, crashWindow], (err, row) => {
+                    const triggered = !!row;
+                    handlePolicyDecision(policy, triggered ? 1 : 0, triggered);
+                });
+                return;
+            }
+
             let value = null;
             if (policy.metric === 'cpu') value = metrics.cpu;
             else if (policy.metric === 'ram') value = metrics.ram;
             else if (policy.metric === 'disk') value = metrics.disk;
+            else if (policy.metric === 'network') value = metrics.network;
+            else if (policy.metric === 'offline') value = metrics.status === 'offline' ? 1 : 0;
 
-            if (value !== null) {
+            if (value !== null && value !== undefined) {
                 let triggered = false;
                 if (policy.operator === '>') triggered = value > policy.threshold;
                 else if (policy.operator === '<') triggered = value < policy.threshold;
-                else if (policy.operator === '=') triggered = value == policy.threshold; // loose equality for string/number mix
+                else if (policy.operator === '=') triggered = value == policy.threshold;
 
-                if (triggered) {
-                    // Check if already active
-                    db.get('SELECT id FROM alerts WHERE machine_id = ? AND policy_id = ? AND status = "active"',
-                        [machineId, policy.id],
-                        (err, existing) => {
-                            if (!existing) {
-                                // Create New Alert
-                                const alertId = crypto.randomUUID();
-                                console.log(`[Alert] Triggered: ${policy.name} on ${machineId} (Value: ${value})`);
-                                db.run('INSERT INTO alerts (id, machine_id, policy_id, value, status, created_at) VALUES (?, ?, ?, ?, "active", CURRENT_TIMESTAMP)',
-                                    [alertId, machineId, policy.id, value]);
-
-                                // Insert into Events for Audit Log
-                                db.run('INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, 9999, "Alert System", ?, "Warning", CURRENT_TIMESTAMP)',
-                                    [machineId, `Triggered: ${policy.name} (${value} ${policy.operator} ${policy.threshold})`]);
-
-                                // Send Email Notification
-                                db.get('SELECT hostname FROM machines WHERE id = ?', [machineId], (err, machineParams) => {
-                                    if (machineParams) {
-                                        // Get Admin Email (Simplifiction: Get first admin)
-                                        db.get('SELECT email FROM admin_users LIMIT 1', (err, admin) => {
-                                            if (admin && admin.email) {
-                                                const alertsList = [{ type: policy.name, message: `Value: ${value} (Threshold: ${policy.threshold})` }];
-                                                const html = emailTemplates.alertEmail(machineParams.hostname, alertsList);
-                                                sendEmail(admin.email, `[Alert] ${policy.name} on ${machineParams.hostname}`,
-                                                    `Machine ${machineParams.hostname} triggered ${policy.name}. Value: ${value}`, html);
-                                            }
-                                        });
-                                    }
-                                });
-                            }
-                        });
-                } else {
-                    // Resolve if active
-                    db.run('UPDATE alerts SET status = "resolved", resolved_at = CURRENT_TIMESTAMP WHERE machine_id = ? AND policy_id = ? AND status = "active"',
-                        [machineId, policy.id],
-                        function (err) {
-                            if (this.changes > 0) {
-                                console.log(`[Alert] Resolved: ${policy.name} on ${machineId}`);
-                                // Insert Resolution Event
-                                db.run('INSERT INTO events (machine_id, event_id, source, message, severity, timestamp) VALUES (?, 9998, "Alert System", ?, "Info", CURRENT_TIMESTAMP)',
-                                    [machineId, `Resolved: ${policy.name}`]);
-                            }
-                        }
-                    );
-                }
+                handlePolicyDecision(policy, value, triggered);
             }
         });
     });

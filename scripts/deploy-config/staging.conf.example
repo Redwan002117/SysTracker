@@ -1,0 +1,74 @@
+# Staging Server Deployment Configuration
+# Copy this file to: deploy-config/staging.conf
+# Edit the values below to match your staging server
+
+# === SSH Configuration ===
+REMOTE_USER="your-username"                    # SSH username for staging server
+REMOTE_HOST="staging.your-server.com"          # Staging server hostname or IP
+REMOTE_PORT="22"                               # SSH port (default: 22)
+
+# === Server Paths ===
+REMOTE_PATH="/var/www/systracker-staging"      # Root directory on server
+REMOTE_DASHBOARD_PATH="/var/www/systracker-staging/server/dashboard-dist"  # Dashboard path
+
+# === Process Management ===
+# Choose one: PM2 or systemd
+
+# Option 1: PM2 (recommended)
+USE_PM2=true
+PM2_APP_NAME="systracker-staging"
+
+# Option 2: systemd
+USE_SYSTEMD=false
+SYSTEMD_SERVICE="systracker-staging"
+
+# === Backup Configuration ===
+BACKUP_ENABLED=true                            # Create backup before deployment
+BACKUP_PATH="/var/www/systracker-staging/backups"  # Backup directory on server
+MAX_BACKUPS=5                                  # Keep last N backups (fewer for staging)
+
+# === Deployment Options ===
+RESTART_AFTER_DEPLOY=true                      # Automatically restart server after deploy
+VERIFY_DEPLOYMENT=true                         # Verify deployment succeeded
+CLEANUP_OLD_BUILDS=true                        # Remove old build artifacts
+
+# === Notifications ===
+NOTIFY_ON_SUCCESS=false                        # Send notification on successful deployment
+NOTIFY_ON_FAILURE=true                         # Send notification on failed deployment
+
+# Slack webhook (optional) - Use different channel than production
+SLACK_WEBHOOK=""
+
+# Discord webhook (optional) - Use different channel than production
+DISCORD_WEBHOOK=""
+
+# === Build Configuration ===
+LOCAL_BUILD_PATH="dashboard/out"               # Local build output directory
+NODE_ENV="staging"                             # Node environment
+
+# === SSH Key ===
+# Leave empty to use default SSH key (~/.ssh/id_rsa)
+# Or specify path to custom key
+SSH_KEY_PATH=""
+
+# === Advanced Options ===
+RSYNC_OPTIONS="-avz --delete --exclude='node_modules' --exclude='.git' --exclude='.env'"
+DEPLOYMENT_TIMEOUT=300                         # Timeout in seconds (default: 5 minutes)
+HEALTH_CHECK_URL="https://staging.your-server.com/api/health"  # Health check endpoint
+
+# === Pre/Post Deployment Commands ===
+# Commands to run on remote server before/after deployment (optional)
+PRE_DEPLOY_COMMAND=""                          # e.g., "npm install" or "composer install"
+POST_DEPLOY_COMMAND=""                         # e.g., "npm run migrate" or custom scripts
+
+# === Staging-Specific Settings ===
+# Less strict than production for testing purposes
+SKIP_HEALTH_CHECK=false                        # Skip health check (for testing)
+ALLOW_DIRTY_DEPLOY=false                       # Allow deployment with uncommitted changes
+
+# === Notes ===
+# - Staging should mirror production as closely as possible
+# - Use for testing before deploying to production
+# - Can be more relaxed with notifications and backups
+# - Test new features here first
+# - Make sure staging uses different database than production

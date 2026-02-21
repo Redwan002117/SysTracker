@@ -39,5 +39,5 @@ services:
     
     labels:
       com.systracker.description: "SysTracker System Monitoring Server - Windows Container"
-      com.systracker.version: "3.1.2"
+      com.systracker.version: "3.3.0"
       com.systracker.platform: "windows"

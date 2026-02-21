@@ -215,71 +215,74 @@ export default function Dashboard() {
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
 
         {/* Dashboard Header & Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 mb-6">
           <div className="lg:col-span-3 flex flex-col justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <Activity className="text-blue-500" /> Dashboard
+              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+                  <Activity className="text-white" size={24} />
+                </div>
+                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">Dashboard</span>
               </h1>
-              <p className="text-slate-500 text-sm mt-1">Live infrastructure metrics.</p>
+              <p className="text-slate-500 text-sm mt-2 ml-1">Live infrastructure metrics and system overview.</p>
             </div>
 
             {/* KPI Cards (Compact) */}
-            <div className="grid grid-cols-3 gap-3 mt-4">
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div className="grid grid-cols-3 gap-4 mt-5">
+              <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(34,197,94,0.15)] transition-all duration-300 flex items-center justify-between group hover:scale-[1.02]">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-semibold">Online</p>
-                  <p className="text-2xl font-bold text-slate-800">{onlineAgents} <span className="text-slate-400 text-base font-normal">/ {totalAgents}</span></p>
+                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Online</p>
+                  <p className="text-3xl font-bold text-slate-800">{onlineAgents} <span className="text-slate-400 text-lg font-normal">/ {totalAgents}</span></p>
                 </div>
-                <div className="p-2 bg-green-50 rounded-lg text-green-600">
-                  <Wifi size={20} />
+                <div className="p-3 bg-gradient-to-br from-emerald-100 to-green-50 rounded-xl text-green-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                  <Wifi size={22} strokeWidth={2.5} />
                 </div>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(239,68,68,0.15)] transition-all duration-300 flex items-center justify-between group hover:scale-[1.02]">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-semibold">Critical</p>
-                  <p className="text-2xl font-bold text-red-500">{criticalAlerts}</p>
+                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Critical</p>
+                  <p className="text-3xl font-bold text-red-500">{criticalAlerts}</p>
                 </div>
-                <div className="p-2 bg-red-50 rounded-lg text-red-500">
-                  <Activity size={20} />
+                <div className="p-3 bg-gradient-to-br from-red-100 to-rose-50 rounded-xl text-red-500 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                  <Activity size={22} strokeWidth={2.5} />
                 </div>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(59,130,246,0.15)] transition-all duration-300 flex items-center justify-between group hover:scale-[1.02]">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-semibold">Avg Load</p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Avg Load</p>
+                  <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {totalAgents > 0 ? Math.round(machines.reduce((acc, m) => acc + (m.metrics?.cpu || 0), 0) / totalAgents) : 0}%
                   </p>
                 </div>
-                <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                  <Cpu size={20} />
+                <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-50 rounded-xl text-blue-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                  <Cpu size={22} strokeWidth={2.5} />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Controls */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
+          <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] flex flex-col gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search machines..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all duration-300 shadow-sm hover:shadow-md"
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-slate-500 uppercase">Filter Status</span>
+            <div className="flex flex-col gap-3">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter Status</span>
               <div className="flex flex-wrap gap-2">
                 {(['all', 'online', 'offline', 'critical'] as const).map(f => (
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all border ${filter === f
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-md'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600'
+                    className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all duration-300 border ${filter === f
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white border-transparent shadow-[0_4px_12px_rgba(99,102,241,0.3)] scale-105'
+                      : 'bg-white text-slate-600 border-slate-200/50 hover:border-blue-300 hover:text-blue-600 hover:shadow-sm hover:scale-105'
                       }`}
                   >
                     {f}
@@ -295,31 +298,34 @@ export default function Dashboard() {
         </div>
 
         {/* Extra Metric Panels */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
           {/* Online / Offline Ring */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
-            <svg width={72} height={72} className="shrink-0">
-              <circle cx={36} cy={36} r={ringR} fill="none" stroke="#f1f5f9" strokeWidth={8} />
-              <circle cx={36} cy={36} r={ringR} fill="none" stroke="#ef4444" strokeWidth={8}
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] transition-all duration-300 p-5 flex items-center gap-4 group hover:scale-[1.02]">
+            <svg width={80} height={80} className="shrink-0">
+              <circle cx={40} cy={40} r={ringR} fill="none" stroke="#f1f5f9" strokeWidth={8} />
+              <circle cx={40} cy={40} r={ringR} fill="none" stroke="#ef4444" strokeWidth={8}
                 strokeDasharray={ringCircum}
                 strokeDashoffset={ringCircum * onlinePct}
                 style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%', strokeLinecap: 'round' }} />
-              <circle cx={36} cy={36} r={ringR} fill="none" stroke="#22c55e" strokeWidth={8}
+              <circle cx={40} cy={40} r={ringR} fill="none" stroke="#22c55e" strokeWidth={8}
                 strokeDasharray={ringCircum * onlinePct}
                 strokeDashoffset={0}
                 style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%', strokeLinecap: 'round' }} />
-              <text x={36} y={40} textAnchor="middle" fontSize={14} fontWeight={700} fill="#1e293b">{totalAgents}</text>
+              <text x={40} y={45} textAnchor="middle" fontSize={16} fontWeight={700} fill="#1e293b">{totalAgents}</text>
             </svg>
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-semibold text-slate-700">Machines</p>
-              <div className="flex items-center gap-1.5 text-xs text-emerald-600"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />{onlineAgents} Online</div>
-              <div className="flex items-center gap-1.5 text-xs text-red-500"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" />{offlineAgents} Offline</div>
+            <div className="flex flex-col gap-1.5">
+              <p className="text-sm font-bold text-slate-700 mb-1">Machines</p>
+              <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />{onlineAgents} Online</div>
+              <div className="flex items-center gap-2 text-xs text-red-500 font-medium"><span className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-sm" />{offlineAgents} Offline</div>
             </div>
           </div>
 
           {/* OS Distribution */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <p className="text-xs font-semibold text-slate-500 uppercase mb-3">OS Distribution</p>
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] transition-all duration-300 p-5 group hover:scale-[1.02]">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Server size={14} className="text-blue-500" />
+              OS Distribution
+            </p>
             {Object.keys(osDist).length === 0 ? (
               <p className="text-slate-400 text-sm">No data</p>
             ) : (

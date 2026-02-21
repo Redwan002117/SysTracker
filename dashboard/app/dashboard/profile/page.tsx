@@ -135,17 +135,17 @@ export default function Profile() {
     };
 
     return (
-        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-50 to-blue-50">
+        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
                 
                 {/* Header Section */}
                 <div className="mb-12">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
-                            <User size={28} className="text-white" />
+                        <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25">
+                            <User size={28} className="text-white" strokeWidth={2.5} />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">
+                            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                 User Profile
                             </h1>
                             <p className="text-slate-600 mt-1">Manage your account settings and security preferences.</p>
@@ -155,10 +155,10 @@ export default function Profile() {
 
                 {/* Alert Messages */}
                 {message && (
-                    <div className={`mb-8 p-4 rounded-xl border backdrop-blur-sm transition-all duration-300 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 ${
+                    <div className={`mb-8 p-4 rounded-2xl border backdrop-blur-xl transition-all duration-300 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 ${
                         message.type === 'success' 
-                            ? 'bg-green-50/80 border-green-200 text-green-800 shadow-lg shadow-green-100' 
-                            : 'bg-red-50/80 border-red-200 text-red-800 shadow-lg shadow-red-100'
+                            ? 'bg-emerald-50/90 border-emerald-200/60 text-emerald-800 shadow-[0_8px_32px_rgba(16,185,129,0.15)]' 
+                            : 'bg-red-50/90 border-red-200/60 text-red-800 shadow-[0_8px_32px_rgba(239,68,68,0.15)]'
                     }`}>
                         <div className="mt-0.5 flex-shrink-0">
                             {message.type === 'success' ? (
@@ -175,11 +175,11 @@ export default function Profile() {
 
                     {/* Avatar & Profile Overview Card */}
                     <div className="lg:col-span-1">
-                        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md hover:border-slate-300/60 transition-all duration-300 p-8">
+                        <div className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.12)] transition-all duration-300 p-8 group">
                             <div className="flex flex-col items-center">
                                 {/* Avatar */}
-                                <div className="relative group mb-6">
-                                    <div className="relative w-32 h-32 rounded-full overflow-hidden ring-4 ring-blue-100 shadow-xl bg-gradient-to-br from-blue-400 to-blue-600">
+                                <div className="relative group/avatar mb-6">
+                                    <div className="relative w-32 h-32 rounded-full overflow-hidden ring-4 ring-blue-500/20 group-hover/avatar:ring-purple-500/30 shadow-xl bg-gradient-to-br from-blue-500 to-purple-600 transition-all duration-300">
                                         {avatar ? (
                                             <img
                                                 src={avatar}
@@ -189,11 +189,11 @@ export default function Profile() {
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center">
-                                                <User size={48} className="text-white" />
+                                                <User size={48} className="text-white" strokeWidth={2} />
                                             </div>
                                         )}
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <Camera size={32} className="text-white" />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Camera size={32} className="text-white" strokeWidth={2.5} />
                                         </div>
                                     </div>
                                 </div>
@@ -251,13 +251,13 @@ export default function Profile() {
                     <div className="lg:col-span-2 space-y-8">
                         
                         {/* Account Details Card */}
-                        <div className="group">
-                            <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md hover:border-slate-300/60 transition-all duration-300 p-8">
+                        <div className="group/card">
+                            <div className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.12)] transition-all duration-300 p-8">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2.5 bg-blue-100 rounded-lg">
-                                        <User size={20} className="text-blue-600" />
+                                    <div className="p-2.5 bg-gradient-to-br from-blue-100 to-purple-100 rounded-xl group-hover/card:scale-110 transition-transform duration-200">
+                                        <User size={20} className="text-blue-600" strokeWidth={2.5} />
                                     </div>
-                                    <h2 className="text-xl font-bold text-slate-900">Account Information</h2>
+                                    <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Account Information</h2>
                                 </div>
 
                                 <form onSubmit={handleUpdateProfile} className="space-y-6">
@@ -365,16 +365,16 @@ export default function Profile() {
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="w-full mt-8 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-400 disabled:to-slate-400 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex justify-center items-center gap-2 shadow-md hover:shadow-lg disabled:shadow-none cursor-pointer"
+                                        className="w-full mt-8 bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg hover:shadow-blue-500/30 disabled:from-slate-400 disabled:to-slate-400 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex justify-center items-center gap-2 shadow-md disabled:shadow-none cursor-pointer hover:scale-[1.02]"
                                     >
                                         {loading ? (
                                             <>
-                                                <Loader2 size={18} className="animate-spin" />
+                                                <Loader2 size={18} strokeWidth={2.5} className="animate-spin" />
                                                 Saving...
                                             </>
                                         ) : (
                                             <>
-                                                <Save size={18} />
+                                                <Save size={18} strokeWidth={2.5} />
                                                 Save Changes
                                             </>
                                         )}
@@ -384,13 +384,13 @@ export default function Profile() {
                         </div>
 
                         {/* Security Settings Card */}
-                        <div className="group">
-                            <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md hover:border-slate-300/60 transition-all duration-300 p-8">
+                        <div className="group/card">
+                            <div className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.12)] transition-all duration-300 p-8">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2.5 bg-amber-100 rounded-lg">
-                                        <Lock size={20} className="text-amber-600" />
+                                    <div className="p-2.5 bg-gradient-to-br from-amber-100 to-orange-100 rounded-xl group-hover/card:scale-110 transition-transform duration-200">
+                                        <Lock size={20} className="text-amber-600" strokeWidth={2.5} />
                                     </div>
-                                    <h2 className="text-xl font-bold text-slate-900">Security & Password</h2>
+                                    <h2 className="text-xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">Security & Password</h2>
                                 </div>
 
                                 <form onSubmit={handleChangePassword} className="space-y-6">
@@ -473,16 +473,16 @@ export default function Profile() {
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="w-full mt-8 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 disabled:from-slate-400 disabled:to-slate-400 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex justify-center items-center gap-2 shadow-md hover:shadow-lg disabled:shadow-none cursor-pointer"
+                                        className="w-full mt-8 bg-gradient-to-r from-amber-600 to-orange-600 hover:shadow-lg hover:shadow-amber-500/30 disabled:from-slate-400 disabled:to-slate-400 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex justify-center items-center gap-2 shadow-md disabled:shadow-none cursor-pointer hover:scale-[1.02]"
                                     >
                                         {loading ? (
                                             <>
-                                                <Loader2 size={18} className="animate-spin" />
+                                                <Loader2 size={18} strokeWidth={2.5} className="animate-spin" />
                                                 Updating...
                                             </>
                                         ) : (
                                             <>
-                                                <Lock size={18} />
+                                                <Lock size={18} strokeWidth={2.5} />
                                                 Update Password
                                             </>
                                         )}
@@ -494,9 +494,9 @@ export default function Profile() {
                 </div>
 
                 {/* Security Tips */}
-                <div className="mt-12 p-6 bg-blue-50/70 border border-blue-200/70 rounded-xl backdrop-blur-sm">
+                <div className="mt-12 p-6 bg-blue-50/90 backdrop-blur-xl border border-blue-200/60 rounded-2xl shadow-[0_8px_32px_rgba(59,130,246,0.08)]">
                     <h3 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                        <AlertCircle size={18} />
+                        <AlertCircle size={18} strokeWidth={2.5} />
                         Security Tips
                     </h3>
                     <ul className="text-sm text-blue-800 space-y-2">

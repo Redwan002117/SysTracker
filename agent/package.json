@@ -1,6 +1,6 @@
 {
   "name": "agent",
-  "version": "3.2.6",
+  "version": "3.3.0",
   "description": "SysTracker System Monitoring Agent",
   "bin": "client_agent.js",
   "scripts": {

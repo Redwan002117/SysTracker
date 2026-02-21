@@ -37,7 +37,7 @@ const createAlertPoliciesTable = `
 CREATE TABLE IF NOT EXISTS alert_policies (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    metric TEXT NOT NULL,
+    metric TEXT NOT NULL, -- cpu, ram, disk, offline, network, crash
     operator TEXT NOT NULL,
     threshold REAL NOT NULL,
     duration_minutes INTEGER DEFAULT 1,
@@ -58,6 +58,51 @@ CREATE TABLE IF NOT EXISTS alerts (
     resolved_at DATETIME,
     FOREIGN KEY(machine_id) REFERENCES machines(id),
     FOREIGN KEY(policy_id) REFERENCES alert_policies(id)
+);
+`;
+
+const createChatThreadsTable = `
+CREATE TABLE IF NOT EXISTS chat_threads (
+    id TEXT PRIMARY KEY,
+    is_group INTEGER DEFAULT 0,
+    name TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+`;
+
+const createChatThreadMembersTable = `
+CREATE TABLE IF NOT EXISTS chat_thread_members (
+    thread_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(thread_id, username),
+    FOREIGN KEY(thread_id) REFERENCES chat_threads(id)
+);
+`;
+
+const createChatMessagesTable = `
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY,
+    thread_id TEXT NOT NULL,
+    sender TEXT NOT NULL,
+    body TEXT NOT NULL,
+    attachment_url TEXT,
+    attachment_name TEXT,
+    attachment_size INTEGER,
+    attachment_type TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(thread_id) REFERENCES chat_threads(id)
+);
+`;
+
+const createChatThreadReadsTable = `
+CREATE TABLE IF NOT EXISTS chat_thread_reads (
+    thread_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    last_read_at DATETIME,
+    PRIMARY KEY(thread_id, username),
+    FOREIGN KEY(thread_id) REFERENCES chat_threads(id)
 );
 `;
 
@@ -97,6 +142,26 @@ db.serialize(() => {
     db.run(createAlertsTable, (err) => {
         if (err) console.error("Failed to create alerts table:", err);
         else console.log("Alerts table ensured.");
+    });
+
+    db.run(createChatThreadsTable, (err) => {
+        if (err) console.error("Failed to create chat_threads table:", err);
+        else console.log("Chat threads table ensured.");
+    });
+
+    db.run(createChatThreadMembersTable, (err) => {
+        if (err) console.error("Failed to create chat_thread_members table:", err);
+        else console.log("Chat thread members table ensured.");
+    });
+
+    db.run(createChatMessagesTable, (err) => {
+        if (err) console.error("Failed to create chat_messages table:", err);
+        else console.log("Chat messages table ensured.");
+    });
+
+    db.run(createChatThreadReadsTable, (err) => {
+        if (err) console.error("Failed to create chat_thread_reads table:", err);
+        else console.log("Chat thread reads table ensured.");
     });
 
     columnsToAdd.forEach(({ table, column, type }) => {

@@ -1,10 +1,26 @@
-# SysTracker v3.2.1 — Start Here
+# SysTracker v3.3.0 — Start Here
 
-**Current production version: 3.2.1**
+**Current production version: 3.3.0**
 
 ---
 
-## What's Ready
+## ✨ What's New in v3.3.0
+
+### Modern Dashboard Design
+- 🎨 Complete UI redesign with Glassmorphism and Soft UI Evolution
+- ✨ Smooth animations (200-300ms) throughout the interface
+- 🎯 Blue-to-purple gradient theme with enhanced shadows
+- ♿ WCAG AA+ accessibility compliance
+- 📱 Fully responsive design for all devices
+
+### Production-Ready Deployment
+- 🚀 Remote SSH deployment automation (`deploy-remote.sh`)
+- 🤖 GitHub Actions CI/CD pipeline for automated deployments
+- 💾 Automatic backup and rollback capabilities
+- 🌐 Multi-environment support (production/staging/demo)
+- 🔔 Slack/Discord webhook notifications
+
+### What's Ready
 
 ### Server
 - Docker image: `ghcr.io/redwan002117/systracker:latest`

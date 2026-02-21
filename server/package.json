@@ -1,6 +1,6 @@
 {
   "name": "systracker-server",
-  "version": "3.2.6",
+  "version": "3.3.0",
   "main": "server.js",
   "bin": "server.js",
   "scripts": {
@@ -24,7 +24,9 @@
       "init_db.js",
       "bin/**/*",
       "app.ico",
-      ".env"
+      ".env",
+      "node_modules/sqlite3/build/**/*",
+      "node_modules/sqlite3/lib/**/*"
     ],
     "targets": [
       "node18-win-x64",

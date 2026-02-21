@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  systracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: systracker:latest
+    container_name: systracker
+    restart: unless-stopped
+    ports:
+      - "7777:7777"
+    volumes:
+      # Persist SQLite database
+      - ./data:/app/data
+      # Persist uploaded files (avatars, attachments)
+      - ./uploads:/app/uploads
+      # Persist logs
+      - ./logs:/app/logs
+    environment:
+      # Server Configuration
+      - PORT=7777
+      - NODE_ENV=production
+      - HOST=0.0.0.0
+      
+      # Database
+      - DATABASE_PATH=./data/systracker.db
+      
+      # Security (CHANGE THESE IN PRODUCTION!)
+      - JWT_SECRET=your-secret-key-change-this-in-production-min-32-chars
+      - API_KEY=your-api-key-change-this-in-production-min-32-chars
+      
+      # URLs
+      - FRONTEND_URL=http://localhost:7777
+      - BACKEND_URL=http://localhost:7777
+      
+      # Optional: Pre-create admin user (remove after first run)
+      # - ADMIN_USER=admin
+      # - ADMIN_PASSWORD=ChangeMe!
+      
+      # Optional: SMTP Configuration (uncomment and configure to enable email)
+      # - SMTP_HOST=smtp-relay.brevo.com
+      # - SMTP_PORT=587
+      # - SMTP_SECURE=false
+      # - SMTP_USER=your-email@example.com
+      # - SMTP_PASS=your-smtp-api-key
+      # - SMTP_FROM=noreply@yourdomain.com
+      
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:7777/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits (optional but recommended)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 2G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 512M
+
+# Optional: Add database backup service
+# volumes:
+#   systracker-data:
+#   systracker-uploads:
+#   systracker-logs:

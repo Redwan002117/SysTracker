@@ -107,21 +107,24 @@ export default function AlertsPage() {
         <div className="p-8 max-w-7xl mx-auto space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-                        <Shield className="text-blue-600" /> Security & Alerts
+                    <h1 className="text-3xl font-bold flex items-center gap-3">
+                        <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+                            <Shield className="text-white" size={26} />
+                        </div>
+                        <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">Security & Alerts</span>
                     </h1>
-                    <p className="text-slate-500 mt-1">Monitor system health and configure automated policies.</p>
+                    <p className="text-slate-500 mt-2 ml-1">Monitor system health and configure automated policies.</p>
                 </div>
-                <div className="flex bg-white rounded-lg p-1 border border-slate-200 shadow-sm">
+                <div className="flex bg-white/80 backdrop-blur-xl rounded-xl p-1.5 border border-slate-200/50 shadow-lg">
                     <button
                         onClick={() => setActiveTab('overview')}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === 'overview' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`px-5 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 flex items-center gap-2 ${activeTab === 'overview' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/30' : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'}`}
                     >
                         <Activity size={16} /> Overview
                     </button>
                     <button
                         onClick={() => setActiveTab('policies')}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === 'policies' ? 'bg-purple-50 text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`px-5 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 flex items-center gap-2 ${activeTab === 'policies' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md shadow-purple-500/30' : 'text-slate-600 hover:text-purple-600 hover:bg-purple-50'}`}
                     >
                         <Settings size={16} /> Policies
                     </button>
@@ -132,48 +135,48 @@ export default function AlertsPage() {
                 <div className="space-y-6">
                     {/* Stats Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <div className="bg-white/80 backdrop-blur-xl p-6 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(239,68,68,0.15)] transition-all duration-300 group hover:scale-[1.02]">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 bg-red-50 text-red-600 rounded-xl"><AlertTriangle size={24} /></div>
+                                <div className="p-4 bg-gradient-to-br from-red-100 to-rose-50 text-red-600 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300"><AlertTriangle size={26} strokeWidth={2.5} /></div>
                                 <div>
-                                    <h3 className="text-2xl font-bold text-slate-800">{alerts.filter(a => a.priority === 'high').length}</h3>
-                                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Critical Alerts</p>
+                                    <h3 className="text-3xl font-bold text-slate-800">{alerts.filter(a => a.priority === 'high').length}</h3>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Critical Alerts</p>
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <div className="bg-white/80 backdrop-blur-xl p-6 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(245,158,11,0.15)] transition-all duration-300 group hover:scale-[1.02]">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl"><Bell size={24} /></div>
+                                <div className="p-4 bg-gradient-to-br from-amber-100 to-orange-50 text-amber-600 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300"><Bell size={26} strokeWidth={2.5} /></div>
                                 <div>
-                                    <h3 className="text-2xl font-bold text-slate-800">{alerts.length}</h3>
-                                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Total Active</p>
+                                    <h3 className="text-3xl font-bold text-slate-800">{alerts.length}</h3>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Total Active</p>
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <div className="bg-white/80 backdrop-blur-xl p-6 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(34,197,94,0.15)] transition-all duration-300 group hover:scale-[1.02]">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><CheckCircle size={24} /></div>
+                                <div className="p-4 bg-gradient-to-br from-emerald-100 to-green-50 text-emerald-600 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300"><CheckCircle size={26} strokeWidth={2.5} /></div>
                                 <div>
-                                    <h3 className="text-2xl font-bold text-slate-800">{policies.filter(p => p.enabled).length}</h3>
-                                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">Active Policies</p>
+                                    <h3 className="text-3xl font-bold text-slate-800">{policies.filter(p => p.enabled).length}</h3>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Active Policies</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Active Alerts List */}
-                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                            <h3 className="font-bold text-slate-700">Active Incidents</h3>
+                    <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] overflow-hidden">
+                        <div className="p-6 border-b border-slate-200/50 bg-gradient-to-r from-slate-50/50 to-blue-50/30 flex items-center justify-between">
+                            <h3 className="font-bold text-slate-800 text-lg">Active Incidents</h3>
                             <button
                                 onClick={refreshData}
                                 disabled={loading}
-                                className="text-sm text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline"
+                                className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:scale-100 shadow-md"
                             >
                                 {loading ? 'Refreshing...' : 'Refresh'}
                             </button>
                         </div>
-                        <div className="divide-y divide-slate-50">
+                        <div className="divide-y divide-slate-100/50">
                             {alerts.length === 0 ? (
                                 <div className="p-12 text-center text-slate-400 italic flex flex-col items-center gap-4">
                                     <CheckCircle size={48} className="text-emerald-100" />
