@@ -103,16 +103,14 @@ jobs:
           npm install
           npm run build:all
 
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Compile Server System Tray Launcher (C#)
         run: |
-          $csc = (Get-ChildItem "$env:WINDIR\Microsoft.NET\Framework64\v4*\csc.exe" | Sort-Object | Select-Object -Last 1).FullName
-          if (-not $csc) { $csc = "csc.exe" }
-          Write-Host "Using csc: $csc"
-          & $csc /target:winexe /optimize+ /out:server\dist\SysTrackerServer.exe `
-            server\tray\SysTrackerTray.cs `
-            /r:System.Windows.Forms.dll `
-            /r:System.Drawing.dll `
-            /r:System.Net.Http.dll
+          dotnet publish server\tray\SysTrackerTray.csproj -c Release -o server\dist
           if ($LASTEXITCODE -ne 0) { Write-Error "Tray launcher compile failed"; exit 1 }
           Write-Host "✓ SysTrackerServer.exe (tray launcher) built"
 
