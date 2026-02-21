@@ -88,18 +88,17 @@ jobs:
           echo "📄 Config files:"
           ls -la next.config.* tsconfig.json package.json 2>/dev/null || echo "Config files not found"
           
-      - name: Upload Dashboard Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dashboard-dist
-          path: dashboard/.next/
-          retention-days: 1
-          if-no-files-found: warn
-          
-      - name: Verify Artifact Uploaded
+      - name: Check Build Output
         run: |
-          echo "✓ Artifact upload step completed"
-          echo "  (Use 'if-no-files-found: warn' to allow fallback build in dependent jobs)"
+          cd dashboard
+          if [ ! -d ".next" ]; then
+            echo "❌ ERROR: .next directory not found"
+            exit 1
+          fi
+          echo "✓ Dashboard build successful"
+          
+      # Note: Dashboard artifact upload can timeout with large builds
+      # Dependent jobs will rebuild dashboard instead (faster overall)
 
   # 3. Build Standalone Server & Release (Windows)
   build-server-release:
@@ -120,37 +119,21 @@ jobs:
         with:
           name: SysTracker_Agent
           path: server/bin/
-          
-      - name: Download Dashboard Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dashboard-dist
-          path: server/dashboard-dist/
       
-      - name: Verify Dashboard Downloaded
+      - name: Build Dashboard for Server
         shell: bash
         run: |
-          echo "🔍 Checking dashboard artifact..."
-          if [ ! -d "server/dashboard-dist" ] || [ -z "$(ls -A server/dashboard-dist 2>/dev/null)" ]; then
-            echo "⚠ Dashboard artifact missing or empty - rebuilding locally..."
-            cd dashboard
-            npm install --legacy-peer-deps
-            npm run build
-            if [ -d ".next" ]; then
-              mkdir -p ../server/dashboard-dist
-              cp -r .next/* ../server/dashboard-dist/
-              echo "✓ Local dashboard build copied"
-            else
-              echo "❌ Local dashboard build also failed"
-              mkdir -p ../server/dashboard-dist
-              echo "Creating placeholder" > ../server/dashboard-dist/placeholder.txt
-            fi
-          else
-            FILE_COUNT=$(find server/dashboard-dist -type f | wc -l)
-            echo "✓ Dashboard artifact verified ($FILE_COUNT files)"
+          echo "🏗️ Building dashboard for server..."
+          cd dashboard
+          npm install --legacy-peer-deps || npm install
+          npm run build
+          if [ ! -d ".next" ]; then
+            echo "❌ Dashboard build failed"
+            exit 1
           fi
-          echo "📁 Dashboard artifact contents:"
-          ls -la server/dashboard-dist/ | head -20
+          mkdir -p ../server/dashboard-dist
+          cp -r .next/* ../server/dashboard-dist/
+          echo "✓ Dashboard ready"
           
       - name: Build Standalone Server (pkg + rcedit icon)
         run: |
@@ -178,40 +161,31 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      - name: Setup Node.js for Dashboard
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      
       - name: Download Agent Artifact
         uses: actions/download-artifact@v4
         with:
           name: SysTracker_Agent
           path: server/bin/
-          
-      - name: Download Dashboard Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dashboard-dist
-          path: server/dashboard-dist/
-        continue-on-error: true
-          
-      - name: Verify Dashboard for Docker Build
+      
+      - name: Build Dashboard for Docker
         shell: bash
         run: |
-          echo "🔍 Verifying dashboard for Docker build..."
-          if [ ! -d "server/dashboard-dist" ] || [ -z "$(ls -A server/dashboard-dist 2>/dev/null)" ]; then
-            echo "⚠ Dashboard artifact missing - rebuilding locally..."
-            cd dashboard
-            npm install --legacy-peer-deps
-            npm run build
-            if [ -d ".next" ]; then
-              mkdir -p ../server/dashboard-dist
-              cp -r .next/* ../server/dashboard-dist/
-              echo "✓ Local dashboard build copied for Docker"
-            else
-              echo "⚠ Dashboard build produced no output"
-              mkdir -p ../server/dashboard-dist
-            fi
-          else
-            FILE_COUNT=$(find server/dashboard-dist -type f | wc -l)
-            echo "✓ Dashboard ready for Docker ($FILE_COUNT files)"
+          echo "🏗️ Building dashboard for Docker..."
+          cd dashboard
+          npm install --legacy-peer-deps || npm install
+          npm run build
+          if [ ! -d ".next" ]; then
+            echo "❌ Dashboard build failed"
+            exit 1
           fi
+          mkdir -p ../server/dashboard-dist
+          cp -r .next/* ../server/dashboard-dist/
+          echo "✓ Dashboard ready for Docker"
           
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
