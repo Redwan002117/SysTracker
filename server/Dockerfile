@@ -16,6 +16,8 @@ RUN npm install --only=production
 COPY server.js .
 COPY schema_sqlite.sql .
 COPY emailTemplates.js .
+COPY dataValidation.js .
+COPY errorLogger.js .
 COPY logo.ico .
 COPY bin ./bin
 
