@@ -1,5 +1,12 @@
+import type { Metadata } from 'next';
 import TopBar from '../../components/TopBar';
 import AuthGuard from '../../components/AuthGuard';
+
+export const metadata: Metadata = {
+    title: 'Fleet Overview',
+    description: 'Monitor your Windows fleet — real-time CPU, RAM, disk, and network metrics across all connected machines.',
+    robots: { index: false, follow: false },
+};
 
 export default function DashboardLayout({
     children,
