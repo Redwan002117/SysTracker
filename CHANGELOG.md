@@ -5,6 +5,23 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [v3.1.6] - 2026-02-21
+
+### 🐛 Bug Fixes
+- **Profile card save no longer silently fails** — `handleProfileUpdate` now returns `Promise<boolean>`; ProfileCard reverts on failure and shows an error message
+- **Profile card no longer reverts after panel reopen** — added `useEffect` in `page.tsx` to keep `selectedMachine` synced with the live `machines` array from socket events
+- **Profile card local state no longer stale** — added `useEffect` in `ProfileCard.tsx` to sync from `machine.profile` prop when not actively editing
+- **Profile card edit mode over-expanded the UI** — reduced avatar size, padding, input height, and button size in edit mode; tags hidden while editing
+
+### ⚙️ CI / Build Fixes
+- Fixed `test-and-validate.yml` "Server EXE not found" — corrected path from `server\systracker-server-win.exe` to `server\dist\systracker-server-win.exe`
+- Fixed tray C# compile error (`CS1056: Unexpected character '$'`) — replaced legacy `csc.exe` (C# 5) with `dotnet publish` via new `SysTrackerTray.csproj` targeting `net48` with `LangVersion=9.0`
+- Fixed `CS0579: Duplicate AssemblyAttribute` errors — added `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>` to csproj
+- Fixed `CS0234: System.Net.Http not found` in net48 — added explicit `<Reference Include="System.Net.Http" />`
+- Fixed NSIS agent installer `can't open file agent\app.ico` — all paths in `agent/installer.nsi` are now script-relative (removed erroneous `agent\` prefix)
+
+---
+
 ## [v3.1.5] - 2026-02-21
 
 ### 🐛 Bug Fixes

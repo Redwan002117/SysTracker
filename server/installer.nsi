@@ -19,12 +19,12 @@ SetCompressor        /SOLID lzma
 Unicode              true
 
 ; ---- Version Info -------------------------------------------
-VIProductVersion     "3.1.5.0"
+VIProductVersion     "3.1.6.0"
 VIAddVersionKey      "ProductName"      "SysTracker Server"
 VIAddVersionKey      "CompanyName"      "Redwan002117"
 VIAddVersionKey      "FileDescription"  "SysTracker Server Installer"
-VIAddVersionKey      "FileVersion"      "3.1.5.0"
-VIAddVersionKey      "ProductVersion"   "3.1.5"
+VIAddVersionKey      "FileVersion"      "3.1.6.0"
+VIAddVersionKey      "ProductVersion"   "3.1.6"
 VIAddVersionKey      "LegalCopyright"   "© 2026 Redwan002117"
 
 ; ---- MUI Settings -------------------------------------------
@@ -167,7 +167,7 @@ Section "SysTracker Server" SecServer
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "DisplayName"      "SysTracker Server"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
-        "DisplayVersion"   "3.1.5"
+        "DisplayVersion"   "3.1.6"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "Publisher"        "Redwan002117"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
