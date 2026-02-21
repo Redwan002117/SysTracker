@@ -98,12 +98,13 @@ export default function SystemLoadChart() {
                 </div>
             </div>
 
-            <div className="h-64 w-full">
+            <div className="h-64 w-full flex flex-col">
                 {loading && data.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-slate-400">
                         <Loader2 className="animate-spin mr-2" /> Loading data...
                     </div>
                 ) : (
+                    <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data}>
                             <defs>
@@ -157,6 +158,7 @@ export default function SystemLoadChart() {
                             />
                         </AreaChart>
                     </ResponsiveContainer>
+                    </div>
                 )}
             </div>
         </div>

@@ -487,6 +487,12 @@ app.post('/api/auth/login', (req, res) => {
     });
 });
 
+// Logout Endpoint — JWT is stateless; client drops the token.
+// Route must exist to avoid 404 in the browser console.
+app.post('/api/auth/logout', (req, res) => {
+    res.json({ message: 'Logged out' });
+});
+
 // --- Settings Endpoints ---
 
 // Get General Settings (API Key)

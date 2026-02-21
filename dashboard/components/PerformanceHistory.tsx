@@ -114,8 +114,9 @@ export default function PerformanceHistory({ machineId }: PerformanceHistoryProp
             {/* Charts Grid */}
             <div className="space-y-8">
                 {/* CPU Chart */}
-                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-64">
-                    <div className="text-xs font-bold text-slate-500 mb-4">CPU Usage (%)</div>
+                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-64 flex flex-col">
+                    <div className="text-xs font-bold text-slate-500 mb-3">CPU Usage (%)</div>
+                    <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data}>
                             <defs>
@@ -153,11 +154,13 @@ export default function PerformanceHistory({ machineId }: PerformanceHistoryProp
                             />
                         </AreaChart>
                     </ResponsiveContainer>
+                    </div>
                 </div>
 
                 {/* RAM Chart */}
-                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-64">
-                    <div className="text-xs font-bold text-slate-500 mb-4">RAM Usage (%)</div>
+                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-64 flex flex-col">
+                    <div className="text-xs font-bold text-slate-500 mb-3">RAM Usage (%)</div>
+                    <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data}>
                             <defs>
@@ -195,11 +198,13 @@ export default function PerformanceHistory({ machineId }: PerformanceHistoryProp
                             />
                         </AreaChart>
                     </ResponsiveContainer>
+                    </div>
                 </div>
 
                 {/* Network Chart */}
-                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-64">
-                    <div className="text-xs font-bold text-slate-500 mb-4">Network Traffic (Mbps)</div>
+                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm h-64 flex flex-col">
+                    <div className="text-xs font-bold text-slate-500 mb-3">Network Traffic (Mbps)</div>
+                    <div className="flex-1 min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data}>
                             <defs>
@@ -251,6 +256,7 @@ export default function PerformanceHistory({ machineId }: PerformanceHistoryProp
                             />
                         </AreaChart>
                     </ResponsiveContainer>
+                    </div>
                 </div>
             </div>
         </div>
