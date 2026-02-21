@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { fetchWithAuth } from '../../../lib/auth';
 import { User, Mail, Lock, Save, AlertCircle, CheckCircle, Eye, EyeOff, Loader2, MapPin, FileText, Camera, Shuffle } from 'lucide-react';
 import AvatarUpload from '../../../components/AvatarUpload';
@@ -180,18 +179,16 @@ export default function Profile() {
                             <div className="flex flex-col items-center">
                                 {/* Avatar */}
                                 <div className="relative group mb-6">
-                                    <div className="relative w-32 h-32 rounded-full overflow-hidden ring-4 ring-blue-100 shadow-xl">
+                                    <div className="relative w-32 h-32 rounded-full overflow-hidden ring-4 ring-blue-100 shadow-xl bg-gradient-to-br from-blue-400 to-blue-600">
                                         {avatar ? (
-                                            <Image
+                                            <img
                                                 src={avatar}
                                                 alt="Profile"
-                                                fill
-                                                sizes="128px"
-                                                className="object-cover"
-                                                unoptimized
+                                                className="w-full h-full object-cover"
+                                                onError={() => setAvatar('')}
                                             />
                                         ) : (
-                                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                                            <div className="w-full h-full flex items-center justify-center">
                                                 <User size={48} className="text-white" />
                                             </div>
                                         )}

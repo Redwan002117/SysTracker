@@ -1,185 +1,191 @@
-# SysTracker - Enterprise System Monitoring Solution
+# SysTracker — Self-Hosted Windows Fleet Monitoring
 
-**SysTracker** is a powerful, self-hosted system monitoring tool designed to track performance metrics (CPU, RAM, Disk, Network) across a fleet of Windows computers. It consists of a central **Admin Dashboard** and lightweight **Agents** deployed on client machines.
+**SysTracker** is a powerful, self-hosted Remote Monitoring & Management (RMM) tool for Windows fleets.
+Real-time telemetry, hardware inventory, process monitoring, Windows Event Logs — all on your own infrastructure.
 
-![SysTracker Dashboard](https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/banner.svg) 
+![SysTracker Banner](https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/banner.svg)
 
----
-
-## 🚀 Key Features
-
-*   **Real-Time Monitoring**: Live 3-second updates via optimized Socket.IO.
-*   **All-in-One Standalone**: The server is a single EXE containing the Dashboard and Agent.
-*   **Centralized Dashboard**: View all your machines in one sleek, updated interface.
-*   **Detailed Metrics**: Track CPU Usage, RAM, Disk Space, Network details, and Uptime.
-*   **Remote Management**: Send commands (Restart, Shutdown) to agents.
-*   **Zero-Dependency Agents**: Download pre-configured agents directly from your dashboard.
+[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)](https://github.com/Redwan002117/SysTracker/releases/latest)
+[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
+[![Website](https://img.shields.io/badge/website-systracker.rico.bd-informational)](https://systracker.rico.bd)
 
 ---
 
-## 📂 Repository Structure
+## Features
 
-*   **/server**: Node.js Standalone Backend. Serves both the API and the embedded Dashboard.
-*   **/dashboard**: Next.js (React) Frontend. Bundled into the server binary.
-*   **/agent**: Python-based Client Agent. Optimized for minimal payload size.
-*   **/Release**: Contains the latest compiled v3.1.1 binaries.
-
----
-
-## 💻 Agent Installation (Windows)
-
-The Agent runs as a **Windows Service** (starts automatically, runs in background).
-
-### 3. Install the Agent (Single Standalone App)
-You can install the agent on any Windows machine using the standalone executable.
-The Agent is a **Single Standalone Application**. It installs itself as a Windows Service.
-
-1.  **Download** `SysTracker_Agent.exe` from the Release.
-2.  Open **PowerShell** or **Command Prompt** as Administrator.
-3.  Run the install command:
-    ```powershell
-    .\SysTracker_Agent.exe --install
-    ```
-    *You can also pass `--url` and `--key` arguments to skip prompts.*
-
-4.  The agent will:
-    *   **Prompt you for Server URL and API Key** (if not provided).
-    *   **Test the connection** to the server.
-    *   Copy itself to `C:\Program Files\SysTracker Agent`.
-    *   Create a `config.json` with your settings.
-    *   Register a background Scheduled Task (`SysTrackerAgent`).
-    *   Start automatically.
-
-### Management
-- **Stop/Uninstall**: `.\SysTracker_Agent.exe --uninstall`
-- **Kill Switch**: `.\SysTracker_Agent.exe --kill`
-- **Logs**: Check `agent.log` in `C:\Program Files\SysTracker Agent`.
-- **Troubleshooting**: Run `.\agent\FIND_APP_INSTALLATION.ps1` to locate your installation.
-
-## 📦 Installation & Deployment
-
-### Quick Start (The "Easy Way")
-Go to the [**Releases Page**](https://github.com/Redwan002117/SysTracker/releases/latest) or the [**SysTracker website**](https://systracker.rico.bd/) and download the latest version (**v3.1.1**).
-
-**1. Run the Admin Server**
-*   **Windows**: Download `SysTracker_Server.exe`. Run it.
-*   **Linux**: Download `SysTracker_Server`. Run `chmod +x` and then execute it.
-*   **Access**: Open `http://localhost:7777` in your browser.
-
-**2. Setup & Deployment**
-*   Create your admin account through the setup wizard.
-*   Go to **Settings > Deployment & Downloads**.
-*   Download the **Agent EXE** and run it on machines you want to monitor. It's already configured to talk to your server!
+- **Real-Time Monitoring** — Live 3-5 second updates via Socket.IO across all connected agents
+- **Hardware Inventory** — CPU, RAM modules, GPU, motherboard, disks, network adapters, serials, UUIDs
+- **Process Monitoring** — Top processes with CPU%, RAM, and PID
+- **Windows Event Logs** — Security and system events (login/logout, failures, service changes)
+- **Fleet Overview** — All machines in a single dashboard with live status indicators
+- **Remote Actions** — Restart or shut down machines remotely from the dashboard
+- **Profile Management** — Assign names, floors, desks, asset IDs, and avatars to machines/users
+- **JWT Authentication** — Secure admin login with token-based sessions
+- **Static Dashboard** — Next.js exported frontend served directly by the Express server
+- **Easy Deployment** — One-line PowerShell installer for agents; Docker support for the server
 
 ---
 
-### Metric 2: Docker / CasaOS (Recommended)
-We automatically publish multi-arch Docker images (AMD64 & ARM64) to GitHub Container Registry (GHCR).
+## Repository Structure
 
-**CasaOS Setup:**
-1.  **Install Custom App**.
-2.  **Image**: `ghcr.io/redwan002117/systracker:latest`
-3.  **Ports**: Map Host `7777` to Container `7777`.
-4.  **Volumes**: Map `/DATA/AppData/systracker/data` to `/app/data`.
-5.  **Environment Variables (Optional for Auto-Setup)**:
-    *   `ADMIN_USER`: `admin`
-    *   `ADMIN_PASSWORD`: `secure_password`
+```
+SysTracker/
+├── server/          # Node.js (Express) backend — REST API, Socket.IO, SQLite
+├── dashboard/       # Next.js frontend — static export served by the server
+├── agent/           # Python agent — collects metrics, transmits to server
+├── Docker/          # Docker Compose configurations
+└── LICENSE          # SysTracker Proprietary License
+```
 
-**Docker Compose:**
+---
+
+## Quick Start
+
+### Agent Installation (Windows — One Liner)
+
+Open **PowerShell as Administrator** on any Windows machine you want to monitor:
+
+```powershell
+irm https://systracker.rico.bd/install | iex
+```
+
+The interactive installer will prompt for your Server URL and API key, install the agent as a Windows Scheduled Task, and start it automatically.
+
+**Manual install:**
+```powershell
+.\SysTracker_Agent.exe --install --url https://your-server.com --key YOUR_API_KEY
+```
+
+**Manage the agent:**
+```powershell
+# Uninstall
+.\SysTracker_Agent.exe --uninstall
+
+# Kill switch
+.\SysTracker_Agent.exe --kill
+
+# Logs at: C:\Program Files\SysTracker Agent\agent.log
+```
+
+---
+
+### Server Deployment
+
+#### Option 1 — Docker Compose (Recommended)
+
 ```yaml
-version: '3'
 services:
   systracker:
     image: ghcr.io/redwan002117/systracker:latest
-    container_name: systracker-admin
+    container_name: systracker
     restart: unless-stopped
     ports:
       - "7777:7777"
     volumes:
       - ./data:/app/data
+      - ./uploads:/app/uploads
     environment:
-      - ADMIN_USER=admin          # Optional: Creates admin user automatically
-      - ADMIN_PASSWORD=ChangeMe!  # Optional: Skips Setup Wizard
+      - ADMIN_USER=admin          # Optional: auto-creates admin account
+      - ADMIN_PASSWORD=ChangeMe!  # Optional: skips Setup Wizard
+```
+
+```bash
+docker compose up -d
+# Open http://localhost:7777
+```
+
+#### Option 2 — Linux Native
+
+```bash
+chmod +x systracker-server-linux
+./systracker-server-linux
+# Open http://localhost:7777
+```
+
+#### Option 3 — Run from Source
+
+```bash
+# 1. Build the dashboard
+cd dashboard && npm install && npm run build
+
+# 2. Copy static export to server
+cp -r dashboard/out/* server/dashboard-dist/
+
+# 3. Start the server
+cd server && npm install && node server.js
 ```
 
 ---
 
-## 🛠️ Development (Build from Source)
+## Architecture
 
-### Prerequisites
-*   Node.js (v18+)
-*   Python 3.10+ (for Agent)
-*   `pip install pyinstaller` (for building Agent EXE)
-*   `npm install -g pkg` (for bundling Server EXE)
-
-### 1. Build the Dashboard
-```bash
-cd dashboard
-npm install
-npm run build
-# This creates a static export in dashboard/out
+```
+Admin Dashboard  (Next.js static export)
+        |
+        |  REST API + Socket.IO
+        |
+SysTracker Server  (Node.js / Express + SQLite)
+        |
+        |  HTTPS Agent Reports
+   _____|_____
+  /     |     \
+Agent  Agent  Agent   (Windows, Python)
 ```
 
-### 2. Build the Server
+---
+
+## Email / SMTP Configuration
+
+Configure SMTP in the dashboard under **Settings > Email**. Recommended provider: **Brevo** (generous free tier).
+
+| Setting  | Value                  |
+|----------|------------------------|
+| Host     | smtp-relay.brevo.com   |
+| Port     | 587                    |
+| Secure   | false (STARTTLS)       |
+| User     | Your Brevo login email |
+| Password | Brevo SMTP API key     |
+
+---
+
+## Remote Access (Cloudflare Tunnel)
+
+To expose the server securely without opening firewall ports:
+
 ```bash
-cd server
-# Copy dashboard assets to server
-mkdir dashboard-dist
-cp -r ../dashboard/out/* dashboard-dist/
-
-# Install dependencies
-npm install
-
-# Run locally
-node server.js
-
-# OR Build Executable
-pkg . --out-path dist
+cloudflared tunnel run --url http://localhost:7777 systracker
 ```
 
-### 3. Build the Agent
+Point agents to your public domain: `https://monitor.yourdomain.com`
+
+---
+
+## Development
+
 ```bash
+# Agent (Python)
 cd agent
 pip install -r requirements.txt
 pip install pyinstaller
+pyinstaller SysTracker_Agent.spec   # outputs dist/SysTracker_Agent.exe
 
-# Build standalone executable (Silent Mode)
-pyinstaller SysTracker_Agent.spec
-# Output will be in dist/SysTracker_Agent.exe
+# Dashboard (Next.js)
+cd dashboard
+npm install
+npm run dev     # development server on :3000
+npm run build   # static export to out/
+
+# Server (Node.js)
+cd server
+npm install
+node server.js  # runs on :7777
 ```
-
----
-
-## 🔒 Security & Remote Access
-To access your Admin Server from outside your network securely, we recommend **Cloudflare Tunnel**.
-
-1.  Install `cloudflared` on your Server.
-2.  Start the tunnel: `cloudflared tunnel run --url http://localhost:7777 systracker`
-3.  Point your Agents to your public domain (e.g., `https://monitor.yourdomain.com/api`).
-
-3.  Point your Agents to your public domain (e.g., `https://monitor.yourdomain.com/api`).
-
----
-
-## 📧 Email Configuration (SMTP)
-
-SysTracker supports sending emails for password resets and notifications. You can configure this directly in the **Dashboard > Settings** page.
-
-### Recommended Providers (Smart Host)
-You can use any standard SMTP provider. Here are the settings for **Brevo (formerly Sendinblue)**, which has a generous free tier:
-
-*   **Host**: `smtp-relay.brevo.com`
-*   **Port**: `587`
-*   **User**: `your-email@example.com` (The email you use to login to Brevo)
-*   **Password**: `YOUR_XSmtpw_API_KEY` (Get this from Brevo Dashboard > SMTP & API > SMTP Keys)
-*   **Secure**: `false` (uses STARTTLS)
-*   **From Email**: `admin@your-domain.com` (Must be a sender authenticated in Brevo)
-
-*Note: Gmail can also be used, but requires an "App Password" and `secure: true` on port `465`.*
 
 ---
 
 ## License
-**SysTracker Proprietary License** — Personal / non-commercial use only.
-Commercial use, redistribution, and hosting as a service require written permission from the author.
+
+**SysTracker Proprietary License** — Personal and non-commercial use is permitted free of charge.
+Commercial use, redistribution, or hosting as a service requires written permission from the author.
+
 See [LICENSE](LICENSE) for full terms. Copyright (c) 2026 SysTracker / RedwanCodes.

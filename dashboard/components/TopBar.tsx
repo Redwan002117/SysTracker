@@ -44,7 +44,7 @@ const TopBar = () => {
         if (!token) return;
         fetch('/api/auth/status', { headers: { Authorization: `Bearer ${token}` } })
             .then(r => r.ok ? r.json() : null)
-            .then(data => { if (data) setProfile(data); })
+            .then(data => { if (data?.authenticated && data.user) setProfile(data.user); })
             .catch(() => {});
     }, [isMenuOpen]);
 
