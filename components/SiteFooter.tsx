@@ -15,10 +15,10 @@ function RedwanCodesLogo() {
             target="_blank"
             rel="noopener noreferrer"
             title="RedwanCodes"
-            className="group relative flex items-center gap-2 select-none"
+            className="group relative flex items-center gap-2.5 select-none"
         >
             {/* Logo image with hover swap */}
-            <span className="relative w-8 h-8 flex-shrink-0">
+            <span className="relative w-14 h-14 flex-shrink-0">
                 {/* Default: 2.svg */}
                 <img
                     src="https://redwancodes.com/wp-content/uploads/2025/08/2.svg"
@@ -38,7 +38,7 @@ function RedwanCodesLogo() {
                     draggable={false}
                 />
             </span>
-            <span className="text-xs text-slate-400 group-hover:text-slate-600 transition-colors leading-tight">
+            <span className="text-sm font-medium text-slate-500 group-hover:text-slate-700 transition-colors leading-tight">
                 RedwanCodes
             </span>
         </a>
@@ -68,7 +68,6 @@ export default function SiteFooter({ extraTopMargin = false, showContact = false
 
                     {/* Centre — nav links */}
                     <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
-                        <Link href="/download"      className="hover:text-blue-600 transition-colors">Download</Link>
                         {showContact && (
                             <Link href="/contact"   className="hover:text-blue-600 transition-colors">Contact</Link>
                         )}

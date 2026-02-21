@@ -21,7 +21,7 @@ export default function TermsOfUse() {
                     </div>
                     <p className="text-slate-500 text-sm">Last updated: {lastUpdated}</p>
                     <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-sm">
-                        SysTracker is open-source software licensed under the MIT License. By deploying or using this Software, you agree to these terms.
+                        SysTracker is proprietary software licensed under the SysTracker Proprietary License. By deploying or using this Software, you agree to these terms.
                     </div>
                 </div>
 
@@ -31,8 +31,8 @@ export default function TermsOfUse() {
                     </Section>
 
                     <Section title="2. License">
-                        <p>SysTracker is released under the <strong>MIT License</strong>. You are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, subject to the conditions of the MIT License included with the source code.</p>
-                        <p>The MIT License is provided &quot;as is,&quot; without warranty of any kind, express or implied.</p>
+                        <p>SysTracker is released under the <strong>SysTracker Proprietary License</strong>. Personal and non-commercial use is permitted free of charge. Commercial use, redistribution, or sublicensing requires explicit written permission from the project maintainer.</p>
+                        <p>The full license text is available in the <code>LICENSE</code> file distributed with the source code. The Software is provided &quot;as is,&quot; without warranty of any kind, express or implied.</p>
                     </Section>
 
                     <Section title="3. Permitted Use">
@@ -40,8 +40,9 @@ export default function TermsOfUse() {
                         <ul>
                             <li>Monitor machines and infrastructure that you own or have explicit authorization to monitor.</li>
                             <li>Collect and store telemetry data on your own self-hosted infrastructure.</li>
-                            <li>Modify and redistribute the Software in accordance with the MIT License.</li>
-                            <li>Deploy the Software in commercial, enterprise, or personal environments.</li>
+                            <li>Deploy the Software in personal or non-commercial environments free of charge.</li>
+                            <li>Deploy the Software in commercial or enterprise environments with prior written permission from the maintainer.</li>
+                            <li>Modify the Software for personal or internal use, provided modifications are not redistributed.</li>
                         </ul>
                     </Section>
 
@@ -84,7 +85,7 @@ export default function TermsOfUse() {
                     </Section>
 
                     <Section title="10. Governing Law">
-                        <p>These Terms shall be governed by and construed in accordance with the laws applicable in the jurisdiction where the Software is deployed. The SysTracker project does not impose any specific governing jurisdiction, as it is a self-hosted, open-source tool.</p>
+                        <p>These Terms shall be governed by and construed in accordance with the laws applicable in the jurisdiction where the Software is deployed. The SysTracker project does not impose any specific governing jurisdiction, as it is a self-hosted tool deployed on your own infrastructure.</p>
                     </Section>
 
                     <Section title="11. Contact">

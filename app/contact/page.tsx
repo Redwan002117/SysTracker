@@ -12,11 +12,11 @@ import {
 } from 'lucide-react';
 
 const faqs = [
-    { q: 'Is SysTracker free to use?', a: 'Yes. SysTracker is fully open-source and released under the MIT License. You can use it for personal, commercial, or enterprise deployments at no cost.' },
+    { q: 'Is SysTracker free to use?', a: 'SysTracker is free for personal and non-commercial use under the SysTracker Proprietary License. Commercial or enterprise deployments require written permission from the project maintainers. Contact SysTracker@rico.bd for licensing inquiries.' },
     { q: 'Where is my data stored?', a: 'All data is stored exclusively on your own server in a local SQLite database. Nothing is sent to us or any third party. You are the sole data controller.' },
     { q: 'Does SysTracker work on Linux?', a: 'The Admin Server runs on Linux. The Agent is currently Windows-only, but Linux agent support is planned.' },
     { q: 'How do I report a security vulnerability?', a: 'Please open a private security advisory on GitHub. Do not post security issues in public GitHub Issues.' },
-    { q: 'Can I contribute to SysTracker?', a: 'Absolutely! Fork the repo, make your changes, and open a pull request. All contributions are welcome.' },
+    { q: 'Can I contribute to SysTracker?', a: 'Yes! Bug reports, feature requests, and pull requests are welcome. Open an issue or pull request on the GitHub repository. Note that contributions submitted to the project are covered under the SysTracker Proprietary License.' },
     { q: 'Is SysTracker coming to the Microsoft Store?', a: 'Yes — we have registered with Microsoft Partner Center and are in the process of enlisting SysTracker in the Microsoft Store to provide signed, SmartScreen-trusted binaries.' },
 ];
 

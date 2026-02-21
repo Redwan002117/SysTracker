@@ -145,7 +145,7 @@ export default function HomePage() {
                                 transition={{ delay: 0.2 }}
                                 className="text-lg text-slate-600 max-w-xl mb-8 leading-relaxed"
                             >
-                                A self-hosted, open-source Remote Monitoring &amp; Management (RMM) tool for Windows fleets.
+                                A self-hosted Remote Monitoring &amp; Management (RMM) tool for Windows fleets.
                                 Real-time telemetry, hardware inventory, event logs — all on your own infrastructure.
                             </motion.p>
 

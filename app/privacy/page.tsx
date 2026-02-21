@@ -27,7 +27,7 @@ export default function PrivacyPolicy() {
 
                 <div className="prose prose-slate max-w-none space-y-10">
                     <Section title="1. Overview">
-                        <p>SysTracker (&quot;the Software&quot;) is an open-source, self-hosted remote monitoring and management (RMM) tool. This Privacy Policy explains what data the Software collects, how it is stored, and who has access to it. Because SysTracker is self-hosted, <strong>you are the data controller</strong> for all information processed by this Software.</p>
+                        <p>SysTracker (&quot;the Software&quot;) is a proprietary, self-hosted remote monitoring and management (RMM) tool. This Privacy Policy explains what data the Software collects, how it is stored, and who has access to it. Because SysTracker is self-hosted, <strong>you are the data controller</strong> for all information processed by this Software.</p>
                     </Section>
 
                     <Section title="2. Data Collected by the Agent">
@@ -90,7 +90,7 @@ export default function PrivacyPolicy() {
                     </Section>
 
                     <Section title="10. Contact">
-                        <p>SysTracker is an open-source project. For questions or concerns, contact us at <a href="mailto:SysTracker@rico.bd" className="text-blue-600 hover:underline">SysTracker@rico.bd</a> or open an issue on the <a href="https://github.com/Redwan002117/SysTracker" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GitHub repository</a>.</p>
+                        <p>SysTracker is a self-hosted monitoring project. For questions or concerns, contact us at <a href="mailto:SysTracker@rico.bd" className="text-blue-600 hover:underline">SysTracker@rico.bd</a> or open an issue on the <a href="https://github.com/Redwan002117/SysTracker" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GitHub repository</a>.</p>
                     </Section>
                 </div>
             </main>
