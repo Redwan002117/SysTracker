@@ -85,6 +85,10 @@ agent/build/
 agent/node_modules/
 dashboard/node_modules/
 
+# .NET / C# tray app build artifacts
+server/tray/bin/
+server/tray/obj/
+
 # Misc
 .cache/
 .turbo/

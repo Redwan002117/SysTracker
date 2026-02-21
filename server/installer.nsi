@@ -19,12 +19,12 @@ SetCompressor        /SOLID lzma
 Unicode              true
 
 ; ---- Version Info -------------------------------------------
-VIProductVersion     "3.2.0.0"
+VIProductVersion     "3.2.2.0"
 VIAddVersionKey      "ProductName"      "SysTracker Server"
 VIAddVersionKey      "CompanyName"      "RedwanCodes"
 VIAddVersionKey      "FileDescription"  "SysTracker Server Installer"
-VIAddVersionKey      "FileVersion"      "3.2.0.0"
-VIAddVersionKey      "ProductVersion"   "3.2.0"
+VIAddVersionKey      "FileVersion"      "3.2.2.0"
+VIAddVersionKey      "ProductVersion"   "3.2.2"
 VIAddVersionKey      "LegalCopyright"   "© 2026 SysTracker / RedwanCodes"
 
 ; ---- MUI Settings -------------------------------------------

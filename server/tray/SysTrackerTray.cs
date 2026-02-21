@@ -21,7 +21,7 @@ using System.Windows.Forms;
 [assembly: AssemblyDescription("SysTracker Server Launcher")]
 [assembly: AssemblyCompany("RedwanCodes")]
 [assembly: AssemblyProduct("SysTracker")]
-[assembly: AssemblyVersion("3.1.6.0")]
+[assembly: AssemblyVersion("3.2.2.0")]
 
 class SysTrackerTray : ApplicationContext
 {

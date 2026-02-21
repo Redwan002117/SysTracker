@@ -1,0 +1,32 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "server", "server", "{DAD03CFC-D5FA-AC94-41C7-9ABAB326F09E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tray", "tray", "{01281DB8-C0E2-200A-AA01-8CF82833CC61}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SysTrackerTray", "server\tray\SysTrackerTray.csproj", "{92479A53-E8E7-3891-7A2D-AB59483DDE57}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{92479A53-E8E7-3891-7A2D-AB59483DDE57}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{92479A53-E8E7-3891-7A2D-AB59483DDE57}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{92479A53-E8E7-3891-7A2D-AB59483DDE57}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{92479A53-E8E7-3891-7A2D-AB59483DDE57}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{01281DB8-C0E2-200A-AA01-8CF82833CC61} = {DAD03CFC-D5FA-AC94-41C7-9ABAB326F09E}
+		{92479A53-E8E7-3891-7A2D-AB59483DDE57} = {01281DB8-C0E2-200A-AA01-8CF82833CC61}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E2CE1318-3EED-4579-9794-B39B79BDC86F}
+	EndGlobalSection
+EndGlobal
