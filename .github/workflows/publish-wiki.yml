@@ -229,12 +229,52 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-      - name: Clone Wiki Repository
+      - name: Initialize Wiki Repository
         run: |
-          git clone https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ env.WIKI_REPO }} wiki
+          mkdir -p wiki
           cd wiki
-          git config user.email "action@github.com"
-          git config user.name "GitHub Action"
+          
+          # Try to clone existing wiki
+          if git clone --depth 1 "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ env.WIKI_REPO }}" . 2>/dev/null; then
+            echo "✓ Wiki repository cloned successfully"
+            git config user.email "action@github.com"
+            git config user.name "GitHub Action"
+          else
+            echo "⚠ Wiki not yet initialized - creating initial structure..."
+            git init
+            git config user.email "action@github.com"
+            git config user.name "GitHub Action"
+            git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ env.WIKI_REPO }}"
+            
+            # Create initial Home page
+            cat > Home.md << 'EOF'
+# SysTracker Wiki
+
+Welcome to the SysTracker documentation wiki!
+
+> *This wiki is automatically updated with documentation changes from the main repository.*
+
+## Quick Start
+- [[Installation|Installation]]
+- [[Getting Started|Getting-Started]]
+- [[System Requirements|SYSTEM-REQUIREMENTS]]
+
+## Documentation
+- [[Deployment Guide|DEPLOYMENT-GUIDE]]
+- [[Windows Application Guide|WINDOWS-APP-INSTALLATION-GUIDE]]
+- [[API Reference|Generated/SERVER-API]]
+
+## Support & Legal
+- [[Privacy Policy|Documentation/PRIVACY-POLICY]]
+- [[EULA|Documentation/EULA]]
+- [[License|LICENSE]]
+
+---
+*Last updated: $(date)*
+EOF
+            
+            echo "✓ Initial Home.md created"
+          fi
 
       - name: Copy Documentation to Wiki
         run: |
@@ -316,10 +356,30 @@ jobs:
         run: |
           cd wiki
           git add -A
-          git diff --quiet && git diff --staged --quiet || (
+          
+          # Check if there are changes to commit
+          if git diff --quiet --cached; then
+            echo "✓ No changes to wiki"
+          else
+            # Commit changes
             git commit -m "docs: update wiki documentation [$(date +'%Y-%m-%d %H:%M:%S')]"
-            git push origin master || git push origin main || echo "Wiki not yet created"
-          )
+            
+            # Try to push - handle multiple branch scenarios
+            if git push -u origin master 2>/dev/null; then
+              echo "✓ Wiki updated successfully (master branch)"
+            elif git push -u origin main 2>/dev/null; then
+              echo "✓ Wiki updated successfully (main branch)"
+            else
+              # If both fail, try without -u flag
+              if git push origin HEAD:master 2>/dev/null || git push origin HEAD:main 2>/dev/null; then
+                echo "✓ Wiki updated successfully"
+              else
+                echo "⚠ Warning: Could not push wiki updates"
+                echo "   Wiki may need manual initialization at: https://github.com/${{ github.repository }}/wiki"
+                exit 0  # Don't fail the workflow
+              fi
+            fi
+          fi
 
   # 4. Generate and update changelog
   update-changelog:

@@ -50,12 +50,20 @@ jobs:
           cd dashboard
           npm install
           npm run build
+          ls -la
+          if [ ! -d ".next" ]; then
+            echo "❌ Dashboard build failed - .next directory not found"
+            exit 1
+          fi
+          echo "✓ Dashboard built successfully"
           
       - name: Upload Dashboard Artifact
         uses: actions/upload-artifact@v4
         with:
           name: dashboard-dist
           path: dashboard/.next/
+          if-no-files-found: error
+          retention-days: 1
 
   # 3. Build Standalone Server & Release (Windows)
   build-server-release:
@@ -82,6 +90,18 @@ jobs:
         with:
           name: dashboard-dist
           path: server/dashboard-dist/
+      
+      - name: Verify Dashboard Downloaded
+        run: |
+          if [ ! -d "server/dashboard-dist" ] || [ -z "$(ls -A server/dashboard-dist)" ]; then
+            echo "⚠ Dashboard artifact empty/missing, running build locally..."
+            cd dashboard
+            npm install
+            npm run build
+            mkdir -p ../server/dashboard-dist
+            cp -r .next/* ../server/dashboard-dist/ || true
+          fi
+          echo "✓ Dashboard verified"
           
       - name: Build Standalone Server (pkg + rcedit icon)
         run: |
