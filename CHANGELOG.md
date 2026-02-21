@@ -3,6 +3,19 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.1] - 2026-02-21
+
+### 🐛 Bug Fixes
+- **Dashboard: avatar always blank on TopBar** — `setProfile(data)` stored the raw API wrapper `{ authenticated, user }` instead of the user object; fixed to `setProfile(data.user)` so `profile.avatar` resolves correctly for all users
+- **Dashboard: broken avatar image on Profile Settings page** — replaced Next.js `<Image fill>` (incompatible with static export in some environments) with a plain `<img>` tag; added `onError` handler to clear the broken URL and show the gradient fallback icon instead of an invisible broken image overlapping page text
+- **Portfolio: policy pages still referenced MIT License / open-source** — all four policy pages (Terms of Use, Privacy Policy, Home hero, Contact FAQ) updated to use SysTracker Proprietary License language
+- **Wiki: stale version references and broken sidebar links** — Home.md (`v3.1.7` → `v3.2.1`), START-HERE.md (`v3.1.2` → `v3.2.1`), and _Sidebar.md (removed dead links to non-existent pages)
+
+### 📚 Documentation
+- **README.md** — Full rewrite for v3.2.x: updated features list, architecture diagram, one-liner install command (`irm https://systracker.rico.bd/install | iex`), Docker Compose snippet, development build steps, proprietary license section
+
+---
+
 ## [3.2.0] - 2026-02-21
 
 ### ✨ Improvements
