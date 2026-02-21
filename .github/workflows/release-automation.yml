@@ -1,0 +1,364 @@
+name: Automated Release & Version Management
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/package.json'
+      - 'dashboard/package.json'
+      - 'agent/package.json'
+      - 'CHANGELOG.md'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 3.1.2)'
+        required: false
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'minor'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+          - prerelease
+
+env:
+  REGISTRY: ghcr.io
+  PACKAGE_REGISTRY: npm
+
+jobs:
+  # 1. Detect version changes
+  detect-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_release: ${{ steps.version.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get Version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./server/package.json').version")
+          PREV_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          if [ "$VERSION" != "$PREV_VERSION" ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+
+  # 2. Create Release Notes
+  create-release-notes:
+    runs-on: ubuntu-latest
+    needs: detect-version
+    if: needs.detect-version.outputs.should_release == 'true'
+    outputs:
+      release_notes: ${{ steps.notes.outputs.content }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Generate Release Notes
+        id: notes
+        run: |
+          VERSION=${{ needs.detect-version.outputs.version }}
+          
+          # Extract from CHANGELOG
+          NOTES=$(sed -n "/^## ${VERSION}/,/^## /p" CHANGELOG.md 2>/dev/null | sed '$d' || echo "See CHANGELOG.md for details")
+          
+          # Save to file for use in release
+          cat > release-notes.md << EOF
+          # Release v${VERSION}
+          
+          **Release Date:** $(date '+%Y-%m-%d')
+          
+          ## 🎉 What's New
+          
+          $(echo "$NOTES" | head -50)
+          
+          ## 📦 Download
+          - Server: \`systracker-server-win.exe\`
+          - Agent: \`systracker-agent-win.exe\`
+          
+          ## 📚 Documentation
+          - [Installation Guide](https://github.com/${{ github.repository }}/blob/main/docs/guides/WINDOWS-APP-INSTALLATION-GUIDE.md)
+          - [Wiki](https://github.com/${{ github.repository }}/wiki)
+          
+          ## 🔧 Installation
+          \`\`\`powershell
+          # Run as Administrator
+          install-server.ps1
+          install-agent.ps1
+          \`\`\`
+          
+          See full [CHANGELOG](CHANGELOG.md) for all changes.
+          EOF
+          
+          cat release-notes.md
+          echo "content=$(cat release-notes.md | base64 -w 0)" >> $GITHUB_OUTPUT
+
+      - name: Upload Release Notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+
+  # 3. Create Git Tag
+  create-tag:
+    runs-on: ubuntu-latest
+    needs: [detect-version, create-release-notes]
+    if: needs.detect-version.outputs.should_release == 'true'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure Git
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+
+      - name: Create Release Tag
+        run: |
+          VERSION=${{ needs.detect-version.outputs.version }}
+          TAG="v${VERSION}"
+          
+          # Check if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists"
+          else
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+            echo "✓ Tag $TAG created and pushed"
+          fi
+
+  # 4. Create GitHub Release
+  create-github-release:
+    runs-on: windows-latest
+    needs: [detect-version, create-release-notes]
+    if: needs.detect-version.outputs.should_release == 'true'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Download Release Notes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+
+      - name: Build Artifacts
+        run: |
+          echo "🏗️ Building release artifacts..."
+          
+          # Server
+          cd server
+          npm install
+          npm run build:win
+          cd ..
+          
+          # Agent
+          cd agent
+          npm install
+          npm run build:win
+          cd ..
+          
+          # Dashboard
+          cd dashboard
+          npm install
+          npm run build
+          cd ..
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.detect-version.outputs.version }}
+          name: Release v${{ needs.detect-version.outputs.version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+          files: |
+            server/systracker-server-win.exe
+            agent/dist/systracker-agent-win.exe
+            server/install-server.ps1
+            agent/install-agent.ps1
+            docs/guides/WINDOWS-APP-INSTALLATION-GUIDE.md
+
+  # 5. Publish to Package Registries (Optional)
+  publish-packages:
+    runs-on: ubuntu-latest
+    needs: [detect-version, create-github-release]
+    if: needs.detect-version.outputs.should_release == 'true'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Configure npm Registry
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc 2>/dev/null || true
+          echo "npm token configured (publishing disabled by default)"
+
+      - name: Generate Package Metadata
+        run: |
+          VERSION=${{ needs.detect-version.outputs.version }}
+          
+          cat > package-info.json << EOF
+          {
+            "name": "systracker",
+            "version": "${VERSION}",
+            "publishedAt": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
+            "packages": {
+              "server": "systracker-server",
+              "agent": "systracker-agent",
+              "dashboard": "systracker-dashboard"
+            }
+          }
+          EOF
+          
+          cat package-info.json
+
+  # 6. Update Documentation Version References
+  update-docs-version:
+    runs-on: ubuntu-latest
+    needs: [detect-version, create-github-release]
+    if: needs.detect-version.outputs.should_release == 'true'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure Git
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+
+      - name: Update README Version
+        run: |
+          VERSION=${{ needs.detect-version.outputs.version }}
+          
+          # Update version in README
+          sed -i "s/v[0-9.]*\/releases/v${VERSION}\/releases/g" README.md || true
+          sed -i "s/Version: [0-9.]*/Version: ${VERSION}/g" README.md || true
+
+      - name: Update Documentation
+        run: |
+          VERSION=${{ needs.detect-version.outputs.version }}
+          
+          # Update version in docs
+          find docs -name "*.md" -exec sed -i "s/v[0-9.]*\s*Release Notes/v${VERSION} Release Notes/g" {} \; || true
+
+      - name: Commit Version Updates
+        run: |
+          git add -A
+          
+          if ! git diff --quiet --cached; then
+            git commit -m "chore: update version references to v${{ needs.detect-version.outputs.version }}"
+            git push origin main || echo "No changes to push"
+          fi
+
+  # 7. Send Release Notifications
+  notify-release:
+    runs-on: ubuntu-latest
+    needs: [detect-version, create-github-release]
+    if: needs.detect-version.outputs.should_release == 'true'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Create Release Summary
+        run: |
+          echo "🎉 **Release v${{ needs.detect-version.outputs.version }} Published**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/v${{ needs.detect-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Downloads:**" >> $GITHUB_STEP_SUMMARY
+          echo "- [systracker-server-win.exe](https://github.com/${{ github.repository }}/releases/download/v${{ needs.detect-version.outputs.version }}/systracker-server-win.exe)" >> $GITHUB_STEP_SUMMARY
+          echo "- [systracker-agent-win.exe](https://github.com/${{ github.repository }}/releases/download/v${{ needs.detect-version.outputs.version }}/systracker-agent-win.exe)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Installation Guide](https://github.com/${{ github.repository }}/releases/download/v${{ needs.detect-version.outputs.version }}/WINDOWS-APP-INSTALLATION-GUIDE.md)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify via Issues
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🎉 Release v${{ needs.detect-version.outputs.version }} Published`,
+              body: `
+              ## New Release Available
+              
+              Version **v${{ needs.detect-version.outputs.version }}** has been published!
+              
+              📥 **Download:**
+              - [Server EXE](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.detect-version.outputs.version }})
+              - [Agent EXE](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.detect-version.outputs.version }})
+              
+              📚 **Documentation:**
+              - [Release Notes](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.detect-version.outputs.version }})
+              - [Installation Guide](https://github.com/${{ github.repository }}/blob/main/docs/guides/WINDOWS-APP-INSTALLATION-GUIDE.md)
+              
+              ✨ See the full [Changelog](CHANGELOG.md) for all changes.
+              `,
+              labels: ['release', 'announcement']
+            })
+
+  # 8. Cleanup and Archive
+  archive-release:
+    runs-on: ubuntu-latest
+    needs: [detect-version, create-github-release]
+    if: needs.detect-version.outputs.should_release == 'true'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Create Release Archive
+        run: |
+          VERSION=${{ needs.detect-version.outputs.version }}
+          
+          # Create archive directory structure
+          mkdir -p release-archive/v${VERSION}/{server,agent,dashboard}
+          
+          # Copy relevant files
+          cp -r docs release-archive/v${VERSION}/ || true
+          cp README.md CHANGELOG.md LICENSE release-archive/v${VERSION}/ || true
+          
+          # Create manifest
+          cat > release-archive/v${VERSION}/MANIFEST.json << EOF
+          {
+            "version": "${VERSION}",
+            "releaseDate": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
+            "files": {
+              "server": "systracker-server-win.exe",
+              "agent": "systracker-agent-win.exe",
+              "documentation": "WINDOWS-APP-INSTALLATION-GUIDE.md"
+            }
+          }
+          EOF
+
+      - name: Upload Release Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-archive-v${{ needs.detect-version.outputs.version }}
+          path: release-archive/
+          retention-days: 90
