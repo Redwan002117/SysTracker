@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Zap, LogOut, User, ChevronDown, Monitor, Bell, Settings, Users, MapPin, Mail, Inbox, MessageCircle } from 'lucide-react';
+import { Zap, LogOut, User, ChevronDown, Settings, MapPin, Mail } from 'lucide-react';
 import { clearToken, getUsername, isAuthenticated, getRole, isAdmin } from '../lib/auth';
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,7 +22,6 @@ const TopBar = () => {
     const [userRole, setUserRole] = useState<string>('admin');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [unreadMail, setUnreadMail] = useState(0);
     const menuRef = useRef<HTMLDivElement>(null);
     const profileCacheKey = 'systracker_profile';
 
@@ -42,15 +41,32 @@ const TopBar = () => {
 
             const token = localStorage.getItem('systracker_token');
             if (token) {
-                fetch('/api/auth/status', { headers: { Authorization: `Bearer ${token}` } })
-                    .then(r => r.ok ? r.json() : null)
-                    .then(data => {
-                        if (data?.authenticated && data.user) {
-                            setProfile(data.user);
-                            localStorage.setItem(profileCacheKey, JSON.stringify(data.user));
-                        }
-                    })
-                    .catch(() => {});
+                const refreshProfile = () => {
+                    fetch('/api/auth/status', { headers: { Authorization: `Bearer ${token}` } })
+                        .then(r => r.ok ? r.json() : null)
+                        .then(data => {
+                            if (data?.authenticated && data.user) {
+                                setProfile(data.user);
+                                localStorage.setItem(profileCacheKey, JSON.stringify(data.user));
+                            }
+                        })
+                        .catch(() => {});
+                };
+                
+                // Initial fetch
+                refreshProfile();
+                
+                // Listen for profile updates from other components
+                const handleProfileUpdate = (e: CustomEvent) => {
+                    console.log('Profile update event received:', e.detail);
+                    refreshProfile();
+                };
+                window.addEventListener('profile-updated', handleProfileUpdate as EventListener);
+                
+                // Cleanup
+                return () => {
+                    window.removeEventListener('profile-updated', handleProfileUpdate as EventListener);
+                };
             }
         }
 
@@ -61,24 +77,6 @@ const TopBar = () => {
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    // Poll unread mail count
-    useEffect(() => {
-        if (!isAuthenticated()) return;
-        const token = typeof window !== 'undefined' ? localStorage.getItem('systracker_token') : null;
-        if (!token) return;
-
-        const fetchUnread = () => {
-            fetch('/api/mail/unread-count', { headers: { Authorization: `Bearer ${token}` } })
-                .then(r => r.ok ? r.json() : null)
-                .then(data => { if (data?.unreadCount !== undefined) setUnreadMail(data.unreadCount); })
-                .catch(() => {});
-        };
-
-        fetchUnread();
-        const interval = setInterval(fetchUnread, 30000); // Poll every 30s
-        return () => clearInterval(interval);
     }, []);
 
     const handleLogout = async () => {
@@ -176,63 +174,24 @@ const TopBar = () => {
                             </div>
 
                             <div className="p-2">
-                                {isAdmin() && (
-                                    <>
-                                        <Link
-                                            href="/dashboard/settings"
-                                            onClick={() => setIsMenuOpen(false)}
-                                            className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 group"
-                                        >
-                                            <Settings size={16} className="group-hover:scale-110 transition-transform duration-300" />
-                                            Settings
-                                        </Link>
-                                        <Link
-                                            href="/dashboard/users"
-                                            onClick={() => setIsMenuOpen(false)}
-                                            className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 group"
-                                        >
-                                            <Users size={16} className="group-hover:scale-110 transition-transform duration-300" />
-                                            User Management
-                                        </Link>
-                                        <Link
-                                            href="/dashboard/alerts"
-                                            onClick={() => setIsMenuOpen(false)}
-                                            className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 group"
-                                        >
-                                            <Bell size={16} className="group-hover:scale-110 transition-transform duration-300" />
-                                            Alerts
-                                        </Link>
-                                        <Link
-                                            href="/dashboard/mail"
-                                            onClick={() => setIsMenuOpen(false)}
-                                            className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 relative group"
-                                        >
-                                            <Inbox size={16} className="group-hover:scale-110 transition-transform duration-300" />
-                                            Mail
-                                            {unreadMail > 0 && (
-                                                <span className="ml-auto px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full shadow-sm">
-                                                    {unreadMail}
-                                                </span>
-                                            )}
-                                        </Link>
-                                    </>
-                                )}
-                                <Link
-                                    href="/dashboard/chat"
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 group"
-                                >
-                                    <MessageCircle size={16} className="group-hover:scale-110 transition-transform duration-300" />
-                                    Chat
-                                </Link>
                                 <Link
                                     href="/dashboard/profile"
                                     onClick={() => setIsMenuOpen(false)}
                                     className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 group"
                                 >
                                     <User size={16} className="group-hover:scale-110 transition-transform duration-300" />
-                                    Your Profile
+                                    Profile
                                 </Link>
+                                {isAdmin() && (
+                                    <Link
+                                        href="/dashboard/settings"
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 group"
+                                    >
+                                        <Settings size={16} className="group-hover:scale-110 transition-transform duration-300" />
+                                        Settings
+                                    </Link>
+                                )}
                             </div>
 
                             <div className="h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent my-1" />
@@ -243,7 +202,7 @@ const TopBar = () => {
                                     className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 text-left group"
                                 >
                                     <LogOut size={16} className="group-hover:scale-110 transition-transform duration-300" />
-                                    Sign out
+                                    Logout
                                 </button>
                             </div>
                         </motion.div>

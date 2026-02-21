@@ -22,24 +22,30 @@ LOG_DIR = os.path.join(os.environ.get('PROGRAMDATA', 'C:\\ProgramData'), 'SysTra
 if not os.path.exists(LOG_DIR):
     try:
         os.makedirs(LOG_DIR, exist_ok=True)
-    except:
+        print(f"Created log directory: {LOG_DIR}")
+    except Exception as e:
+        print(f"Failed to create log directory {LOG_DIR}: {e}")
         LOG_DIR = os.path.dirname(os.path.abspath(__file__))  # Fallback to script directory
+        print(f"Using fallback log directory: {LOG_DIR}")
 
 LOG_FILE = os.path.join(LOG_DIR, f'agent_{datetime.datetime.now().strftime("%Y%m%d")}.log')
+
+print(f"Initializing logging system...")
+print(f"Log file: {LOG_FILE}")
 
 # Create handlers
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 file_handler = logging.handlers.RotatingFileHandler(
     LOG_FILE, 
-    maxBytes=5*1024*1024,  # 5MB per file
-    backupCount=5,  # Keep 5 backup files
+    maxBytes=10*1024*1024,  # 10MB per file (increased from 5MB)
+    backupCount=10,  # Keep 10 backup files (increased from 5)
     encoding='utf-8'
 )
 file_handler.setLevel(logging.DEBUG)
 
-# Create formatter
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+# Create formatter with more detailed format
+formatter = logging.Formatter('%(asctime)s | %(levelname)-8s | %(funcName)-20s | %(message)s')
 console_handler.setFormatter(formatter)
 file_handler.setFormatter(formatter)
 
@@ -49,7 +55,15 @@ logging.basicConfig(
     handlers=[console_handler, file_handler]
 )
 
-logging.info(f"Logging to: {LOG_FILE}")
+logging.info("="*80)
+logging.info("SysTracker Agent Starting...")
+logging.info(f"Version: {VERSION if 'VERSION' in dir() else 'Unknown'}")
+logging.info(f"Python: {sys.version}")
+logging.info(f"Platform: {platform.platform()}")
+logging.info(f"Hostname: {socket.gethostname()}")
+logging.info(f"Log Directory: {LOG_DIR}")
+logging.info(f"Log File: {LOG_FILE}")
+logging.info("="*80)
 
 # Try initializing Windows Event Log modules
 try:
@@ -67,12 +81,19 @@ TELEMETRY_INTERVAL = 3  # seconds — kept low for near-real-time updates
 EVENT_POLL_INTERVAL = 300  # seconds (5 minutes)
 UPDATE_CHECK_INTERVAL = 3600  # seconds (60 minutes)
 MACHINE_ID = socket.gethostname() 
-VERSION = "3.2.7"
+VERSION = "3.3.1"
 INSTALL_DIR = r"C:\Program Files\SysTrackerAgent"
 EXE_NAME = "SysTracker_Agent.exe"
 
 MAX_RETRIES = 3
 retry_delay = 5
+
+logging.info("Configuration loaded:")
+logging.info(f"  API_URL: {DEFAULT_API_URL}")
+logging.info(f"  MACHINE_ID: {MACHINE_ID}")
+logging.info(f"  VERSION: {VERSION}")
+logging.info(f"  TELEMETRY_INTERVAL: {TELEMETRY_INTERVAL}s")
+logging.info(f"  EVENT_POLL_INTERVAL: {EVENT_POLL_INTERVAL}s")
 
 # Global State for Delta Calculation
 last_net_io = None
@@ -379,29 +400,46 @@ def send_payload(endpoint, data):
     }
     url = f"{config['api_url']}/{endpoint}"
     
+    logging.debug(f"Preparing to send payload to {endpoint}")
+    logging.debug(f"  URL: {url}")
+    logging.debug(f"  Data size: {len(json.dumps(data))} bytes")
+    
     max_retries = 3
     retry_delay = 5 # Start with 5s
     
     for attempt in range(max_retries):
         try:
+            logging.info(f"Sending request to {endpoint} (Attempt {attempt+1}/{max_retries})...")
             response = requests.post(url, json=data, headers=headers, timeout=10)
             response.raise_for_status()
-            logging.info(f"Successfully sent data to {endpoint}")
+            logging.info(f"✓ Successfully sent data to {endpoint} (Status: {response.status_code})")
             return True
         except requests.exceptions.HTTPError as e:
-            logging.error(f"HTTP Error posting to {endpoint}: {e}")
+            logging.error(f"✗ HTTP Error posting to {endpoint}: {e}")
+            logging.error(f"  Status Code: {e.response.status_code}")
+            logging.error(f"  Response: {e.response.text[:200] if e.response.text else 'No response body'}")
             if e.response.status_code in [401, 403]:
-                logging.error("Authentication failed. Check API Key.")
+                logging.error("  Authentication failed. Check API Key.")
+                logging.error(f"  Using API Key: ***{config.get('api_key', '')[-4:]}")
                 return False # Stop retrying on auth error
+        except requests.exceptions.ConnectionError as e:
+            logging.error(f"✗ Connection error posting to {endpoint} (Attempt {attempt+1}/{max_retries})")
+            logging.error(f"  Error: {e}")
+            logging.error(f"  Check if server {config['api_url']} is reachable")
+        except requests.exceptions.Timeout as e:
+            logging.error(f"✗ Timeout posting to {endpoint} (Attempt {attempt+1}/{max_retries})")
+            logging.error(f"  Error: {e}")
         except requests.exceptions.RequestException as e:
-            logging.error(f"Connection error posting to {endpoint} (Attempt {attempt+1}/{max_retries}): {e}")
+            logging.error(f"✗ Request error posting to {endpoint} (Attempt {attempt+1}/{max_retries})")
+            logging.error(f"  Error: {e}")
         
         # Wait before retrying (unless it's the last attempt)
         if attempt < max_retries - 1:
+            logging.info(f"  Waiting {retry_delay}s before retry...")
             time.sleep(retry_delay)
             retry_delay *= 2 # Exponential backoff: 5, 10, 20...
             
-    logging.error(f"Failed to send payload to {endpoint} after {max_retries} attempts.")
+    logging.error(f"✗ Failed to send payload to {endpoint} after {max_retries} attempts.")
     return False
 
 # ... (Previous Code) ...
@@ -761,9 +799,10 @@ def exec_command(data):
     command = data.get('command')
     
     if not cmd_id or not command:
+        logging.warning("Received exec_command event with missing data")
         return
 
-    logging.info(f"Received remote command: {command} (ID: {cmd_id})")
+    logging.info(f"▶ Received remote command: {command} (ID: {cmd_id})")
     
     def run_cmd():
         try:
@@ -798,6 +837,38 @@ def exec_command(data):
 
     # Run in strict thread to not block heartbeat
     threading.Thread(target=run_cmd, daemon=True).start()
+
+# Socket.IO Event Handlers for connection status
+@sio.event
+def connect():
+    """Called when successfully connected to Socket.IO server."""
+    logging.info("=" * 60)
+    logging.info("\u2713 Socket.IO: CONNECTED")
+    logging.info(f"  Machine ID: {MACHINE_ID}")
+    logging.info(f"  Server: {config.get('api_url', 'Unknown').replace('/api', '')}")
+    logging.info("=" * 60)
+
+@sio.event
+def connect_error(data):
+    """Called when connection attempt fails."""
+    logging.error("=" * 60)
+    logging.error("\u2717 Socket.IO: CONNECTION ERROR")
+    logging.error(f"  Error: {data}")
+    logging.error(f"  Server: {config.get('api_url', 'Unknown').replace('/api', '')}")
+    logging.error("  Check:")
+    logging.error("    - Is server URL correct in agent_config.json?")
+    logging.error("    - Is server running and accessible?")
+    logging.error("    - Is firewall blocking connection?")
+    logging.error("=" * 60)
+
+@sio.event
+def disconnect():
+    """Called when disconnected from Socket.IO server."""
+    logging.warning("=" * 60)
+    logging.warning("\u26a0 Socket.IO: DISCONNECTED")
+    logging.warning(f"  Machine ID: {MACHINE_ID}")
+    logging.warning("  Will attempt to reconnect on next cycle...")
+    logging.warning("=" * 60)
 
 def check_for_updates():
     """Check if a new agent version is available."""
@@ -1052,10 +1123,17 @@ def main():
                     if server_url:
                         # Construct query params (python-socketio handles query in url)
                         query_url = f"{server_url}?role=agent&id={MACHINE_ID}"
+                        logging.info(f"Attempting to connect to Socket.IO...")
+                        logging.info(f"  Server URL: {server_url}")
+                        logging.info(f"  Machine ID: {MACHINE_ID}")
                         sio.connect(query_url, namespaces=['/'], wait_timeout=5)
-                        logging.info(f"Connected to Socket.IO at {server_url}")
+                        logging.info(f"✓ Connected to Socket.IO at {server_url}")
+                    else:
+                        logging.error("✗ Cannot connect to Socket.IO: Server URL not configured")
                 except Exception as e:
-                    logging.error(f"Socket connection failed: {e}")
+                    logging.error(f"✗ Socket.IO connection failed: {e}")
+                    logging.error(f"  Server URL attempted: {server_url}")
+                    logging.error("  Will retry on next cycle...")
 
             # 1. Check for agent updates (every 60 minutes)
             global last_update_check

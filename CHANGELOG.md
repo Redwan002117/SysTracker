@@ -3,6 +3,63 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.3.1] - 2026-02-21
+
+### 🐛 Bug Fixes
+
+- **Navigation Issue** — Fixed sidebar navigation highlighting for nested routes (e.g., `/dashboard/alerts/123`)
+  - Implemented hierarchical route matching with `startsWith()` logic
+  - Dashboard root gets exact match, other routes support sub-paths
+  - Improves UX when navigating to detail pages
+
+- **Chat User Duplication** — Eliminated duplicate users in chat user list
+  - Backend: Added `DISTINCT` clause and `ORDER BY username` to SQL query
+  - Frontend: Implemented Map-based deduplication by username
+  - Added TypeScript type assertions for type safety
+
+- **Profile Photo Sync** — Avatar changes now update immediately across all components
+  - Implemented custom event system (`profile-updated` event)
+  - TopBar listens for profile updates and refreshes from API
+  - Profile page dispatches events on avatar/profile changes
+  - Includes localStorage cache invalidation
+
+### ✨ New Features
+
+- **Gravatar Integration** — Automatic avatar loading from Gravatar
+  - Server-side utility with MD5 hashing (`/server/lib/gravatar.js`)
+  - Client-side utility with SHA-256 for browser compatibility (`/dashboard/lib/gravatar.ts`)
+  - Auto-fetch on profile load if no avatar exists
+  - Manual "Fetch from Gravatar" button with loading states
+  - Works for both regular users and OAuth users
+
+- **User Management Enhancement** — Complete CRUD operations for user administration
+  - Edit button added to user table with blue highlighting (Edit2 icon)
+  - Complete edit modal with glassmorphism design
+  - Form fields: username, email, role (admin/viewer)
+  - Backend: Updated PUT `/api/users/:id` to support role updates
+  - Security: Prevents admins from changing their own role
+  - Password reset guidance included in modal
+  - Loading states and success/error notifications
+
+### 🎨 UI/UX Improvements
+
+- **Dashboard Layout Redesign** — Modern, consistent styling across all metric panels
+  - Enhanced main KPI cards with larger numbers (4xl font)
+  - Better labels: "Online Agents", "Critical Alerts", "Avg CPU Load"
+  - Contextual subtitles: "of X total", "high usage", "across fleet"
+  - Infrastructure Metrics section redesigned with consistent glassmorphism
+  - Improved OS Distribution panel with percentages and taller progress bars
+  - Network I/O panel completely redesigned with gradient backgrounds and animated indicators
+  - Top CPU Load panel enhanced with gradient progress bars
+  - All panels now share consistent blur/shadow effects and smooth animations (500ms transitions)
+
+### 🔧 Technical Improvements
+
+- Better TypeScript type safety across chat and user management features
+- Improved form validation and error handling
+- Enhanced custom event propagation for cross-component communication
+- Optimized SQL queries with DISTINCT and proper ordering
+
 ## [3.3.0] - 2026-02-21
 
 ### 🎨 UI/UX Improvements

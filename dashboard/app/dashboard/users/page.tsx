@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Trash2, Shield, Eye, X, AlertCircle, CheckCircle, Loader2, UserPlus, Mail, Send } from 'lucide-react';
+import { Users, Plus, Trash2, Shield, Eye, X, AlertCircle, CheckCircle, Loader2, UserPlus, Mail, Send, Edit2 } from 'lucide-react';
 import { fetchWithAuth, isAdmin } from '../../../lib/auth';
 
 interface User {
@@ -19,6 +19,8 @@ export default function UserManagement() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
     const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
@@ -31,6 +33,7 @@ export default function UserManagement() {
         sendSetupEmail: false
     });
     const [creating, setCreating] = useState(false);
+    const [updating, setUpdating] = useState(false);
     const [sendingSetup, setSendingSetup] = useState<number | null>(null);
 
     // Check admin access
@@ -102,6 +105,43 @@ export default function UserManagement() {
             showNotification('error', 'Network error. Please try again.');
         } finally {
             setSendingSetup(null);
+        }
+    };
+
+    const handleEditUser = (user: User) => {
+        setEditingUser(user);
+        setShowEditModal(true);
+    };
+
+    const handleUpdateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingUser) return;
+        
+        setUpdating(true);
+        try {
+            const response = await fetchWithAuth(`/api/users/${editingUser.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    username: editingUser.username,
+                    email: editingUser.email,
+                    role: editingUser.role
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showNotification('success', `User "${editingUser.username}" updated successfully`);
+                setShowEditModal(false);
+                setEditingUser(null);
+                loadUsers();
+            } else {
+                showNotification('error', data.error || 'Failed to update user');
+            }
+        } catch (error) {
+            showNotification('error', 'Network error. Please try again.');
+        } finally {
+            setUpdating(false);
         }
     };
 
@@ -212,9 +252,16 @@ export default function UserManagement() {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
+                                                    onClick={() => handleEditUser(user)}
+                                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                                                    title="Edit user"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button
                                                     onClick={() => handleSendPasswordSetup(user.id)}
                                                     disabled={sendingSetup === user.id}
-                                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-colors disabled:opacity-50"
+                                                    className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 p-2 rounded-lg transition-colors disabled:opacity-50"
                                                     title="Send password setup email"
                                                 >
                                                     {sendingSetup === user.id ? (
@@ -366,6 +413,114 @@ export default function UserManagement() {
                                             </>
                                         ) : (
                                             'Create User'
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Edit User Modal */}
+            <AnimatePresence>
+                {showEditModal && editingUser && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                        onClick={() => !updating && setShowEditModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-white/95 backdrop-blur-2xl rounded-2xl shadow-[0_24px_48px_rgba(0,0,0,0.12)] border border-white/20 max-w-md w-full p-6"
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                                    <Edit2 size={24} strokeWidth={2.5} />
+                                    Edit User
+                                </h2>
+                                <button
+                                    onClick={() => setShowEditModal(false)}
+                                    disabled={updating}
+                                    className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-all duration-200 hover:scale-110"
+                                >
+                                    <X size={20} strokeWidth={2.5} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleUpdateUser} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Username</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={editingUser.username}
+                                        onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-slate-800"
+                                        placeholder="johndoe"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={editingUser.email}
+                                        onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-slate-800"
+                                        placeholder="john@example.com"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Role</label>
+                                    <select
+                                        value={editingUser.role}
+                                        onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-slate-800"
+                                    >
+                                        <option value="viewer">Viewer - Read-only access</option>
+                                        <option value="admin">Admin - Full access</option>
+                                    </select>
+                                </div>
+
+                                <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
+                                    <div className="flex items-start gap-2">
+                                        <Mail size={16} className="text-purple-600 flex-shrink-0 mt-0.5" />
+                                        <div className="text-xs text-slate-700">
+                                            <p className="font-semibold mb-1">Need to reset password?</p>
+                                            <p>Use the "Send password setup email" button from the user list to let them set a new password.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowEditModal(false)}
+                                        disabled={updating}
+                                        className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100/60 transition-all duration-200 disabled:opacity-50 hover:scale-[1.02]"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={updating}
+                                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 hover:scale-[1.02]"
+                                    >
+                                        {updating ? (
+                                            <>
+                                                <Loader2 size={16} strokeWidth={2.5} className="animate-spin" />
+                                                Updating...
+                                            </>
+                                        ) : (
+                                            'Update User'
                                         )}
                                     </button>
                                 </div>

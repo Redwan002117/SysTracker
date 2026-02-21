@@ -79,7 +79,12 @@ export default function ChatPage() {
             const res = await fetchWithAuth('/api/mail-users');
             if (!res.ok) return;
             const data = await res.json();
-            setUsers(data.filter((u: ChatUser) => u.username !== me));
+            // Filter out current user and deduplicate by username
+            const filteredUsers = data.filter((u: ChatUser) => u.username !== me);
+            const uniqueUsers = Array.from(
+                new Map(filteredUsers.map((u: ChatUser) => [u.username, u])).values()
+            ) as ChatUser[];
+            setUsers(uniqueUsers);
         } catch {}
     }, [me]);
 

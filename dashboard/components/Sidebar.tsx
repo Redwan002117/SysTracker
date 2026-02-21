@@ -20,7 +20,15 @@ const adminItems = [
 
 export default function Sidebar() {
     const pathname = usePathname();
-    const isActive = (href: string) => pathname === href;
+    const isActive = (href: string) => {
+        // Exact match for dashboard root
+        if (href === '/dashboard') {
+            return pathname === '/dashboard';
+        }
+        // For other routes, match if pathname starts with href
+        // This handles nested routes like /dashboard/alerts/123
+        return pathname === href || pathname.startsWith(href + '/');
+    };
 
     return (
         <aside className="hidden md:block fixed top-16 left-0 bottom-0 w-64 bg-gradient-to-b from-white to-slate-50/50 border-r border-slate-200/50 px-3 py-5 shadow-sm">

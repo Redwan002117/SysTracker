@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { fetchWithAuth } from '../../../lib/auth';
-import { Mail, Send, Trash2, RefreshCw, Inbox, ChevronDown, ChevronUp, Search, Plus, Reply, X, User, Clock, Eye } from 'lucide-react';
+import { Mail, Send, Trash2, RefreshCw, Inbox, ChevronDown, ChevronUp, Search, Plus, Reply, X, User, Clock, Eye, AtSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface MailMessage {
@@ -77,6 +77,8 @@ export default function MailboxPage() {
     const [form, setForm] = useState({ to_user: '', subject: '', body: '' });
     const [sending, setSending] = useState(false);
     const [sendError, setSendError] = useState('');
+    const [recipientType, setRecipientType] = useState<'internal' | 'external'>('internal');
+    const [showUserDropdown, setShowUserDropdown] = useState(false);
 
     const loadMessages = useCallback(async () => {
         setLoading(true);
@@ -107,8 +109,19 @@ export default function MailboxPage() {
     };
 
     const sendMail = async () => {
-        if (!form.to_user || !form.subject || !form.body) { setSendError('All fields are required.'); return; }
-        setSending(true); setSendError('');
+        if (!form.to_user || !form.subject || !form.body) { 
+            setSendError('All fields are required.'); 
+            return; 
+        }
+        
+        // Validate email format if external
+        if (recipientType === 'external' && !form.to_user.includes('@')) {
+            setSendError('Please enter a valid email address');
+            return;
+        }
+        
+        setSending(true); 
+        setSendError('');
         try {
             const res = await fetchWithAuth('/api/mail', {
                 method: 'POST',
@@ -116,9 +129,13 @@ export default function MailboxPage() {
                 body: JSON.stringify(form),
             });
             if (res.ok) {
+                const result = await res.json();
                 setComposeOpen(false);
                 setForm({ to_user: '', subject: '', body: '' });
+                setRecipientType('internal');
                 if (folder === 'sent') loadMessages();
+                // Show success message based on type
+                console.log(`${result.type === 'external' ? 'External email' : 'Internal message'} sent successfully`);
             } else {
                 const err = await res.json().catch(() => ({ error: 'Send failed' }));
                 setSendError(err.error || 'Send failed');
@@ -155,10 +172,11 @@ export default function MailboxPage() {
                         <Mail className="text-white" size={24} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
                             Mailbox
+                            <span className="text-xs bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">Admin</span>
                         </h1>
-                        <p className="text-sm text-slate-500">Internal messaging system</p>
+                        <p className="text-sm text-slate-500">Internal messaging & external email system</p>
                     </div>
                 </div>
                 <button
@@ -326,18 +344,48 @@ export default function MailboxPage() {
                             </button>
                         </div>
                         <div className="flex flex-col gap-2 px-4 py-3 overflow-y-auto flex-1">
-                            <select
-                                value={form.to_user}
-                                onChange={e => setForm(f => ({ ...f, to_user: e.target.value }))}
-                                className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/80 focus:outline-none focus:ring-2 focus:ring-blue-400/30"
-                            >
-                                <option value="">To: Select user...</option>
-                                {users.map(u => (
-                                    <option key={u.username} value={u.username}>
-                                        {u.display_name ? `${u.display_name} (${u.username})` : u.username}
-                                    </option>
-                                ))}
-                            </select>
+                            {/* Recipient Type Selector */}
+                            <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
+                                <button
+                                    onClick={() => { setRecipientType('internal'); setForm(f => ({ ...f, to_user: '' })); }}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${recipientType === 'internal' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <User size={13} strokeWidth={2.5} />
+                                    Internal User
+                                </button>
+                                <button
+                                    onClick={() => { setRecipientType('external'); setForm(f => ({ ...f, to_user: '' })); }}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${recipientType === 'external' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    <AtSign size={13} strokeWidth={2.5} />
+                                    External Email
+                                </button>
+                            </div>
+
+                            {/* Recipient Input */}
+                            {recipientType === 'internal' ? (
+                                <select
+                                    value={form.to_user}
+                                    onChange={e => setForm(f => ({ ...f, to_user: e.target.value }))}
+                                    className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/80 focus:outline-none focus:ring-2 focus:ring-blue-400/30"
+                                >
+                                    <option value="">To: Select user...</option>
+                                    {users.map(u => (
+                                        <option key={u.username} value={u.username}>
+                                            {u.display_name ? `${u.display_name} (${u.username})` : u.username}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <input
+                                    type="email"
+                                    placeholder="To: Enter email address (e.g., user@example.com)"
+                                    value={form.to_user}
+                                    onChange={e => setForm(f => ({ ...f, to_user: e.target.value }))}
+                                    className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-slate-50/80 focus:outline-none focus:ring-2 focus:ring-purple-400/30"
+                                />
+                            )}
+                            
                             <input
                                 type="text"
                                 placeholder="Subject"

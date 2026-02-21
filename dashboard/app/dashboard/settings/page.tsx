@@ -287,7 +287,7 @@ function SettingsInner() {
     };
 
     return (
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
 
             <div className="mb-8">
                 <div className="flex items-center gap-3 mb-3">

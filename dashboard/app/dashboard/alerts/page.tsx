@@ -32,6 +32,8 @@ export default function AlertsPage() {
     const [loading, setLoading] = useState(true);
 
     const [showAddPolicy, setShowAddPolicy] = useState(false);
+    const [showEditPolicy, setShowEditPolicy] = useState(false);
+    const [editingPolicy, setEditingPolicy] = useState<AlertPolicy | null>(null);
     const [newPolicy, setNewPolicy] = useState<Partial<AlertPolicy>>({
         metric: 'cpu',
         operator: '>',
@@ -98,6 +100,34 @@ export default function AlertsPage() {
             const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
             await fetch(`/api/alerts/policies/${id}`, { method: 'DELETE', headers });
             setPolicies(prev => prev.filter(p => p.id !== id));
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleEditPolicy = (policy: AlertPolicy) => {
+        setEditingPolicy(policy);
+        setShowEditPolicy(true);
+    };
+
+    const handleUpdatePolicy = async () => {
+        if (!editingPolicy) return;
+
+        try {
+            const token = localStorage.getItem('systracker_token');
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            };
+
+            await fetch(`/api/alerts/policies/${editingPolicy.id}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(editingPolicy)
+            });
+            setShowEditPolicy(false);
+            setEditingPolicy(null);
+            refreshData();
         } catch (err) {
             console.error(err);
         }
@@ -225,12 +255,22 @@ export default function AlertsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {policies.map(policy => (
                             <div key={policy.id} className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm hover:border-blue-100 hover:shadow-md transition-all group relative">
-                                <button
-                                    onClick={() => handleDeletePolicy(policy.id)}
-                                    className="absolute top-4 right-4 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                                <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                    <button
+                                        onClick={() => handleEditPolicy(policy)}
+                                        className="text-slate-300 hover:text-blue-500 transition-colors"
+                                        title="Edit policy"
+                                    >
+                                        <Settings size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeletePolicy(policy.id)}
+                                        className="text-slate-300 hover:text-red-500 transition-colors"
+                                        title="Delete policy"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className={`p-2 rounded-lg ${policy.enabled ? 'bg-purple-50 text-purple-600' : 'bg-slate-50 text-slate-400'}`}>
                                         <Activity size={18} />
@@ -358,6 +398,122 @@ export default function AlertsPage() {
                                             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm shadow-sm shadow-blue-200 transition-all"
                                         >
                                             Create Policy
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Edit Policy Modal */}
+                    <AnimatePresence>
+                        {showEditPolicy && editingPolicy && (
+                            <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100"
+                                >
+                                    <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                                        <h3 className="text-lg font-bold text-slate-800">Edit Alert Policy</h3>
+                                    </div>
+                                    <div className="p-6 space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Policy Name</label>
+                                            <input
+                                                type="text"
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                                placeholder="e.g. High CPU Usage"
+                                                value={editingPolicy.name || ''}
+                                                onChange={e => setEditingPolicy({ ...editingPolicy, name: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Metric</label>
+                                                <select
+                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white"
+                                                    value={editingPolicy.metric}
+                                                    onChange={e => setEditingPolicy({ ...editingPolicy, metric: e.target.value })}
+                                                >
+                                                    <option value="cpu">CPU Usage (%)</option>
+                                                    <option value="ram">RAM Usage (%)</option>
+                                                    <option value="disk">Disk Usage (%)</option>
+                                                    <option value="offline">Offline Status</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Operator</label>
+                                                <select
+                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white"
+                                                    value={editingPolicy.operator}
+                                                    onChange={e => setEditingPolicy({ ...editingPolicy, operator: e.target.value })}
+                                                >
+                                                    <option value=">">Greater Than (&gt;)</option>
+                                                    <option value="<">Less Than (&lt;)</option>
+                                                    <option value="=">Equals (=)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Threshold</label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200"
+                                                    value={editingPolicy.threshold}
+                                                    onChange={e => setEditingPolicy({ ...editingPolicy, threshold: Number(e.target.value) })}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Duration (Min)</label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200"
+                                                    value={editingPolicy.duration_minutes}
+                                                    onChange={e => setEditingPolicy({ ...editingPolicy, duration_minutes: Number(e.target.value) })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Priority</label>
+                                            <div className="flex bg-slate-100 p-1 rounded-lg">
+                                                {priorities.map(p => (
+                                                    <button
+                                                        key={p}
+                                                        onClick={() => setEditingPolicy({ ...editingPolicy, priority: p })}
+                                                        className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-md transition-all ${editingPolicy.priority === p ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                                    >
+                                                        {p}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editingPolicy.enabled}
+                                                    onChange={e => setEditingPolicy({ ...editingPolicy, enabled: e.target.checked })}
+                                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span className="text-sm font-medium text-slate-700">Policy Enabled</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                                        <button
+                                            onClick={() => { setShowEditPolicy(false); setEditingPolicy(null); }}
+                                            className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleUpdatePolicy}
+                                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-sm shadow-sm shadow-blue-200 transition-all"
+                                        >
+                                            Update Policy
                                         </button>
                                     </div>
                                 </motion.div>

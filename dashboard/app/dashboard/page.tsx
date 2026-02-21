@@ -227,35 +227,42 @@ export default function Dashboard() {
               <p className="text-slate-500 text-sm mt-2 ml-1">Live infrastructure metrics and system overview.</p>
             </div>
 
-            {/* KPI Cards (Compact) */}
+            {/* KPI Cards */}
             <div className="grid grid-cols-3 gap-4 mt-5">
               <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(34,197,94,0.15)] transition-all duration-300 flex items-center justify-between group hover:scale-[1.02]">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Online</p>
-                  <p className="text-3xl font-bold text-slate-800">{onlineAgents} <span className="text-slate-400 text-lg font-normal">/ {totalAgents}</span></p>
+                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Online Agents</p>
+                  <p className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                    {onlineAgents}
+                  </p>
+                  <p className="text-xs text-slate-400 font-medium mt-1">of {totalAgents} total</p>
                 </div>
                 <div className="p-3 bg-gradient-to-br from-emerald-100 to-green-50 rounded-xl text-green-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                  <Wifi size={22} strokeWidth={2.5} />
+                  <Wifi size={24} strokeWidth={2.5} />
                 </div>
               </div>
               <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(239,68,68,0.15)] transition-all duration-300 flex items-center justify-between group hover:scale-[1.02]">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Critical</p>
-                  <p className="text-3xl font-bold text-red-500">{criticalAlerts}</p>
+                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Critical Alerts</p>
+                  <p className="text-4xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">
+                    {criticalAlerts}
+                  </p>
+                  <p className="text-xs text-slate-400 font-medium mt-1">high usage</p>
                 </div>
                 <div className="p-3 bg-gradient-to-br from-red-100 to-rose-50 rounded-xl text-red-500 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                  <Activity size={22} strokeWidth={2.5} />
+                  <Activity size={24} strokeWidth={2.5} />
                 </div>
               </div>
               <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(59,130,246,0.15)] transition-all duration-300 flex items-center justify-between group hover:scale-[1.02]">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Avg Load</p>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Avg CPU Load</p>
+                  <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {totalAgents > 0 ? Math.round(machines.reduce((acc, m) => acc + (m.metrics?.cpu || 0), 0) / totalAgents) : 0}%
                   </p>
+                  <p className="text-xs text-slate-400 font-medium mt-1">across fleet</p>
                 </div>
                 <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-50 rounded-xl text-blue-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                  <Cpu size={22} strokeWidth={2.5} />
+                  <Cpu size={24} strokeWidth={2.5} />
                 </div>
               </div>
             </div>
@@ -297,7 +304,7 @@ export default function Dashboard() {
           <SystemLoadChart />
         </div>
 
-        {/* Extra Metric Panels */}
+        {/* Infrastructure Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
           {/* Online / Offline Ring */}
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] transition-all duration-300 p-5 flex items-center gap-4 group hover:scale-[1.02]">
@@ -329,17 +336,18 @@ export default function Dashboard() {
             {Object.keys(osDist).length === 0 ? (
               <p className="text-slate-400 text-sm">No data</p>
             ) : (
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 {Object.entries(osDist).map(([os, count]) => {
                   const pct = Math.round((count / totalAgents) * 100);
                   return (
                     <div key={os}>
-                      <div className="flex justify-between text-xs mb-0.5">
-                        <span className="text-slate-600 truncate max-w-[120px]">{os}</span>
-                        <span className="text-slate-500 font-medium">{count}</span>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-slate-600 font-medium truncate max-w-[120px]">{os}</span>
+                        <span className="text-slate-500 font-semibold">{count} ({pct}%)</span>
                       </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div style={{ width: `${pct}%`, backgroundColor: osColors[os] || '#94a3b8' }} className="h-full rounded-full transition-all" />
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                        <div style={{ width: `${pct}%`, backgroundColor: osColors[os] || '#94a3b8' }} 
+                          className="h-full rounded-full transition-all duration-500 shadow-sm" />
                       </div>
                     </div>
                   );
@@ -349,38 +357,52 @@ export default function Dashboard() {
           </div>
 
           {/* Network I/O */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col justify-between">
-            <p className="text-xs font-semibold text-slate-500 uppercase mb-3 flex items-center gap-1.5"><Network size={13} />Network I/O (total)</p>
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] transition-all duration-300 p-5 flex flex-col justify-between group hover:scale-[1.02]">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Network size={14} className="text-purple-500" />
+              Network I/O
+            </p>
             <div className="flex flex-col gap-3">
-              <div className="bg-blue-50 rounded-xl px-4 py-2.5">
-                <p className="text-xs text-blue-500 font-medium">Upload</p>
-                <p className="text-xl font-bold text-blue-700">{fmtNet(totalNetUp)}</p>
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl px-4 py-3 border border-blue-100/50 shadow-sm">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-blue-600 font-bold uppercase">Upload</p>
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                </div>
+                <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{fmtNet(totalNetUp)}</p>
               </div>
-              <div className="bg-emerald-50 rounded-xl px-4 py-2.5">
-                <p className="text-xs text-emerald-500 font-medium">Download</p>
-                <p className="text-xl font-bold text-emerald-700">{fmtNet(totalNetDown)}</p>
+              <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl px-4 py-3 border border-emerald-100/50 shadow-sm">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-emerald-600 font-bold uppercase">Download</p>
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                </div>
+                <p className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">{fmtNet(totalNetDown)}</p>
               </div>
             </div>
           </div>
 
           {/* Top machines by CPU */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-            <p className="text-xs font-semibold text-slate-500 uppercase mb-3 flex items-center gap-1.5"><Cpu size={13} />Top CPU Load</p>
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] transition-all duration-300 p-5 group hover:scale-[1.02]">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Cpu size={14} className="text-amber-500" />
+              Top CPU Load
+            </p>
             {topCPU.length === 0 ? (
               <p className="text-slate-400 text-sm">No online machines</p>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2.5">
                 {topCPU.map(m => {
                   const cpu = m.metrics?.cpu || 0;
-                  const col = cpu > 80 ? 'bg-red-500' : cpu > 50 ? 'bg-amber-500' : 'bg-emerald-500';
+                  const col = cpu > 80 ? 'bg-gradient-to-r from-red-500 to-rose-500' : cpu > 50 ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-emerald-500 to-green-500';
+                  const textCol = cpu > 80 ? 'text-red-600' : cpu > 50 ? 'text-amber-600' : 'text-emerald-600';
                   return (
                     <div key={m.id}>
-                      <div className="flex justify-between text-xs mb-0.5">
-                        <span className="text-slate-600 truncate max-w-[100px]">{m.nickname || m.hostname}</span>
-                        <span className={`font-semibold ${cpu > 80 ? 'text-red-500' : cpu > 50 ? 'text-amber-500' : 'text-emerald-600'}`}>{cpu}%</span>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-slate-700 font-medium truncate max-w-[120px]">{m.nickname || m.hostname}</span>
+                        <span className={`font-bold ${textCol}`}>{cpu}%</span>
                       </div>
-                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div style={{ width: `${cpu}%` }} className={`h-full rounded-full transition-all ${col}`} />
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                        <div style={{ width: `${cpu}%` }} 
+                          className={`h-full rounded-full transition-all duration-500 shadow-sm ${col}`} />
                       </div>
                     </div>
                   );

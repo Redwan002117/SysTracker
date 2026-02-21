@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../../../lib/auth';
-import { User, Mail, Lock, Save, AlertCircle, CheckCircle, Eye, EyeOff, Loader2, MapPin, FileText, Camera, Shuffle } from 'lucide-react';
+import { User, Mail, Lock, Save, AlertCircle, CheckCircle, Eye, EyeOff, Loader2, MapPin, FileText, Camera, Shuffle, ImageIcon } from 'lucide-react';
 import AvatarUpload from '../../../components/AvatarUpload';
+import { fetchGravatar } from '../../../lib/gravatar';
 
 export default function Profile() {
     const [username, setUsername] = useState('');
@@ -12,6 +13,8 @@ export default function Profile() {
     const [bio, setBio] = useState('');
     const [location, setLocation] = useState('');
     const [avatar, setAvatar] = useState('');
+    const [hasPassword, setHasPassword] = useState(true); // Track if user has password set
+    const [googleLinked, setGoogleLinked] = useState(false); // Track if Google account is linked
     
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -22,6 +25,7 @@ export default function Profile() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const [loading, setLoading] = useState(false);
+    const [loadingGravatar, setLoadingGravatar] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Unknown error');
@@ -39,6 +43,18 @@ export default function Profile() {
                     setBio(data.user.bio || '');
                     setLocation(data.user.location || '');
                     setAvatar(data.user.avatar || '');
+                    // Check auth methods
+                    setHasPassword(!!data.user.password_hash);
+                    setGoogleLinked(!!data.user.google_id);
+                    
+                    // Auto-fetch Gravatar if no avatar and user has email
+                    if (!data.user.avatar && data.user.email) {
+                        fetchGravatar(data.user.email, 200).then(gravatarUrl => {
+                            if (gravatarUrl) {
+                                setAvatar(gravatarUrl);
+                            }
+                        }).catch(() => {});
+                    }
                 }
             } catch (err) {
                 console.error('Failed to fetch profile:', err);
@@ -67,6 +83,14 @@ export default function Profile() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to update profile');
             setMessage({ type: 'success', text: 'Profile updated successfully!' });
+            
+            // Trigger profile refresh across all components
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('systracker_profile');
+                window.dispatchEvent(new CustomEvent('profile-updated', { 
+                    detail: { display_name: displayName, email, location, avatar } 
+                }));
+            }
         } catch (err: unknown) {
             setMessage({ type: 'error', text: getErrorMessage(err) });
         } finally {
@@ -80,17 +104,34 @@ export default function Profile() {
             setMessage({ type: 'error', text: 'New passwords do not match' });
             return;
         }
+        
+        if (newPassword.length < 8) {
+            setMessage({ type: 'error', text: 'Password must be at least 8 characters' });
+            return;
+        }
+        
         setLoading(true);
         setMessage(null);
 
         try {
+            const body: { current_password?: string; new_password: string } = {
+                new_password: newPassword
+            };
+            
+            // Only include current_password if user has existing password
+            if (hasPassword && currentPassword) {
+                body.current_password = currentPassword;
+            }
+            
             const res = await fetchWithAuth('/api/auth/change-password', {
                 method: 'POST',
-                body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+                body: JSON.stringify(body),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to change password');
-            setMessage({ type: 'success', text: 'Password changed successfully!' });
+            
+            setMessage({ type: 'success', text: data.message || 'Password updated successfully!' });
+            setHasPassword(true); // User now has a password
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
@@ -119,6 +160,12 @@ export default function Profile() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to update avatar');
             setMessage({ type: 'success', text: 'Avatar updated successfully!' });
+            
+            // Trigger profile refresh across all components
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('systracker_profile');
+                window.dispatchEvent(new CustomEvent('profile-updated', { detail: { avatar: url } }));
+            }
         } catch (err: unknown) {
             setMessage({ type: 'error', text: getErrorMessage(err) });
         }
@@ -134,8 +181,30 @@ export default function Profile() {
         handleAvatarUpload(randomUrl);
     };
 
+    const handleFetchGravatar = async () => {
+        if (!email) {
+            setMessage({ type: 'error', text: 'Email address required for Gravatar' });
+            return;
+        }
+        
+        setLoadingGravatar(true);
+        try {
+            const gravatarUrl = await fetchGravatar(email, 200);
+            if (gravatarUrl) {
+                await handleAvatarUpload(gravatarUrl);
+                setMessage({ type: 'success', text: 'Gravatar loaded successfully!' });
+            } else {
+                setMessage({ type: 'error', text: 'No Gravatar found for this email' });
+            }
+        } catch (err) {
+            setMessage({ type: 'error', text: 'Failed to fetch Gravatar' });
+        } finally {
+            setLoadingGravatar(false);
+        }
+    };
+
     return (
-        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">
+        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">\n
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
                 
                 {/* Header Section */}
@@ -199,16 +268,32 @@ export default function Profile() {
                                 </div>
 
                                 {/* Avatar Actions */}
-                                <div className="flex gap-2 mb-6 w-full">
-                                    <AvatarUpload 
-                                        currentAvatar={avatar}
-                                        onUpload={handleAvatarUpload}
-                                    />
+                                <div className="flex flex-col gap-2 mb-6 w-full">
+                                    <div className="flex gap-2">
+                                        <AvatarUpload 
+                                            currentAvatar={avatar}
+                                            onUpload={handleAvatarUpload}
+                                        />
+                                        <button
+                                            onClick={handleRandomizeAvatar}
+                                            className="flex-1 flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border border-slate-200 shadow-sm"
+                                            title="Generate random avatar"
+                                        >
+                                            <Shuffle size={14} /> Random
+                                        </button>
+                                    </div>
                                     <button
-                                        onClick={handleRandomizeAvatar}
-                                        className="flex-1 flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border border-slate-200 shadow-sm"
+                                        onClick={handleFetchGravatar}
+                                        disabled={!email || loadingGravatar}
+                                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+                                        title="Fetch avatar from Gravatar based on your email"
                                     >
-                                        <Shuffle size={14} /> Random
+                                        {loadingGravatar ? (
+                                            <Loader2 size={14} className="animate-spin" />
+                                        ) : (
+                                            <ImageIcon size={14} />
+                                        )}
+                                        {loadingGravatar ? 'Loading...' : 'Fetch from Gravatar'}
                                     </button>
                                 </div>
 
@@ -390,34 +475,70 @@ export default function Profile() {
                                     <div className="p-2.5 bg-gradient-to-br from-amber-100 to-orange-100 rounded-xl group-hover/card:scale-110 transition-transform duration-200">
                                         <Lock size={20} className="text-amber-600" strokeWidth={2.5} />
                                     </div>
-                                    <h2 className="text-xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">Security & Password</h2>
+                                    <h2 className="text-xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                                        {hasPassword ? 'Security & Password' : 'Set Password'}
+                                    </h2>
                                 </div>
 
-                                <form onSubmit={handleChangePassword} className="space-y-6">
-                                    {/* Current Password */}
-                                    <div>
-                                        <label htmlFor="current-password" className="block text-sm font-semibold text-slate-700 mb-2">
-                                            Current Password
-                                            <span className="text-blue-600 ml-1">*</span>
-                                        </label>
-                                        <div className="relative group/field">
-                                            <input
-                                                id="current-password"
-                                                type={showCurrentPassword ? 'text' : 'password'}
-                                                value={currentPassword}
-                                                onChange={e => setCurrentPassword(e.target.value)}
-                                                placeholder="Enter current password"
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent focus:bg-white transition-all duration-200 placeholder:text-slate-400 text-slate-900 pr-11"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
-                                            >
-                                                {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                            </button>
+                                {/* Authentication Methods Info */}
+                                {(hasPassword || googleLinked) && (
+                                    <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200/60 rounded-xl">
+                                        <h3 className="text-sm font-semibold text-blue-900 mb-2">Authentication Methods</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {hasPassword && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+                                                    <Lock size={14} />
+                                                    Username/Password
+                                                </span>
+                                            )}
+                                            {googleLinked && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white text-blue-700 text-xs font-medium rounded-full border border-blue-200">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                                    </svg>
+                                                    Google Account
+                                                </span>
+                                            )}
                                         </div>
+                                        {!hasPassword && googleLinked && (
+                                            <p className="mt-2 text-xs text-blue-700">
+                                                💡 Set a password to enable username/password login as backup
+                                            </p>
+                                        )}
                                     </div>
+                                )}
+
+                                <form onSubmit={handleChangePassword} className="space-y-6">
+                                    {/* Current Password - Only show if user has existing password */}
+                                    {hasPassword && (
+                                        <div>
+                                            <label htmlFor="current-password" className="block text-sm font-semibold text-slate-700 mb-2">
+                                                Current Password
+                                                <span className="text-blue-600 ml-1">*</span>
+                                            </label>
+                                            <div className="relative group/field">
+                                                <input
+                                                    id="current-password"
+                                                    type={showCurrentPassword ? 'text' : 'password'}
+                                                    value={currentPassword}
+                                                    onChange={e => setCurrentPassword(e.target.value)}
+                                                    placeholder="Enter current password"
+                                                    required={hasPassword}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent focus:bg-white transition-all duration-200 placeholder:text-slate-400 text-slate-900 pr-11"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                                                >
+                                                    {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* New Password */}
                                     <div>
@@ -478,12 +599,12 @@ export default function Profile() {
                                         {loading ? (
                                             <>
                                                 <Loader2 size={18} strokeWidth={2.5} className="animate-spin" />
-                                                Updating...
+                                                {hasPassword ? 'Updating...' : 'Setting...'}
                                             </>
                                         ) : (
                                             <>
                                                 <Lock size={18} strokeWidth={2.5} />
-                                                Update Password
+                                                {hasPassword ? 'Update Password' : 'Set Password'}
                                             </>
                                         )}
                                     </button>
@@ -504,10 +625,18 @@ export default function Profile() {
                             <span className="text-blue-600 mt-1">•</span>
                             <span>Use a strong password with at least 8 characters, including numbers and symbols</span>
                         </li>
-                        <li className="flex items-start gap-2">
-                            <span className="text-blue-600 mt-1">•</span>
-                            <span>Change your password regularly for better account security</span>
-                        </li>
+                        {hasPassword && (
+                            <li className="flex items-start gap-2">
+                                <span className="text-blue-600 mt-1">•</span>
+                                <span>Change your password regularly for better account security</span>
+                            </li>
+                        )}
+                        {googleLinked && !hasPassword && (
+                            <li className="flex items-start gap-2">
+                                <span className="text-blue-600 mt-1">•</span>
+                                <span>Setting a password provides a backup login method if Google sign-in is unavailable</span>
+                            </li>
+                        )}
                         <li className="flex items-start gap-2">
                             <span className="text-blue-600 mt-1">•</span>
                             <span>Never share your password with anyone, including administrators</span>
