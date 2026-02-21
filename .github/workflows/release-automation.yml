@@ -1,14 +1,9 @@
 name: Automated Release & Version Management
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'server/package.json'
-      - 'dashboard/package.json'
-      - 'agent/package.json'
-      - 'CHANGELOG.md'
+  # Triggered manually only.
+  # publish.yml handles all automated releasing when a tag is pushed.
+  # Removing the push trigger prevents duplicate/skipped job noise on every commit.
   workflow_dispatch:
     inputs:
       version:
