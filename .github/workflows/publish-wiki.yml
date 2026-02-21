@@ -33,6 +33,9 @@ jobs:
       # 3. Copy files from your .wiki folder to the Wiki repository and push
       - name: Sync files and push to Wiki
         run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
           # Sync files from .wiki/ to the wiki repository
           # --delete ensures files removed from docs/ are also removed from the Wiki
           rsync -av --delete --exclude='.git' main-repo/.wiki/ wiki-repo/
