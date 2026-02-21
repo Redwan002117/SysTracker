@@ -47,7 +47,7 @@ export default function ContactPage() {
         e.preventDefault();
         setStatus('sending');
         const body = `Name: ${form.name}\nEmail: ${form.email}\nType: ${form.type}\n\n${form.message}`;
-        const mailtoUrl = `mailto:contact@systracker.app?subject=${encodeURIComponent(`[${form.type.toUpperCase()}] ${form.subject}`)}&body=${encodeURIComponent(body)}`;
+        const mailtoUrl = `mailto:SysTracker@rico.bd?subject=${encodeURIComponent(`[${form.type.toUpperCase()}] ${form.subject}`)}&body=${encodeURIComponent(body)}`;
         setTimeout(() => {
             window.location.href = mailtoUrl;
             setStatus('sent');
@@ -109,7 +109,15 @@ export default function ContactPage() {
                                     <div className="flex items-center gap-1 text-purple-600 text-sm font-semibold mt-2">Join discussion <ExternalLink size={12} /></div>
                                 </div>
                             </motion.a>
-                            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="p-5 bg-blue-50 border border-blue-100 rounded-2xl">
+                            <motion.a href="mailto:SysTracker@rico.bd" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="flex items-start gap-4 p-5 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer group">
+                                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 transition-colors"><Mail size={22} className="text-blue-500 group-hover:text-white transition-colors" /></div>
+                                <div>
+                                    <div className="font-bold text-slate-900 mb-1">Email Us Directly</div>
+                                    <div className="text-slate-500 text-sm">For general inquiries, partnerships, or anything else.</div>
+                                    <div className="flex items-center gap-1 text-blue-600 text-sm font-semibold mt-2">SysTracker@rico.bd <ExternalLink size={12} /></div>
+                                </div>
+                            </motion.a>
+                            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="p-5 bg-blue-50 border border-blue-100 rounded-2xl">
                                 <div className="font-bold text-slate-900 mb-3 text-sm uppercase tracking-wider">Legal &amp; Policies</div>
                                 <div className="space-y-2">
                                     {[{ href: '/privacy', label: 'Privacy Policy' }, { href: '/terms', label: 'Terms of Use' }, { href: '/data-retention', label: 'Data Retention Policy' }, { href: '/acceptable-use', label: 'Acceptable Use Policy' }].map((link) => (

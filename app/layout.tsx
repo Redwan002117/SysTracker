@@ -5,7 +5,7 @@ export const metadata: Metadata = {
     title: 'SysTracker — Real-Time System Monitoring',
     description: 'Download SysTracker, the self-hosted real-time system monitoring tool for Windows. Monitor CPU, RAM, disk, network, and more across your entire fleet.',
     keywords: ['system monitoring', 'RMM', 'Windows monitoring', 'self-hosted', 'SysTracker'],
-    authors: [{ name: 'Redwan002117' }],
+    authors: [{ name: 'SysTracker' }],
     icons: {
         icon: '/favicon.ico',
         shortcut: '/favicon.ico',

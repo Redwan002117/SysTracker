@@ -89,7 +89,7 @@ export default function PrivacyPolicy() {
                     </Section>
 
                     <Section title="10. Contact">
-                        <p>SysTracker is an open-source project. For questions or concerns, please open an issue on the <a href="https://github.com/Redwan002117/SysTracker" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GitHub repository</a>.</p>
+                        <p>SysTracker is an open-source project. For questions or concerns, contact us at <a href="mailto:SysTracker@rico.bd" className="text-blue-600 hover:underline">SysTracker@rico.bd</a> or open an issue on the <a href="https://github.com/Redwan002117/SysTracker" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GitHub repository</a>.</p>
                     </Section>
                 </div>
             </main>

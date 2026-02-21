@@ -73,7 +73,7 @@ export default function AcceptableUsePolicy() {
                         <p>The SysTracker project maintainers are not liable for any misuse. You assume full legal responsibility for your deployment.</p>
                     </Section>
                     <Section title="7. Reporting Misuse">
-                        <p>Report misuse or security vulnerabilities via the <a href="https://github.com/Redwan002117/SysTracker/issues" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GitHub Issues page</a>.</p>
+                        <p>Report misuse or security vulnerabilities by emailing <a href="mailto:SysTracker@rico.bd" className="text-blue-600 hover:underline">SysTracker@rico.bd</a> or via the <a href="https://github.com/Redwan002117/SysTracker/issues" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GitHub Issues page</a>.</p>
                     </Section>
                     <Section title="8. Policy Updates">
                         <p>This AUP may be updated to reflect new features, legal requirements, or community feedback.</p>

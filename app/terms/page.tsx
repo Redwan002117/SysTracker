@@ -87,7 +87,7 @@ export default function TermsOfUse() {
                     </Section>
 
                     <Section title="11. Contact">
-                        <p>For questions about these Terms, please open an issue on the <a href="https://github.com/Redwan002117/SysTracker" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GitHub repository</a>.</p>
+                        <p>For questions about these Terms, contact us at <a href="mailto:SysTracker@rico.bd" className="text-blue-600 hover:underline">SysTracker@rico.bd</a> or open an issue on the <a href="https://github.com/Redwan002117/SysTracker" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">GitHub repository</a>.</p>
                     </Section>
                 </div>
             </main>
