@@ -48,57 +48,14 @@ jobs:
       - name: Build Dashboard
         run: |
           cd dashboard
-          echo "📦 Installing dependencies..."
-          npm install --legacy-peer-deps || npm install
-          
-          echo "🏗️  Building Next.js application..."
+          npm install
           npm run build
           
-          echo ""
-          echo "✓ Build completed, checking output..."
-          pwd
-          ls -la
-          
-          echo ""
-          echo "📁 Checking for .next directory..."
-          if [ ! -d ".next" ]; then
-            echo "❌ ERROR: .next directory not found"
-            echo ""
-            echo "📍 Current directory contents:"
-            ls -laR . | head -50
-            exit 1
-          fi
-          
-          echo "✓ .next directory found"
-          echo ""
-          echo "📊 Build artifacts:"
-          du -sh .next
-          FILE_COUNT=$(find .next -type f | wc -l)
-          echo "✓ Total files: $FILE_COUNT"
-          
-      - name: Debug Dashboard Build Output
-        if: failure()
-        run: |
-          cd dashboard
-          echo "❌ Build failed - collecting debug info..."
-          echo ""
-          echo "📁 Directory structure:"
-          find . -maxdepth 3 -type d | grep -v node_modules | head -30
-          echo ""
-          echo "📄 Config files:"
-          ls -la next.config.* tsconfig.json package.json 2>/dev/null || echo "Config files not found"
-          
-      - name: Check Build Output
-        run: |
-          cd dashboard
-          if [ ! -d ".next" ]; then
-            echo "❌ ERROR: .next directory not found"
-            exit 1
-          fi
-          echo "✓ Dashboard build successful"
-          
-      # Note: Dashboard artifact upload can timeout with large builds
-      # Dependent jobs will rebuild dashboard instead (faster overall)
+      - name: Upload Dashboard Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/.next/
 
   # 3. Build Standalone Server & Release (Windows)
   build-server-release:
@@ -119,21 +76,12 @@ jobs:
         with:
           name: SysTracker_Agent
           path: server/bin/
-      
-      - name: Build Dashboard for Server
-        shell: bash
-        run: |
-          echo "🏗️ Building dashboard for server..."
-          cd dashboard
-          npm install --legacy-peer-deps || npm install
-          npm run build
-          if [ ! -d ".next" ]; then
-            echo "❌ Dashboard build failed"
-            exit 1
-          fi
-          mkdir -p ../server/dashboard-dist
-          cp -r .next/* ../server/dashboard-dist/
-          echo "✓ Dashboard ready"
+          
+      - name: Download Dashboard Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: server/dashboard-dist/
           
       - name: Build Standalone Server (pkg + rcedit icon)
         run: |
@@ -161,31 +109,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Setup Node.js for Dashboard
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-      
       - name: Download Agent Artifact
         uses: actions/download-artifact@v4
         with:
           name: SysTracker_Agent
           path: server/bin/
-      
-      - name: Build Dashboard for Docker
-        shell: bash
-        run: |
-          echo "🏗️ Building dashboard for Docker..."
-          cd dashboard
-          npm install --legacy-peer-deps || npm install
-          npm run build
-          if [ ! -d ".next" ]; then
-            echo "❌ Dashboard build failed"
-            exit 1
-          fi
-          mkdir -p ../server/dashboard-dist
-          cp -r .next/* ../server/dashboard-dist/
-          echo "✓ Dashboard ready for Docker"
+          
+      - name: Download Dashboard Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: server/dashboard-dist/
           
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
