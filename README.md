@@ -5,7 +5,7 @@ Real-time telemetry, hardware inventory, process monitoring, Windows Event Logs 
 
 ![SysTracker Banner](https://raw.githubusercontent.com/Redwan002117/SysTracker/main/dashboard/public/banner.svg)
 
-[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](https://github.com/Redwan002117/SysTracker/releases/latest)
+[![Version](https://img.shields.io/badge/version-3.3.1-blue.svg)](https://github.com/Redwan002117/SysTracker/releases/latest)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 [![Website](https://img.shields.io/badge/website-systracker.rico.bd-informational)](https://systracker.rico.bd)
 
