@@ -15,5 +15,11 @@
     <Description>SysTracker Server Launcher</Description>
     <!-- Deterministic build -->
     <Deterministic>true</Deterministic>
+    <!-- The .cs file carries its own [assembly:] attributes -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- System.Net.Http is not auto-referenced in net48 -->
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
 </Project>
