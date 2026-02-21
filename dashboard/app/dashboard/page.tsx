@@ -86,7 +86,15 @@ export default function Dashboard() {
       setMachines(prev => {
         const index = prev.findIndex(m => m.id === data.id);
         if (index === -1) {
-          return [...prev, { ...data, status: 'online', last_seen: new Date().toISOString() }];
+          const newMachine: Machine = {
+            hostname: data.hostname ?? data.id,
+            ip: data.ip ?? '',
+            os: data.os ?? '',
+            status: 'online',
+            last_seen: new Date().toISOString(),
+            ...data,
+          };
+          return [...prev, newMachine];
         }
         const newMachines = [...prev];
         newMachines[index] = {
