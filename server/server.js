@@ -8,6 +8,27 @@ const IS_PKG = typeof process.pkg !== 'undefined';
 const BASE_DIR = IS_PKG ? path.dirname(process.execPath) : __dirname;
 const ASSETS_DIR = __dirname; // snapshot dir (dashboard-dist lives here)
 
+// Helper function for safe module loading
+function safeRequire(moduleName) {
+    try {
+        // Try relative path first (development mode)
+        return require(`./${moduleName}`);
+    } catch (e1) {
+        try {
+            // Try absolute path for pkg bundled mode
+            return require(path.join(BASE_DIR, `${moduleName}.js`));
+        } catch (e2) {
+            try {
+                // Try from snapshot dir
+                return require(path.join(ASSETS_DIR, `${moduleName}.js`));
+            } catch (e3) {
+                console.error(`Failed to load module: ${moduleName}`);
+                throw new Error(`Module not found: ${moduleName}`);
+            }
+        }
+    }
+}
+
 // Load .env from the EXE's real directory (or project root in dev)
 require('dotenv').config({ path: path.join(BASE_DIR, '.env') });
 const express = require('express');
@@ -20,12 +41,12 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const emailTemplates = require('./emailTemplates');
+const emailTemplates = safeRequire('emailTemplates');
 const nodemailer = require('nodemailer');
 
-// Import validation and logging modules
-const { validateProcessData, validateHardwareInfo, validateDiskDetails } = require('./dataValidation');
-const { logger, LOG_DIR } = require('./errorLogger');
+// Import validation and logging modules using safe require
+const { validateProcessData, validateHardwareInfo, validateDiskDetails } = safeRequire('dataValidation');
+const { logger, LOG_DIR } = safeRequire('errorLogger');
 
 // Log server startup
 logger.info('SysTracker Server starting...', { pid: process.pid });

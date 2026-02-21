@@ -12,14 +12,27 @@
     "assets": [
       "dashboard-dist/**/*",
       "schema_sqlite.sql",
+      "schema.sql",
       "emailTemplates.js",
-      "bin/**/*"
+      "dataValidation.js",
+      "errorLogger.js",
+      "migrate_db.js",
+      "migrate_processes.js",
+      "init_db.js",
+      "bin/**/*",
+      ".env"
     ],
     "targets": [
       "node18-win-x64",
       "node18-linux-x64"
     ],
-    "outputPath": "dist"
+    "outputPath": "dist",
+    "scripts": [
+      "server.js",
+      "emailTemplates.js",
+      "dataValidation.js",
+      "errorLogger.js"
+    ]
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
