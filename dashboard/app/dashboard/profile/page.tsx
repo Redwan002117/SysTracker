@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fetchWithAuth, getUsername } from '../../../lib/auth';
+import Image from 'next/image';
+import { fetchWithAuth } from '../../../lib/auth';
 import { User, Mail, Lock, Save, AlertCircle, CheckCircle, Eye, EyeOff, Loader2, MapPin, FileText, Camera, Shuffle } from 'lucide-react';
 import AvatarUpload from '../../../components/AvatarUpload';
 
@@ -23,6 +24,8 @@ export default function Profile() {
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+    const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Unknown error');
 
     useEffect(() => {
         // Fetch current user details including email
@@ -65,8 +68,8 @@ export default function Profile() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to update profile');
             setMessage({ type: 'success', text: 'Profile updated successfully!' });
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: getErrorMessage(err) });
         } finally {
             setLoading(false);
         }
@@ -92,8 +95,8 @@ export default function Profile() {
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: getErrorMessage(err) });
         } finally {
             setLoading(false);
         }
@@ -117,8 +120,8 @@ export default function Profile() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Failed to update avatar');
             setMessage({ type: 'success', text: 'Avatar updated successfully!' });
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: getErrorMessage(err) });
         }
     };
 
@@ -179,10 +182,13 @@ export default function Profile() {
                                 <div className="relative group mb-6">
                                     <div className="relative w-32 h-32 rounded-full overflow-hidden ring-4 ring-blue-100 shadow-xl">
                                         {avatar ? (
-                                            <img
+                                            <Image
                                                 src={avatar}
                                                 alt="Profile"
-                                                className="w-full h-full object-cover"
+                                                fill
+                                                sizes="128px"
+                                                className="object-cover"
+                                                unoptimized
                                             />
                                         ) : (
                                             <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">

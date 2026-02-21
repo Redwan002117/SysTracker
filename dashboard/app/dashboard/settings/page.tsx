@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../../../lib/auth';
-import { Mail, Save, Server, Shield, User, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw, Download, Upload, Package } from 'lucide-react';
+import { Mail, Save, Server, Shield, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw, Download, Upload, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Settings() {
@@ -34,6 +34,8 @@ export default function Settings() {
     const [uploadingAgent, setUploadingAgent] = useState(false);
     const [agentFile, setAgentFile] = useState<File | null>(null);
     const [newVersion, setNewVersion] = useState('');
+
+    const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Unknown error');
 
     useEffect(() => {
         loadSettings();
@@ -69,8 +71,8 @@ export default function Settings() {
                 setReleaseDate(agentData.upload_date);
                 setReleaseHash(agentData.file_hash);
             }
-        } catch (err: any) {
-            setMessage({ type: 'error', text: 'Failed to load settings: ' + err.message });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: 'Failed to load settings: ' + getErrorMessage(err) });
         } finally {
             setLoading(false);
         }
@@ -89,8 +91,8 @@ export default function Settings() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             setMessage({ type: 'success', text: 'SMTP Settings saved successfully!' });
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: getErrorMessage(err) });
         } finally {
             setSaving(false);
         }
@@ -107,8 +109,8 @@ export default function Settings() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             setMessage({ type: 'success', text: 'API Key updated successfully!' });
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: getErrorMessage(err) });
         } finally {
             setSaving(false);
         }
@@ -125,8 +127,8 @@ export default function Settings() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             setMessage({ type: 'success', text: data.message });
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: getErrorMessage(err) });
         } finally {
             setTesting(false);
         }
@@ -182,8 +184,8 @@ export default function Settings() {
             setCurrentVersion(newVersion);
             setReleaseDate(new Date().toISOString());
             setReleaseHash(data.hash);
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: getErrorMessage(err) });
         } finally {
             setUploadingAgent(false);
         }

@@ -9,7 +9,7 @@ import SystemLoadChart from '../../components/SystemLoadChart';
 import { Machine } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Search, Cpu, Wifi, Server, Lock, X } from 'lucide-react';
-import { fetchWithAuth, clearToken, isViewer, isAdmin } from '../../lib/auth';
+import { fetchWithAuth, clearToken, isViewer } from '../../lib/auth';
 
 const container = {
   hidden: { opacity: 0 },
@@ -47,6 +47,8 @@ export default function Dashboard() {
     setSelectedMachine(machine);
   };
 
+  type MachineUpdatePayload = Partial<Machine> & { id: string; status?: 'online' | 'offline' };
+
   useEffect(() => {
     // Explicit socket options for better connectivity behind proxies
     const socket = io({
@@ -80,7 +82,7 @@ export default function Dashboard() {
       });
 
     // Real-time updates
-    socket.on('machine_update', (data: any) => {
+    socket.on('machine_update', (data: MachineUpdatePayload) => {
       setMachines(prev => {
         const index = prev.findIndex(m => m.id === data.id);
         if (index === -1) {
@@ -116,7 +118,7 @@ export default function Dashboard() {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [router]);
 
   // Filter Logic
   const filteredMachines = machines.filter(machine => {
@@ -264,7 +266,7 @@ export default function Dashboard() {
             <div className="col-span-full text-center py-20 text-slate-400">
               <Server size={48} className="mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium">No Monitoring Agents Found</p>
-              <p className="text-sm">Run 'python agent.py' on your machines to connect.</p>
+              <p className="text-sm">Run &apos;python agent.py&apos; on your machines to connect.</p>
             </div>
           )}
         </motion.div>

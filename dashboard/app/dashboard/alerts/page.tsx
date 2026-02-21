@@ -41,6 +41,8 @@ export default function AlertsPage() {
         enabled: true
     });
 
+    const priorities: AlertPolicy['priority'][] = ['low', 'medium', 'high'];
+
     const refreshData = async () => {
         setLoading(true);
         try {
@@ -163,7 +165,13 @@ export default function AlertsPage() {
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                         <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                             <h3 className="font-bold text-slate-700">Active Incidents</h3>
-                            <button onClick={refreshData} className="text-sm text-blue-600 hover:underline">Refresh</button>
+                            <button
+                                onClick={refreshData}
+                                disabled={loading}
+                                className="text-sm text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline"
+                            >
+                                {loading ? 'Refreshing...' : 'Refresh'}
+                            </button>
                         </div>
                         <div className="divide-y divide-slate-50">
                             {alerts.length === 0 ? (
@@ -323,10 +331,10 @@ export default function AlertsPage() {
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Priority</label>
                                             <div className="flex bg-slate-100 p-1 rounded-lg">
-                                                {['low', 'medium', 'high'].map(p => (
+                                                {priorities.map(p => (
                                                     <button
                                                         key={p}
-                                                        onClick={() => setNewPolicy({ ...newPolicy, priority: p as any })}
+                                                        onClick={() => setNewPolicy({ ...newPolicy, priority: p })}
                                                         className={`flex-1 py-1.5 text-xs font-bold uppercase rounded-md transition-all ${newPolicy.priority === p ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                                     >
                                                         {p}
