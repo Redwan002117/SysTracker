@@ -111,6 +111,13 @@ Section "SysTracker Agent" SecMain
     File "dist\systracker-agent-win.exe"
     Rename "$INSTDIR\systracker-agent-win.exe" "$INSTDIR\systracker-agent.exe"
 
+    ; Install code signing certificate so Windows trusts SysTracker binaries
+    ; (non-fatal — skipped if cert was not generated yet)
+    File /nonfatal "..\scripts\SysTracker.cer"
+    IfFileExists "$INSTDIR\SysTracker.cer" 0 +3
+        DetailPrint "Installing SysTracker code signing certificate..."
+        nsExec::ExecToLog 'certutil -addstore "TrustedPublisher" "$INSTDIR\SysTracker.cer"'
+
     ; Write config file
     FileOpen $0 "$INSTDIR\agent_config.json" w
     FileWrite $0 '{$\r$\n'
@@ -165,6 +172,7 @@ Section "Uninstall"
     ; Remove files
     Delete "$INSTDIR\systracker-agent.exe"
     Delete "$INSTDIR\agent_config.json"
+    Delete "$INSTDIR\SysTracker.cer"
     Delete "$INSTDIR\Uninstall.exe"
     RMDir  "$INSTDIR"
 

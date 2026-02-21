@@ -130,6 +130,13 @@ Section "SysTracker Server" SecServer
     File "app.ico"
     Rename "$INSTDIR\app.ico" "$INSTDIR\systracker.ico"
 
+    ; Install code signing certificate so Windows trusts SysTracker binaries
+    ; (non-fatal — skipped if cert was not generated yet)
+    File /nonfatal "..\scripts\SysTracker.cer"
+    IfFileExists "$INSTDIR\SysTracker.cer" 0 +3
+        DetailPrint "Installing SysTracker code signing certificate..."
+        nsExec::ExecToLog 'certutil -addstore "TrustedPublisher" "$INSTDIR\SysTracker.cer"'
+
     ; Write .env configuration
     FileOpen $0 "$INSTDIR\.env" w
     FileWrite $0 "PORT=$ServerPort$\r$\n"

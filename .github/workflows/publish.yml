@@ -147,6 +147,64 @@ jobs:
           if ($LASTEXITCODE -ne 0) { Write-Error "Server NSIS build failed"; exit 1 }
           Write-Host "✓ SysTracker-Server-Setup.exe created"
 
+      # ── Code Signing ────────────────────────────────────────────────────────
+      # Requires GitHub Secret: CODESIGN_PFX_BASE64 (base64-encoded PFX).
+      # Optional secret: CODESIGN_PFX_PASSWORD (PFX password, if set).
+      # If secret is absent the signing steps are skipped gracefully.
+
+      - name: Install Code Signing Certificate
+        if: ${{ env.CODESIGN_PFX_BASE64 != '' }}
+        env:
+          CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
+          CODESIGN_PFX_PASSWORD: ${{ secrets.CODESIGN_PFX_PASSWORD }}
+        run: |
+          $pfxPath = "$env:RUNNER_TEMP\systracker-codesign.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:CODESIGN_PFX_BASE64))
+          $securePass = if ($env:CODESIGN_PFX_PASSWORD) {
+            ConvertTo-SecureString $env:CODESIGN_PFX_PASSWORD -AsPlainText -Force
+          } else {
+            New-Object System.Security.SecureString
+          }
+          Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation "Cert:\CurrentUser\My" -Password $securePass | Out-Null
+          Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation "Cert:\LocalMachine\TrustedPublisher" -Password $securePass | Out-Null
+          Remove-Item $pfxPath -Force
+          Write-Host "✓ Code signing certificate installed"
+
+      - name: Sign Windows Executables
+        if: ${{ env.CODESIGN_PFX_BASE64 != '' }}
+        env:
+          CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
+        run: |
+          # Find signtool.exe from the Windows SDK
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" |
+            Where-Object { $_.FullName -match "x64" } |
+            Sort-Object FullName | Select-Object -Last 1 -ExpandProperty FullName
+          if (-not $signtool) { Write-Error "signtool.exe not found"; exit 1 }
+          Write-Host "Using signtool: $signtool"
+
+          $timestamp = "http://timestamp.digicert.com"
+          $filesToSign = @(
+            "agent\dist\systracker-agent-win.exe",
+            "server\dist\systracker-server-win.exe",
+            "server\dist\SysTrackerServer.exe",
+            "agent\dist\SysTracker-Agent-Setup.exe",
+            "server\dist\SysTracker-Server-Setup.exe"
+          )
+
+          foreach ($file in $filesToSign) {
+            if (Test-Path $file) {
+              Write-Host "  Signing: $file"
+              & $signtool sign /fd SHA256 /a /n "SysTracker" /t $timestamp $file
+              if ($LASTEXITCODE -ne 0) { Write-Warning "Signing failed for $file (non-fatal)" }
+              & $signtool verify /pa $file 2>&1 | Out-Null
+              Write-Host "    ✓ Signed"
+            } else {
+              Write-Warning "  File not found, skipping: $file"
+            }
+          }
+          Write-Host "✓ Code signing complete"
+      # ────────────────────────────────────────────────────────────────────────
+
       - name: List Release Artifacts
         run: |
           Write-Host "=== Release Artifacts ==="

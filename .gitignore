@@ -1,3 +1,7 @@
+# Code signing — private key (NEVER commit the PFX)
+*.pfx
+# Public cert is safe to commit (scripts/SysTracker.cer is intentionally tracked)
+
 # Dependencies
 node_modules/
 venv/
