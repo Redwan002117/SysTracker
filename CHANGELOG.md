@@ -3,6 +3,16 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.0] - 2026-02-21
+
+### ✨ Improvements
+- **Portfolio: shared SiteFooter with RedwanCodes hover logo** — all 7 portfolio pages now use a single `SiteFooter` component; the RedwanCodes brand logo (2.svg ↔ 1.svg cross-fade) appears on the right side of every footer
+- **Portfolio: Proprietary License branding** — footer copyright text and the Source Code resource card updated from "MIT License"/"Open Source" to "Proprietary License" across the entire site
+- **Verified GPG tag** — re-released as v3.2.0 so the tag carries the GitHub Verified badge (GPG key `A1473276C90DACC3` was registered on GitHub after v3.1.9 was pushed)
+- **CI cleanup** — `release-automation.yml` push trigger removed; workflow now only runs on manual dispatch, eliminating spurious skipped-job runs on every commit to main
+
+---
+
 ## [3.1.9] - 2026-02-21
 
 ### 🔒 Legal / Licensing

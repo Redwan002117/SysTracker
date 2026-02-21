@@ -19,12 +19,12 @@ SetCompressor        /SOLID lzma
 Unicode              true
 
 ; ---- Version Info -------------------------------------------
-VIProductVersion     "3.1.9.0"
+VIProductVersion     "3.2.0.0"
 VIAddVersionKey      "ProductName"      "SysTracker Agent"
 VIAddVersionKey      "CompanyName"      "RedwanCodes"
 VIAddVersionKey      "FileDescription"  "SysTracker System Monitoring Agent Installer"
-VIAddVersionKey      "FileVersion"      "3.1.9.0"
-VIAddVersionKey      "ProductVersion"   "3.1.9"
+VIAddVersionKey      "FileVersion"      "3.2.0.0"
+VIAddVersionKey      "ProductVersion"   "3.2.0"
 VIAddVersionKey      "LegalCopyright"   "© 2026 SysTracker / RedwanCodes"
 
 ; ---- MUI Settings -------------------------------------------
@@ -143,7 +143,7 @@ Section "SysTracker Agent" SecMain
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "DisplayName"     "SysTracker Agent"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
-        "DisplayVersion"  "3.1.9"
+        "DisplayVersion"  "3.2.0"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "Publisher"       "SysTracker"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
