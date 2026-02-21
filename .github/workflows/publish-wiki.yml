@@ -63,16 +63,22 @@ jobs:
             echo "Welcome to the SysTracker documentation!" >> Home.md
           fi
           
-          # Copy README as Home
-          cp ../README.md Home.md
-          
-          # Copy all markdown files from docs
-          if [ -d "../docs" ]; then
-            cp -r ../docs/* . 2>/dev/null || true
+          # Prefer repo-managed wiki content when available
+          if [ -d "../.wiki" ]; then
+            cp -r ../.wiki/* . 2>/dev/null || true
+          else
+            # Copy README as Home
+            cp ../README.md Home.md
+            
+            # Copy all markdown files from docs
+            if [ -d "../docs" ]; then
+              cp -r ../docs/* . 2>/dev/null || true
+            fi
           fi
           
-          # Create sidebar
-          cat > _Sidebar.md << 'SIDEBAR'
+          # Create sidebar when none is provided
+          if [ ! -f "_Sidebar.md" ]; then
+            cat > _Sidebar.md << 'SIDEBAR'
           # Documentation
           
           ## Getting Started
@@ -90,6 +96,7 @@ jobs:
           ---
           [GitHub](https://github.com/${{ github.repository }}) | [Issues](https://github.com/${{ github.repository }}/issues)
           SIDEBAR
+          fi
 
           # Commit and push
           git add -A
