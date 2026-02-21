@@ -34,7 +34,7 @@ class SysTrackerTray : ApplicationContext
 
     public SysTrackerTray()
     {
-        _serverExe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SysTracker-Server.exe");
+        _serverExe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SysTracker-Server-Core.exe");
         _dashboardUrl = GetDashboardUrl();
 
         BuildTrayIcon();

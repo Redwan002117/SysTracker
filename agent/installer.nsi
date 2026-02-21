@@ -36,7 +36,7 @@ VIAddVersionKey      "LegalCopyright"   "© 2026 Redwan002117"
 !define MUI_FINISHPAGE_LINK         "View SysTracker on GitHub"
 !define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/Redwan002117/SysTracker"
 !define MUI_WELCOMEPAGE_TITLE       "Welcome to SysTracker Agent Setup"
-!define MUI_WELCOMEPAGE_TEXT        "This wizard will install the SysTracker Agent on your computer.$\r$\n$\r$\nThe agent runs as a Windows Service and sends system metrics (CPU, RAM, disk, network) to your SysTracker server in real-time.$\r$\n$\r$\nClick Next to continue."
+!define MUI_WELCOMEPAGE_TEXT        "This wizard will install the SysTracker Agent on your computer.$\r$\n$\r$\nThe agent runs as a background task and sends system metrics (CPU, RAM, disk, network) to your SysTracker server in real-time. It starts automatically when Windows boots.$\r$\n$\r$\nClick Next to continue."
 
 ; ---- Variables ----------------------------------------------
 Var ServerURL
@@ -144,25 +144,23 @@ Section "SysTracker Agent" SecMain
     WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "NoRepair"  1
 
-    ; Install and start Windows Service
-    DetailPrint "Installing SysTracker Agent as Windows Service..."
-    nsExec::ExecToLog 'sc stop "SysTrackerAgent"'
-    nsExec::ExecToLog 'sc delete "SysTrackerAgent"'
-    Sleep 1000
-    nsExec::ExecToLog 'sc create "SysTrackerAgent" binpath= "\"$INSTDIR\systracker-agent.exe\"" start= auto DisplayName= "SysTracker Agent"'
-    nsExec::ExecToLog 'sc description "SysTrackerAgent" "Sends real-time system metrics to the SysTracker server."'
-    nsExec::ExecToLog 'sc failure "SysTrackerAgent" reset= 86400 actions= restart/5000/restart/10000/restart/30000'
-    nsExec::ExecToLog 'sc start "SysTrackerAgent"'
+    ; Register as a scheduled task that runs at system startup under SYSTEM account.
+    ; pkg-bundled Node.js exes cannot interact with the Windows SCM (error 1062),
+    ; so Task Scheduler is the correct approach.
+    DetailPrint "Registering SysTracker Agent as a startup task..."
+    nsExec::ExecToLog 'schtasks /Delete /TN "SysTrackerAgent" /F'
+    nsExec::ExecToLog 'schtasks /Create /TN "SysTrackerAgent" /TR "\"$INSTDIR\systracker-agent.exe\"" /SC ONSTART /RU SYSTEM /RL HIGHEST /F'
+    DetailPrint "Starting SysTracker Agent..."
+    nsExec::ExecToLog 'schtasks /Run /TN "SysTrackerAgent"'
 
     WriteUninstaller "$INSTDIR\Uninstall.exe"
 SectionEnd
 
 ; ---- Uninstaller --------------------------------------------
 Section "Uninstall"
-    ; Stop and remove Windows Service
-    nsExec::ExecToLog 'sc stop "SysTrackerAgent"'
-    Sleep 2000
-    nsExec::ExecToLog 'sc delete "SysTrackerAgent"'
+    ; Stop and remove the scheduled task
+    nsExec::ExecToLog 'schtasks /End /TN "SysTrackerAgent"'
+    nsExec::ExecToLog 'schtasks /Delete /TN "SysTrackerAgent" /F'
 
     ; Remove files
     Delete "$INSTDIR\systracker-agent.exe"
@@ -181,5 +179,5 @@ SectionEnd
 
 ; ---- Descriptions -------------------------------------------
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-    !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Installs the SysTracker Agent as a Windows Service."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} "Installs the SysTracker Agent as a startup task (runs at boot under SYSTEM)."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
