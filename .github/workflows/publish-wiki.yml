@@ -6,9 +6,7 @@ on:
       - main
     paths:
       - 'docs/**'
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - 'RELEASE_NOTES*'
+      - '*.md'
       - '.github/workflows/publish-wiki.yml'
   pull_request:
     branches:
