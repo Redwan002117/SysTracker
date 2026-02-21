@@ -7,17 +7,29 @@ const { exec } = require('child_process');
 
 // Configuration: Prefer Command Line Args > CONFIG file > Env Var > Default
 const args = process.argv.slice(2);
-const configPath = path.resolve(__dirname, 'agent_config.json');
+
+// When bundled with pkg, __dirname is the virtual snapshot path (inside the exe),
+// NOT the real directory where the exe lives.  Use process.execPath's directory
+// so we read the agent_config.json that the installer wrote to Program Files.
+const configDir = (typeof process.pkg !== 'undefined')
+    ? path.dirname(process.execPath)   // pkg bundle — real install dir
+    : __dirname;                       // dev / node run
+const configPath = path.resolve(configDir, 'agent_config.json');
 let config = {};
 
 if (fs.existsSync(configPath)) {
     try {
         config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    } catch (e) { console.error("Config parse error", e); }
+        console.log('Loaded config from:', configPath);
+    } catch (e) { console.error('Config parse error:', e.message); }
+} else {
+    console.warn('No config file found at', configPath, '— using defaults');
 }
 
 const SERVER_URL = args[0] || config.SERVER_URL || process.env.SERVER_URL || 'https://monitor.rico.bd';
+const API_KEY    = args[1] || config.API_KEY    || process.env.API_KEY    || '';
 const API_URL = `${SERVER_URL}/api`;
+console.log('SysTracker Agent starting — server:', SERVER_URL);
 
 const MACHINE_ID = os.hostname();
 const TELEMETRY_INTERVAL = 2000; // 2 seconds for "live" feel
@@ -275,11 +287,11 @@ async function main() {
                 events: events
             };
 
-            console.log('Sending Metrics:', JSON.stringify(metrics)); // DEBUG LOG
+            console.log('Sending telemetry…');
 
             try {
-                // await axios.post(`${API_URL}/telemetry`, payload, { headers: { 'X-API-Key': API_KEY } });
-                await axios.post(`${API_URL}/telemetry`, payload);
+                const headers = API_KEY ? { 'X-API-Key': API_KEY } : {};
+                await axios.post(`${API_URL}/telemetry`, payload, { headers });
                 console.log('Telemetry sent');
             } catch (e) {
                 await logToServer('error', 'Agent loop error', e);

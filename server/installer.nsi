@@ -46,6 +46,7 @@ Var Dialog
 Var PortField
 Var PasswordField
 Var BootCheckbox
+Var UrlLabel
 
 ; ---- Pages --------------------------------------------------
 !insertmacro MUI_PAGE_WELCOME
@@ -78,8 +79,9 @@ Function ServerConfigPage
     Pop $0
     ${NSD_CreateNumber} 0 24u 60u 14u "$ServerPort"
     Pop $PortField
-    ${NSD_CreateLabel} 65u 26u 100% 10u "The dashboard will be at http://localhost:[PORT]"
-    Pop $0
+    ${NSD_CreateLabel} 65u 26u 100% 10u "The dashboard will be at http://localhost:7777"
+    Pop $UrlLabel
+    ${NSD_OnChange} $PortField OnPortChange
 
     ; Admin Password
     ${NSD_CreateLabel} 0 50u 100% 12u "Initial Admin Password:"
@@ -97,6 +99,14 @@ Function ServerConfigPage
     ${NSD_SetState} $BootCheckbox ${BST_CHECKED}
 
     nsDialogs::Show
+FunctionEnd
+
+Function OnPortChange
+    ${NSD_GetText} $PortField $ServerPort
+    ${If} $ServerPort == ""
+        StrCpy $ServerPort "7777"
+    ${EndIf}
+    ${NSD_SetText} $UrlLabel "The dashboard will be at http://localhost:$ServerPort"
 FunctionEnd
 
 Function ServerConfigPageLeave
