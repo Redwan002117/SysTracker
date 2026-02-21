@@ -4,7 +4,7 @@
   "description": "SysTracker System Monitoring Agent",
   "bin": "client_agent.js",
   "scripts": {
-    "build:win": "pkg . --targets node18-win-x64 --output dist/systracker-agent-win.exe && node ../server/scripts/add-icon.js"
+    "build:win": "pkg . --targets node18-win-x64 --output dist/systracker-agent-win.exe && node scripts/add-icon.js"
   },
   "pkg": {
     "scripts": "client_agent.js",

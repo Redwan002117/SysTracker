@@ -97,20 +97,91 @@ jobs:
             exit 1
           }
           
-      - name: Build Standalone Server (pkg + rcedit icon)
+      - name: Build Standalone Server EXEs (pkg + rcedit icon)
         run: |
           cd server
           npm install
           npm run build:all
-          
+
+      - name: Compile Server System Tray Launcher (C#)
+        run: |
+          $csc = (Get-ChildItem "$env:WINDIR\Microsoft.NET\Framework64\v4*\csc.exe" | Sort-Object | Select-Object -Last 1).FullName
+          if (-not $csc) { $csc = "csc.exe" }
+          Write-Host "Using csc: $csc"
+          & $csc /target:winexe /optimize+ /out:server\dist\SysTrackerServer.exe `
+            server\tray\SysTrackerTray.cs `
+            /r:System.Windows.Forms.dll `
+            /r:System.Drawing.dll `
+            /r:System.Net.Http.dll
+          if ($LASTEXITCODE -ne 0) { Write-Error "Tray launcher compile failed"; exit 1 }
+          Write-Host "✓ SysTrackerServer.exe (tray launcher) built"
+
+      - name: Embed Icon into Tray Launcher
+        run: |
+          $rcedit = "agent\node_modules\rcedit\bin\rcedit.exe"
+          if (Test-Path $rcedit) {
+            & $rcedit "server\dist\SysTrackerServer.exe" --set-icon "server\app.ico"
+            & $rcedit "server\dist\SysTrackerServer.exe" --set-version-string "ProductName" "SysTracker Server"
+            & $rcedit "server\dist\SysTrackerServer.exe" --set-version-string "FileDescription" "SysTracker Server Launcher"
+            & $rcedit "server\dist\SysTrackerServer.exe" --set-file-version "3.1.5.0"
+            Write-Host "✓ Icon embedded into tray launcher"
+          } else {
+            Write-Warning "rcedit not found, skipping icon embed for tray launcher"
+          }
+
+      - name: Install NSIS
+        run: |
+          choco install nsis --no-progress -y
+          $nsisPath = "C:\Program Files (x86)\NSIS"
+          echo "$nsisPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Host "✓ NSIS installed"
+
+      - name: Build NSIS Agent Installer
+        run: |
+          makensis /V4 agent\installer.nsi
+          if ($LASTEXITCODE -ne 0) { Write-Error "Agent NSIS build failed"; exit 1 }
+          Write-Host "✓ SysTracker-Agent-Setup.exe created"
+
+      - name: Build NSIS Server Installer
+        run: |
+          cd server
+          makensis /V4 installer.nsi
+          if ($LASTEXITCODE -ne 0) { Write-Error "Server NSIS build failed"; exit 1 }
+          Write-Host "✓ SysTracker-Server-Setup.exe created"
+
+      - name: List Release Artifacts
+        run: |
+          Write-Host "=== Release Artifacts ==="
+          Get-ChildItem agent\dist\, server\dist\ -Filter "*.exe" | 
+            Format-Table Name, @{L='Size (MB)';E={[math]::Round($_.Length/1MB,1)}}
+          Get-Item server\dist\systracker-server-linux | 
+            Format-Table Name, @{L='Size (MB)';E={[math]::Round($_.Length/1MB,1)}}
+
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          generate_release_notes: true
+          generate_release_notes: false
+          body: |
+            ## SysTracker ${{ github.ref_name }}
+
+            ### 📦 Downloads
+
+            | File | Description |
+            |------|-------------|
+            | `SysTracker-Agent-Setup.exe` | **Windows Agent Installer** — setup wizard, installs as Windows Service |
+            | `SysTracker-Server-Setup.exe` | **Windows Server Installer** — setup wizard, system tray launcher |
+            | `systracker-server-linux` | Linux server binary (standalone) |
+
+            ### 🚀 Quick Start
+            1. Run **SysTracker-Server-Setup.exe** on your server machine
+            2. Run **SysTracker-Agent-Setup.exe** on each machine to monitor
+            3. Open your browser to `http://[server-ip]:7777`
+
+            See [full release notes](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) and the [Wiki](https://github.com/${{ github.repository }}/wiki) for setup guides.
           files: |
-            agent/dist/systracker-agent-win.exe
-            server/dist/systracker-server-win.exe
+            agent/dist/SysTracker-Agent-Setup.exe
+            server/dist/SysTracker-Server-Setup.exe
             server/dist/systracker-server-linux
 
   # 4. Build & Push Docker Image (Linux)
