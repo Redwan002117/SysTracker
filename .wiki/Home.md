@@ -2,9 +2,9 @@
 
 ![SysTracker Logo](../logo.png)
 
-**Latest Version:** 3.1.2  
+**Latest Version:** 3.1.7  
 **Status:** ✅ Production Ready  
-**Release:** February 2025
+**Release:** February 2026
 
 ## Welcome to SysTracker
 

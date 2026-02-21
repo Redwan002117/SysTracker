@@ -71,10 +71,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Setup Node.js
+      - name: Setup Node.js 20 (dashboard + agent)
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 20
           
       - name: Rebuild Agent Locally
         run: |
@@ -96,7 +96,12 @@ jobs:
             Write-Error "Dashboard build failed"
             exit 1
           }
-          
+
+      - name: Switch to Node.js 18 (matches pkg node18-win-x64 target for sqlite3 prebuilts)
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
       - name: Build Standalone Server EXEs (pkg + rcedit icon)
         run: |
           cd server

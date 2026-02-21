@@ -444,6 +444,34 @@ launchctl load ~/Library/LaunchAgents/com.systracker.plist
 
 ---
 
+## CI / Build Pipeline Issues
+
+### `build-server-release` fails — sqlite3 gyp "Could not find any Visual Studio"
+
+**Root cause:** sqlite3 v5.1.x has no prebuilt binary for the requested Node/NAPI version on Windows and falls back to compiling from source via `node-gyp`, which requires the Windows SDK. The GitHub-hosted `windows-latest` runner has Visual Studio but **no Windows SDK** installed, so the compilation fails.
+
+**Fix applied in `publish.yml`:** The `build-server-release` job uses two sequential `setup-node` steps:
+1. **Node 20** — used for the dashboard rebuild (Next.js requires `>=20.9.0`) and agent build.
+2. **Node 18** — switched to immediately before `npm install` in the `server/` directory, matching the `pkg` target (`node18-win-x64`). sqlite3 ships prebuilt NAPI binaries for Node 18 on Windows x64, so native compilation is never attempted.
+
+---
+
+### `Rebuild Dashboard Locally` fails — "Node.js version `>=20.9.0` is required"
+
+**Root cause:** Next.js 16.x requires Node.js `>=20.9.0`. If the CI job sets Node 18 globally before the dashboard build step, Next.js refuses to run.
+
+**Fix:** In `publish.yml`, the `build-server-release` job starts on **Node 20** and only switches to Node 18 via a second `actions/setup-node` step *after* the dashboard is built and copied to `server/dashboard-dist`.
+
+---
+
+### `notify-release` fails with 403 "Resource not accessible by integration"
+
+**Root cause:** The `GITHUB_TOKEN` used in GitHub Actions only has the permissions explicitly declared in the job's `permissions:` block. The `notify-release` job was missing `issues: write`, so attempts to call `github.rest.issues.create()` via `actions/github-script` were denied.
+
+**Fix:** Added `permissions: issues: write` to the `notify-release` job in `release-automation.yml`.
+
+---
+
 ## Getting More Help
 
 1. **Check logs** → Understanding what went wrong
@@ -453,6 +481,6 @@ launchctl load ~/Library/LaunchAgents/com.systracker.plist
 
 ---
 
-**Last Updated:** February 21, 2025  
-**Version:** 3.1.2  
+**Last Updated:** February 21, 2026  
+**Version:** 3.1.7  
 **Most Common Issues:** Port conflicts, connectivity, permissions
