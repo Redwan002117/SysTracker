@@ -1,21 +1,87 @@
+# Dependencies
 node_modules/
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+config.json
+
+# Database files (development only)
+*.db
+*.sqlite
+*.sqlite3
+*.backup
+*.db-journal
+systracker.db
+systracker.db-journal
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+
+# Development debug files
+debug_*.js
+debug_*.py
+network_debug.*
+*debug*.txt
+
+# Test files
+test/
+tests/
+integration_test.sh
+*.test.js
+*.spec.js
+validationFallbackTests.js
+
+# Build outputs
 .next/
 out/
 build/
 dist/
-
-__pycache__/
-*.env
-.DS_Store
-*.exe
-systracker.db
-systracker.db-journal
-config.json
-
-# Build Artifacts
-server/dashboard-dist/
 Release/
 RELEASE/
+
+# IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.code-workspace
+
+# Testing documentation (generated)
+TESTING-QUICK-REFERENCE.ps1
+TESTING-READY-SUMMARY.md
+
+# Build Artifacts (keep dashboard-dist in repo but ignore node_modules inside)
 agent/dist/
 agent/build/
-*.pyc
+agent/node_modules/
+dashboard/node_modules/
+
+# Misc
+.cache/
+.turbo/
+turbo.json
+*.tmp
+*.temp
+coverage/
+.nyc_output/
