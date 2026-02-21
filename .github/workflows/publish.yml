@@ -17,27 +17,22 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          python-version: '3.10'
+          node-version: 18
           
-      - name: Install PyInstaller and dependencies
-        run: |
-          pip install pyinstaller
-          pip install -r agent/requirements.txt
-          
-      - name: Build Agent EXE
+      - name: Install Agent Dependencies & Build
         run: |
           cd agent
-          # Use the customized spec file to ensure all hidden imports are bundled.
-          pyinstaller --clean SysTracker_Agent.spec
+          npm install
+          npm run build:win
           
       - name: Upload Agent Artifact
         uses: actions/upload-artifact@v4
         with:
           name: SysTracker_Agent
-          path: agent/dist/SysTracker_Agent.exe
+          path: agent/dist/systracker-agent-win.exe
 
   # 2. Build Dashboard (Linux)
   build-dashboard:
@@ -60,7 +55,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dashboard-dist
-          path: dashboard/out/
+          path: dashboard/.next/
 
   # 3. Build Standalone Server & Release (Windows)
   build-server-release:
@@ -88,11 +83,11 @@ jobs:
           name: dashboard-dist
           path: server/dashboard-dist/
           
-      - name: Build Standalone Server (pkg)
+      - name: Build Standalone Server (pkg + rcedit icon)
         run: |
           cd server
           npm install
-          npx pkg . --targets node18-win-x64,node18-linux-x64 --output dist/SysTracker_Server
+          npm run build:all
           
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -100,9 +95,9 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            server/dist/SysTracker_Server.exe
-            server/dist/SysTracker_Server
-            server/bin/SysTracker_Agent.exe
+            server/dist/systracker-server-win.exe
+            server/dist/systracker-server-linux
+            server/bin/systracker-agent-win.exe
 
   # 4. Build & Push Docker Image (Linux)
   docker-publish:
