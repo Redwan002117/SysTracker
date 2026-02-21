@@ -180,4 +180,6 @@ You can use any standard SMTP provider. Here are the settings for **Brevo (forme
 ---
 
 ## License
-MIT License. Free to use and modify.
+**SysTracker Proprietary License** — Personal / non-commercial use only.
+Commercial use, redistribution, and hosting as a service require written permission from the author.
+See [LICENSE](LICENSE) for full terms. Copyright (c) 2026 SysTracker / RedwanCodes.

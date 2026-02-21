@@ -3,6 +3,29 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.1.9] - 2026-02-21
+
+### 🔒 Legal / Licensing
+- **License changed from MIT to SysTracker Proprietary License** — personal / non-commercial use only; commercial use, redistribution, and SaaS hosting require written permission from the author (RedwanCodes)
+- Copyright header updated to **SysTracker / RedwanCodes** across all files (NSIS installers, tray launcher, package metadata)
+
+### 🐛 Bug Fixes
+- **Server crash on first run after install** — NSIS installer now creates `data\`, `logs\`, and `uploads\` directories and grants `Users:(OI)(CI)F` full-control ACL while running as administrator, so the `pkg`-bundled server process can write files without elevation
+- **Agent installer arrow encoding** — Fixed `â†'` corruption in "API Key (from SysTracker Dashboard → Settings)" label; replaced Unicode arrow (`→`) with plain ASCII `->` which NSIS encodes reliably across all code pages
+
+### ✨ Improvements
+- **Interactive installer menu (MAS-style)** — `Install-SysTracker.ps1` completely rewritten with a full TUI menu:
+  - `[1]` Install Server, `[2]` Install Agent, `[3]` Install Both
+  - `[4]` Uninstall Server, `[5]` Uninstall Agent
+  - `[6]` Check for Updates (compares installed vs latest GitHub release)
+  - `[7]` Open Dashboard (reads port from registry, launches browser)
+  - `[8]` Help / Documentation
+  - `[0]` Exit
+  - Non-interactive / scripted mode preserved: `-Component`, `-Action`, `-Tag`, `-Unattended` parameters bypass the menu
+  - `irm https://systracker.rico.bd/install | iex` still works and launches the interactive menu
+
+---
+
 ## [3.1.8] - 2026-02-21
 
 ### Fixed

@@ -19,13 +19,13 @@ SetCompressor        /SOLID lzma
 Unicode              true
 
 ; ---- Version Info -------------------------------------------
-VIProductVersion     "3.1.8.0"
+VIProductVersion     "3.1.9.0"
 VIAddVersionKey      "ProductName"      "SysTracker Server"
-VIAddVersionKey      "CompanyName"      "Redwan002117"
+VIAddVersionKey      "CompanyName"      "RedwanCodes"
 VIAddVersionKey      "FileDescription"  "SysTracker Server Installer"
-VIAddVersionKey      "FileVersion"      "3.1.8.0"
-VIAddVersionKey      "ProductVersion"   "3.1.8"
-VIAddVersionKey      "LegalCopyright"   "© 2026 Redwan002117"
+VIAddVersionKey      "FileVersion"      "3.1.9.0"
+VIAddVersionKey      "ProductVersion"   "3.1.9"
+VIAddVersionKey      "LegalCopyright"   "© 2026 SysTracker / RedwanCodes"
 
 ; ---- MUI Settings -------------------------------------------
 !define MUI_ICON                    "app.ico"
@@ -131,7 +131,7 @@ Section "SysTracker Server" SecServer
     Rename "$INSTDIR\app.ico" "$INSTDIR\systracker.ico"
 
     ; Install code signing certificates so Windows trusts SysTracker binaries
-    ; Root CA cert goes to Trusted Root so UAC shows "Redwan002117" as publisher
+    ; Root CA cert goes to Trusted Root so UAC shows "RedwanCodes" as publisher
     ; (non-fatal — skipped if certs were not generated yet)
     File /nonfatal "..\scripts\SysTrackerCA.cer"
     IfFileExists "$INSTDIR\SysTrackerCA.cer" 0 +3
@@ -143,10 +143,24 @@ Section "SysTracker Server" SecServer
         DetailPrint "Installing SysTracker code signing certificate..."
         nsExec::ExecToLog 'certutil -addstore "TrustedPublisher" "$INSTDIR\SysTracker.cer"'
 
+    ; Create writable data and logs directories now (while running as admin)
+    ; The server process runs as a regular user and can't create these itself
+    ; under Program Files without elevated rights.
+    CreateDirectory "$INSTDIR\data"
+    CreateDirectory "$INSTDIR\logs"
+    CreateDirectory "$INSTDIR\uploads"
+
+    ; Grant the built-in Users group full control over data/logs/uploads so the
+    ; server process can read, write, and create files without needing elevation.
+    nsExec::ExecToLog 'icacls "$INSTDIR\data" /grant Users:(OI)(CI)F /T'
+    nsExec::ExecToLog 'icacls "$INSTDIR\logs" /grant Users:(OI)(CI)F /T'
+    nsExec::ExecToLog 'icacls "$INSTDIR\uploads" /grant Users:(OI)(CI)F /T'
+
     ; Write .env configuration
     FileOpen $0 "$INSTDIR\.env" w
     FileWrite $0 "PORT=$ServerPort$\r$\n"
     FileWrite $0 "ADMIN_PASSWORD=$AdminPassword$\r$\n"
+    ; JWT_SECRET intentionally left blank — server auto-generates and persists one
     FileWrite $0 "JWT_SECRET=$\r$\n"
     FileClose $0
 
@@ -180,7 +194,7 @@ Section "SysTracker Server" SecServer
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "DisplayName"      "SysTracker Server"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
-        "DisplayVersion"   "3.1.8"
+        "DisplayVersion"   "3.1.9"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "Publisher"        "SysTracker"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
@@ -229,6 +243,7 @@ Section "Uninstall"
     Delete "$INSTDIR\Uninstall.exe"
     RMDir /r "$INSTDIR\data"
     RMDir /r "$INSTDIR\logs"
+    RMDir /r "$INSTDIR\uploads"
     RMDir    "$INSTDIR"
 
     ; Remove shortcuts

@@ -1,6 +1,6 @@
 {
   "name": "agent",
-  "version": "3.1.8",
+  "version": "3.1.9",
   "description": "SysTracker System Monitoring Agent",
   "bin": "client_agent.js",
   "scripts": {
@@ -17,7 +17,7 @@
     ],
     "outputPath": "dist"
   },
-  "license": "ISC",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "commonjs",
   "dependencies": {
     "axios": "^1.13.5",

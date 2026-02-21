@@ -1,21 +1,100 @@
-MIT License
+SysTracker Proprietary License
+Copyright (c) 2026 SysTracker / RedwanCodes. All rights reserved.
 
-Copyright (c) 2026 Redwan002117
+IMPORTANT — READ CAREFULLY BEFORE INSTALLING OR USING THIS SOFTWARE.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This license agreement ("Agreement") is a legal agreement between you
+("User", "you") and RedwanCodes ("Author", "we", "us") for the use of
+SysTracker software, including all associated source code, binaries,
+documentation, and assets (collectively, the "Software").
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+By installing, copying, forking, cloning, or otherwise using the Software,
+you agree to be bound by the terms of this Agreement. If you do not agree,
+do not install or use the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+──────────────────────────────────────────────────
+1. GRANT OF LICENSE
+──────────────────────────────────────────────────
+Subject to the terms of this Agreement, the Author grants you a limited,
+non-exclusive, non-transferable, revocable license to:
+
+  (a) Install and run the Software solely for your own personal,
+      non-commercial use; and
+  (b) View, study, and locally modify the source code solely for the
+      purpose of contributing improvements back to the original project
+      via official pull requests.
+
+──────────────────────────────────────────────────
+2. RESTRICTIONS
+──────────────────────────────────────────────────
+You may NOT, without prior written permission from the Author:
+
+  (a) Use the Software, in whole or in part, for any commercial purpose,
+      including selling, licensing, or providing it as a paid service;
+  (b) Redistribute, sublicense, publish, or share the Software or any
+      derivative work — whether in source or compiled form — through any
+      channel (including package registries, app stores, mirrors, or
+      hosting services);
+  (c) Deploy the Software as a hosted or cloud service offered to third
+      parties;
+  (d) Remove, alter, or obscure any copyright, trademark, attribution, or
+      license notices contained in the Software;
+  (e) Use the name "SysTracker", the logo, or any branding associated with
+      the Software to endorse or promote products derived from the Software
+      without prior written permission;
+  (f) Reverse-engineer, decompile, or disassemble any compiled binary
+      component of the Software except to the extent permitted by
+      applicable law.
+
+──────────────────────────────────────────────────
+3. CONTRIBUTIONS
+──────────────────────────────────────────────────
+By submitting a pull request, patch, or other contribution to the
+official repository, you grant the Author an irrevocable, worldwide,
+royalty-free license to use, modify, sublicense, and distribute your
+contribution as part of the Software under any license the Author chooses.
+
+──────────────────────────────────────────────────
+4. ATTRIBUTION
+──────────────────────────────────────────────────
+Any permitted use must retain the above copyright notice and this
+Agreement in all copies or substantial portions of the Software, and
+display a clear attribution: "Powered by SysTracker — RedwanCodes".
+
+──────────────────────────────────────────────────
+5. DISCLAIMER OF WARRANTIES
+──────────────────────────────────────────────────
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. THE AUTHOR DOES
+NOT WARRANT THAT THE SOFTWARE WILL BE ERROR-FREE OR UNINTERRUPTED.
+
+──────────────────────────────────────────────────
+6. LIMITATION OF LIABILITY
+──────────────────────────────────────────────────
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING BUT NOT LIMITED
+TO LOSS OF DATA, LOSS OF PROFITS, OR BUSINESS INTERRUPTION) ARISING OUT
+OF OR IN CONNECTION WITH THE SOFTWARE OR THIS AGREEMENT, EVEN IF ADVISED
+OF THE POSSIBILITY OF SUCH DAMAGES.
+
+──────────────────────────────────────────────────
+7. TERMINATION
+──────────────────────────────────────────────────
+This license is effective until terminated. It terminates automatically
+if you breach any term of this Agreement. Upon termination you must
+destroy all copies of the Software in your possession.
+
+──────────────────────────────────────────────────
+8. GOVERNING LAW
+──────────────────────────────────────────────────
+This Agreement is governed by the laws of Bangladesh, without regard to
+its conflict-of-law provisions. Any disputes shall be resolved in the
+courts of Dhaka, Bangladesh.
+
+──────────────────────────────────────────────────
+9. CONTACT
+──────────────────────────────────────────────────
+For commercial licensing, permission requests, or other inquiries:
+  https://github.com/Redwan002117
+  https://systracker.rico.bd/

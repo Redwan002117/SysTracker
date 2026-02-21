@@ -19,7 +19,7 @@ using System.Windows.Forms;
 /// </summary>
 [assembly: AssemblyTitle("SysTracker Server")]
 [assembly: AssemblyDescription("SysTracker Server Launcher")]
-[assembly: AssemblyCompany("Redwan002117")]
+[assembly: AssemblyCompany("RedwanCodes")]
 [assembly: AssemblyProduct("SysTracker")]
 [assembly: AssemblyVersion("3.1.6.0")]
 

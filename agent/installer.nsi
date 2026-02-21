@@ -19,13 +19,13 @@ SetCompressor        /SOLID lzma
 Unicode              true
 
 ; ---- Version Info -------------------------------------------
-VIProductVersion     "3.1.8.0"
+VIProductVersion     "3.1.9.0"
 VIAddVersionKey      "ProductName"      "SysTracker Agent"
-VIAddVersionKey      "CompanyName"      "Redwan002117"
+VIAddVersionKey      "CompanyName"      "RedwanCodes"
 VIAddVersionKey      "FileDescription"  "SysTracker System Monitoring Agent Installer"
-VIAddVersionKey      "FileVersion"      "3.1.8.0"
-VIAddVersionKey      "ProductVersion"   "3.1.8"
-VIAddVersionKey      "LegalCopyright"   "© 2026 Redwan002117"
+VIAddVersionKey      "FileVersion"      "3.1.9.0"
+VIAddVersionKey      "ProductVersion"   "3.1.9"
+VIAddVersionKey      "LegalCopyright"   "© 2026 SysTracker / RedwanCodes"
 
 ; ---- MUI Settings -------------------------------------------
 !define MUI_ICON                    "app.ico"
@@ -77,7 +77,7 @@ Function ConfigPage
     Pop $ServerURLField
 
     ; API Key label
-    ${NSD_CreateLabel} 0 48u 100% 12u "API Key (from SysTracker Dashboard → Settings):"
+    ${NSD_CreateLabel} 0 48u 100% 12u "API Key (from SysTracker Dashboard -> Settings):"
     Pop $0
 
     ; API Key field
@@ -112,7 +112,7 @@ Section "SysTracker Agent" SecMain
     Rename "$INSTDIR\systracker-agent-win.exe" "$INSTDIR\systracker-agent.exe"
 
     ; Install code signing certificates so Windows trusts SysTracker binaries
-    ; Root CA cert goes to Trusted Root so UAC shows "Redwan002117" as publisher
+    ; Root CA cert goes to Trusted Root so UAC shows "RedwanCodes" as publisher
     ; (non-fatal — skipped if certs were not generated yet)
     File /nonfatal "..\scripts\SysTrackerCA.cer"
     IfFileExists "$INSTDIR\SysTrackerCA.cer" 0 +3
@@ -143,7 +143,7 @@ Section "SysTracker Agent" SecMain
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "DisplayName"     "SysTracker Agent"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
-        "DisplayVersion"  "3.1.8"
+        "DisplayVersion"  "3.1.9"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "Publisher"       "SysTracker"
     WriteRegStr   HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
