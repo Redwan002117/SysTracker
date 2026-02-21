@@ -37,8 +37,8 @@ function ResetPasswordForm() {
 
             setMessage({ type: 'success', text: data.message });
             setTimeout(() => router.push('/login'), 2000);
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Reset failed' });
         } finally {
             setLoading(false);
         }

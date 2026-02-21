@@ -24,8 +24,8 @@ export default function ForgotPassword() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Request failed');
             setMessage({ type: 'success', text: data.message });
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+        } catch (err: unknown) {
+            setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Request failed' });
         } finally {
             setLoading(false);
         }

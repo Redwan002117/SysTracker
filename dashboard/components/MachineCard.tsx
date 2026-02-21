@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Machine } from '../types';
-import { Server, HardDrive, Cpu, Activity, ShieldCheck, Radio, CircuitBoard, Lock } from 'lucide-react';
+import { Server, HardDrive, Cpu, Activity, ShieldCheck, CircuitBoard, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface MachineCardProps {

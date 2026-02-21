@@ -109,7 +109,7 @@ function SetupForm() {
                             <Sparkles size={32} className="text-blue-400" />
                         </div>
                         <h1 className="text-4xl font-extrabold text-white mb-3 tracking-tight">Welcome to SysTracker</h1>
-                        <p className="text-slate-400 text-lg">Let's create your admin account to get started.</p>
+                        <p className="text-slate-400 text-lg">Let&apos;s create your admin account to get started.</p>
                     </div>
 
                     {/* Card */}

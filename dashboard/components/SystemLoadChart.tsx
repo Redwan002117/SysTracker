@@ -13,12 +13,24 @@ import {
 } from 'recharts';
 import { Loader2, Activity } from 'lucide-react';
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipEntry {
+    name: string;
+    value: number;
+    color: string;
+}
+
+interface TooltipProps {
+    active?: boolean;
+    payload?: TooltipEntry[];
+    label?: number;
+}
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
         return (
             <div className="bg-slate-800 text-white text-xs p-3 rounded-lg shadow-xl border border-slate-700">
-                <p className="font-bold mb-2 text-slate-300">{new Date(label).toLocaleString('en-US', { timeZone: 'UTC' })} UTC</p>
-                {payload.map((entry: any, index: number) => (
+                <p className="font-bold mb-2 text-slate-300">{new Date(label ?? 0).toLocaleString('en-US', { timeZone: 'UTC' })} UTC</p>
+                {payload.map((entry: TooltipEntry, index: number) => (
                     <div key={index} className="flex items-center gap-2 mb-1">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
                         <span className="capitalize">{entry.name}:</span>

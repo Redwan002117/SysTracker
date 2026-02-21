@@ -13,16 +13,40 @@ import {
 } from 'recharts';
 import { Loader2, Calendar } from 'lucide-react';
 
+type RangeOption = '1h' | '24h' | '7d' | '30d';
+
+interface HistoryDataPoint {
+    timestamp: number;
+    cpu: number;
+    ram: number;
+    net_up: number;
+    net_down: number;
+    [key: string]: number;
+}
+
+interface TooltipEntry {
+    name: string;
+    value: number;
+    color: string;
+    unit?: string;
+}
+
+interface TooltipProps {
+    active?: boolean;
+    payload?: TooltipEntry[];
+    label?: number;
+}
+
 interface PerformanceHistoryProps {
     machineId: string;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
         return (
             <div className="bg-slate-800 text-white text-xs p-3 rounded-lg shadow-xl border border-slate-700">
-                <p className="font-bold mb-2 text-slate-300">{new Date(label).toLocaleString('en-US', { timeZone: 'UTC' })} UTC</p>
-                {payload.map((entry: any, index: number) => (
+                <p className="font-bold mb-2 text-slate-300">{new Date(label ?? 0).toLocaleString('en-US', { timeZone: 'UTC' })} UTC</p>
+                {payload.map((entry: TooltipEntry, index: number) => (
                     <div key={index} className="flex items-center gap-2 mb-1">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
                         <span className="capitalize">{entry.name}:</span>
@@ -39,13 +63,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function PerformanceHistory({ machineId }: PerformanceHistoryProps) {
-    const [range, setRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
-    const [data, setData] = useState<any[]>([]);
+    const [range, setRange] = useState<RangeOption>('24h');
+    const [data, setData] = useState<HistoryDataPoint[]>([]);
     const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        fetchHistory();
-    }, [machineId, range]);
 
     const fetchHistory = async () => {
         setLoading(true);
@@ -54,15 +74,15 @@ export default function PerformanceHistory({ machineId }: PerformanceHistoryProp
             const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
             const res = await fetch(`/api/machines/${machineId}/history?range=${range}`, { headers });
             if (res.ok) {
-                const rawData = await res.json();
+                const rawData: Record<string, unknown>[] = await res.json();
                 // Process data for charts
-                const processed = rawData.map((d: any) => ({
+                const processed: HistoryDataPoint[] = rawData.map((d) => ({
                     ...d,
-                    timestamp: new Date(d.timestamp).getTime(), // Ensure numeric timestamp
-                    cpu: d.cpu_usage,
-                    ram: d.ram_usage,
-                    net_up: (d.network_up_kbps || 0) / 1024, // Convert to Mbps
-                    net_down: (d.network_down_kbps || 0) / 1024
+                    timestamp: new Date(d.timestamp as string).getTime(), // Ensure numeric timestamp
+                    cpu: d.cpu_usage as number,
+                    ram: d.ram_usage as number,
+                    net_up: ((d.network_up_kbps as number) || 0) / 1024, // Convert to Mbps
+                    net_down: ((d.network_down_kbps as number) || 0) / 1024
                 }));
                 setData(processed);
             }
@@ -72,6 +92,11 @@ export default function PerformanceHistory({ machineId }: PerformanceHistoryProp
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [machineId, range]);
 
     const ranges = [
         { label: '1 Hour', value: '1h' },
@@ -99,7 +124,7 @@ export default function PerformanceHistory({ machineId }: PerformanceHistoryProp
                     {ranges.map((r) => (
                         <button
                             key={r.value}
-                            onClick={() => setRange(r.value as any)}
+                            onClick={() => setRange(r.value as RangeOption)}
                             className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${range === r.value
                                 ? 'bg-white text-blue-600 shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
