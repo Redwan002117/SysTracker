@@ -157,7 +157,9 @@ jobs:
         env:
           CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
           CODESIGN_PFX_PASSWORD: ${{ secrets.CODESIGN_PFX_PASSWORD }}
+          CODESIGN_CA_BASE64: ${{ secrets.CODESIGN_CA_BASE64 }}
         run: |
+          # --- Install code-signing cert (includes chain via BuildChain export) ---
           $pfxPath = "$env:RUNNER_TEMP\systracker-codesign.pfx"
           [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:CODESIGN_PFX_BASE64))
           $securePass = if ($env:CODESIGN_PFX_PASSWORD) {
@@ -169,6 +171,18 @@ jobs:
           Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation "Cert:\LocalMachine\TrustedPublisher" -Password $securePass | Out-Null
           Remove-Item $pfxPath -Force
           Write-Host "✓ Code signing certificate installed"
+
+          # --- Install Root CA so signtool chain-verify works in CI ---
+          if ($env:CODESIGN_CA_BASE64) {
+            $caPath = "$env:RUNNER_TEMP\systracker-ca.cer"
+            [IO.File]::WriteAllBytes($caPath, [Convert]::FromBase64String($env:CODESIGN_CA_BASE64))
+            $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("Root", "LocalMachine")
+            $store.Open("ReadWrite")
+            $store.Add([System.Security.Cryptography.X509Certificates.X509Certificate2]::new($caPath))
+            $store.Close()
+            Remove-Item $caPath -Force
+            Write-Host "✓ Root CA trusted on CI runner"
+          }
 
       - name: Sign Windows Executables
         if: ${{ env.CODESIGN_PFX_BASE64 != '' }}
@@ -182,7 +196,9 @@ jobs:
           if (-not $signtool) { Write-Error "signtool.exe not found"; exit 1 }
           Write-Host "Using signtool: $signtool"
 
-          $timestamp = "http://timestamp.digicert.com"
+          # Use RFC 3161 timestamping (/tr + /td sha256) — required for long-term
+          # validity after the signing cert expires. Legacy /t is SHA1-only.
+          $tsUrl = "http://timestamp.digicert.com"
           $filesToSign = @(
             "agent\dist\systracker-agent-win.exe",
             "server\dist\systracker-server-win.exe",
@@ -194,9 +210,13 @@ jobs:
           foreach ($file in $filesToSign) {
             if (Test-Path $file) {
               Write-Host "  Signing: $file"
-              & $signtool sign /fd SHA256 /a /n "SysTracker" /t $timestamp $file
+              # /n matches the cert Subject CN exactly ("SysTracker")
+              # /fd sha256  = file digest algorithm
+              # /tr         = RFC 3161 timestamp server
+              # /td sha256  = timestamp digest algorithm
+              & $signtool sign /fd sha256 /n "SysTracker" /tr $tsUrl /td sha256 $file
               if ($LASTEXITCODE -ne 0) { Write-Warning "Signing failed for $file (non-fatal)" }
-              & $signtool verify /pa $file 2>&1 | Out-Null
+              & $signtool verify /pa /v $file 2>&1 | Select-String -Pattern 'Successfully|error' | Write-Host
               Write-Host "    ✓ Signed"
             } else {
               Write-Warning "  File not found, skipping: $file"
@@ -207,6 +227,8 @@ jobs:
 
       - name: List Release Artifacts
         run: |
+          # Copy install helper so it can be attached to the release
+          Copy-Item scripts\Install-SysTracker.ps1 agent\dist\Install-SysTracker.ps1
           Write-Host "=== Release Artifacts ==="
           Get-ChildItem agent\dist\, server\dist\ -Filter "*.exe" | 
             Format-Table Name, @{L='Size (MB)';E={[math]::Round($_.Length/1MB,1)}}
@@ -225,12 +247,35 @@ jobs:
 
             | File | Description |
             |------|-------------|
-            | `SysTracker-Agent-Setup.exe` | **Windows Agent Installer** — setup wizard, installs as Windows Service |
+            | `SysTracker-Agent-Setup.exe` | **Windows Agent Installer** — setup wizard, installs as startup task |
             | `SysTracker-Server-Setup.exe` | **Windows Server Installer** — setup wizard, system tray launcher |
             | `systracker-server-linux` | Linux server binary (standalone) |
+            | `Install-SysTracker.ps1` | **Recommended**: PowerShell script — downloads & installs without SmartScreen prompt |
+
+            ### ⚡ Recommended Installation (bypasses Windows SmartScreen)
+
+            > Files downloaded via a browser are tagged with a "Mark of the Web" and may trigger SmartScreen.
+            > The PowerShell method strips that tag before running, so no warning appears.
+
+            Open **PowerShell as Administrator** and paste:
+
+            ```powershell
+            # Install both Server and Agent:
+            irm https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Install-SysTracker.ps1 | iex
+
+            # — or install components separately:
+            irm https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Install-SysTracker.ps1 -OutFile $env:TEMP\Install-SysTracker.ps1
+            Unblock-File $env:TEMP\Install-SysTracker.ps1
+            & $env:TEMP\Install-SysTracker.ps1 -Component Server   # on the server machine
+            & $env:TEMP\Install-SysTracker.ps1 -Component Agent    # on each monitored PC
+            ```
+
+            ### 🛡️ If SmartScreen still appears on the `.exe` directly
+            Right-click the downloaded file → **Properties** → tick **Unblock** → **OK**, then run it.
+            Or in PowerShell: `Unblock-File .\SysTracker-Agent-Setup.exe`
 
             ### 🚀 Quick Start
-            1. Run **SysTracker-Server-Setup.exe** on your server machine
+            1. Run **SysTracker-Server-Setup.exe** (or use the PS script above with `-Component Server`)
             2. Run **SysTracker-Agent-Setup.exe** on each machine to monitor
             3. Open your browser to `http://[server-ip]:7777`
 
@@ -239,6 +284,7 @@ jobs:
             agent/dist/SysTracker-Agent-Setup.exe
             server/dist/SysTracker-Server-Setup.exe
             server/dist/systracker-server-linux
+            agent/dist/Install-SysTracker.ps1
 
   # 4. Build & Push Docker Image (Linux)
   docker-publish:

@@ -196,6 +196,11 @@ Section "SysTracker Server" SecServer
     WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerServer" \
         "NoRepair"  1
 
+    ; Strip Mark-of-the-Web (Zone.Identifier ADS) from installed files.
+    ; This prevents SmartScreen from flagging the server exe after install.
+    nsExec::ExecToLog 'powershell -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass \
+        -Command "Get-ChildItem -LiteralPath \"$INSTDIR\" -Filter *.exe -Recurse | Unblock-File"'
+
     WriteUninstaller "$INSTDIR\Uninstall.exe"
 
     DetailPrint "SysTracker Server installed successfully!"

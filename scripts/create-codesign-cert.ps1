@@ -22,13 +22,13 @@
 
 $ErrorActionPreference = "Stop"
 
-$publisherName  = "Redwan002117"
-$orgUnit        = "SysTracker"
+$publisherName  = "SysTracker"
+$orgName        = "SysTracker"
 $country        = "BD"
 $locality       = "Dhaka"
 
-$caSubject   = "CN=$publisherName Root CA, O=$publisherName, OU=$orgUnit, L=$locality, C=$country"
-$codeSubject = "CN=$publisherName, O=$publisherName, OU=$orgUnit, L=$locality, C=$country"
+$caSubject   = "CN=$publisherName Root CA, O=$orgName, OU=$publisherName, L=$locality, C=$country"
+$codeSubject = "CN=$publisherName, O=$orgName, OU=$publisherName, L=$locality, C=$country"
 
 $caPfxPath   = Join-Path $PSScriptRoot "..\SysTrackerCA.pfx"
 $caCerPath   = Join-Path $PSScriptRoot "SysTrackerCA.cer"
@@ -131,16 +131,21 @@ Write-Host "================================================================" -F
 Write-Host " NEXT STEPS" -ForegroundColor Magenta
 Write-Host "================================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host "1. Commit the two public .cer files:"
+Write-Host "1. Commit the two public .cer files (safe — no private keys):"
 Write-Host "     git add scripts/SysTrackerCA.cer scripts/SysTracker.cer"
 Write-Host "     git commit -m `"chore: add code signing certificates`""
 Write-Host ""
-Write-Host "2. GitHub Secret  CODESIGN_PFX_BASE64  (copy the line below):"
+Write-Host "2. GitHub Secret  CODESIGN_PFX_BASE64  (code-signing cert + chain):"
 Write-Host ""
 Write-Host ([Convert]::ToBase64String([IO.File]::ReadAllBytes($pfxResolved))) -ForegroundColor DarkGray
 Write-Host ""
+Write-Host "3. GitHub Secret  CODESIGN_CA_BASE64  (Root CA public cert — lets CI verify the chain):"
+Write-Host "   (This is the public .cer only, NOT the private key)"
+Write-Host ""
+Write-Host ([Convert]::ToBase64String([IO.File]::ReadAllBytes($caCerResolved))) -ForegroundColor DarkGray
+Write-Host ""
 if ($plainPass -ne "") {
-    Write-Host "3. GitHub Secret  CODESIGN_PFX_PASSWORD  =  $plainPass"
+    Write-Host "4. GitHub Secret  CODESIGN_PFX_PASSWORD  =  $plainPass"
     Write-Host ""
 }
 Write-Host "UAC behaviour after these steps:" -ForegroundColor Cyan

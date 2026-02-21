@@ -166,6 +166,11 @@ Section "SysTracker Agent" SecMain
     DetailPrint "Starting SysTracker Agent..."
     nsExec::ExecToLog 'schtasks /Run /TN "SysTrackerAgent"'
 
+    ; Strip Mark-of-the-Web (Zone.Identifier ADS) from installed files.
+    ; This prevents SmartScreen from flagging the agent exe after install.
+    nsExec::ExecToLog 'powershell -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass \
+        -Command "Get-ChildItem -LiteralPath \"$INSTDIR\" -Filter *.exe -Recurse | Unblock-File"'
+
     WriteUninstaller "$INSTDIR\Uninstall.exe"
 SectionEnd
 
