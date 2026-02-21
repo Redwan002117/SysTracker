@@ -163,44 +163,52 @@ jobs:
           echo "| Deploy Time | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |" >> $GITHUB_STEP_SUMMARY
 
       - name: 📢 Notify Slack
-        if: success() && github.event_name != 'pull_request' && secrets.SLACK_WEBHOOK != ''
+        if: success() && github.event_name != 'pull_request'
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: |
-          curl -X POST $SLACK_WEBHOOK \
-            -H 'Content-Type: application/json' \
-            -d "{
-              \"text\":\"🚀 SysTracker Dashboard deployed to ${{ github.event.inputs.environment || 'production' }}\",
-              \"attachments\":[{
-                \"color\":\"good\",
-                \"fields\":[
-                  {\"title\":\"Environment\",\"value\":\"${{ github.event.inputs.environment || 'production' }}\",\"short\":true},
-                  {\"title\":\"Deployed By\",\"value\":\"${{ github.actor }}\",\"short\":true},
-                  {\"title\":\"Commit\",\"value\":\"${{ github.sha }}\",\"short\":true},
-                  {\"title\":\"Branch\",\"value\":\"${{ github.ref_name }}\",\"short\":true}
-                ]
-              }]
-            }"
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -X POST $SLACK_WEBHOOK \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"text\":\"🚀 SysTracker Dashboard deployed to ${{ github.event.inputs.environment || 'production' }}\",
+                \"attachments\":[{
+                  \"color\":\"good\",
+                  \"fields\":[
+                    {\"title\":\"Environment\",\"value\":\"${{ github.event.inputs.environment || 'production' }}\",\"short\":true},
+                    {\"title\":\"Deployed By\",\"value\":\"${{ github.actor }}\",\"short\":true},
+                    {\"title\":\"Commit\",\"value\":\"${{ github.sha }}\",\"short\":true},
+                    {\"title\":\"Branch\",\"value\":\"${{ github.ref_name }}\",\"short\":true}
+                  ]
+                }]
+              }"
+          else
+            echo "Slack webhook not configured, skipping notification"
+          fi
 
       - name: 📢 Notify Discord
-        if: success() && github.event_name != 'pull_request' && secrets.DISCORD_WEBHOOK != ''
+        if: success() && github.event_name != 'pull_request'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          curl -X POST $DISCORD_WEBHOOK \
-            -H 'Content-Type: application/json' \
-            -d "{
-              \"content\":\"🚀 **SysTracker Dashboard Deployed**\",
-              \"embeds\":[{
-                \"color\":5832650,
-                \"fields\":[
-                  {\"name\":\"Environment\",\"value\":\"${{ github.event.inputs.environment || 'production' }}\",\"inline\":true},
-                  {\"name\":\"Deployed By\",\"value\":\"${{ github.actor }}\",\"inline\":true},
-                  {\"name\":\"Commit\",\"value\":\"${{ github.sha }}\",\"inline\":false}
-                ],
-                \"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
-              }]
-            }"
+          if [ -n "$DISCORD_WEBHOOK" ]; then
+            curl -X POST $DISCORD_WEBHOOK \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"content\":\"🚀 **SysTracker Dashboard Deployed**\",
+                \"embeds\":[{
+                  \"color\":5832650,
+                  \"fields\":[
+                    {\"name\":\"Environment\",\"value\":\"${{ github.event.inputs.environment || 'production' }}\",\"inline\":true},
+                    {\"name\":\"Deployed By\",\"value\":\"${{ github.actor }}\",\"inline\":true},
+                    {\"name\":\"Commit\",\"value\":\"${{ github.sha }}\",\"inline\":false}
+                  ],
+                  \"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
+                }]
+              }"
+          else
+            echo "Discord webhook not configured, skipping notification"
+          fi
 
       - name: ❌ Rollback on Failure
         if: failure() && github.event_name != 'pull_request'
@@ -228,20 +236,23 @@ jobs:
     if: failure()
     steps:
       - name: 📢 Send Failure Alert
-        if: secrets.SLACK_WEBHOOK != ''
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: |
-          curl -X POST $SLACK_WEBHOOK \
-            -H 'Content-Type: application/json' \
-            -d "{
-              \"text\":\"⚠️ SysTracker Dashboard deployment FAILED\",
-              \"attachments\":[{
-                \"color\":\"danger\",
-                \"fields\":[
-                  {\"title\":\"Environment\",\"value\":\"${{ github.event.inputs.environment || 'production' }}\",\"short\":true},
-                  {\"title\":\"Failed By\",\"value\":\"${{ github.actor }}\",\"short\":true},
-                  {\"title\":\"Workflow\",\"value\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",\"short\":false}
-                ]
-              }]
-            }"
+          if [ -n "$SLACK_WEBHOOK" ]; then
+            curl -X POST $SLACK_WEBHOOK \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"text\":\"⚠️ SysTracker Dashboard deployment FAILED\",
+                \"attachments\":[{
+                  \"color\":\"danger\",
+                  \"fields\":[
+                    {\"title\":\"Environment\",\"value\":\"${{ github.event.inputs.environment || 'production' }}\",\"short\":true},
+                    {\"title\":\"Failed By\",\"value\":\"${{ github.actor }}\",\"short\":true},
+                    {\"title\":\"Workflow\",\"value\":\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",\"short\":false}
+                  ]
+                }]
+              }"
+          else
+            echo "Slack webhook not configured, skipping failure alert"
+          fi
