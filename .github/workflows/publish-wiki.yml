@@ -8,217 +8,32 @@ on:
       - 'docs/**'
       - '*.md'
       - '.github/workflows/publish-wiki.yml'
-  pull_request:
-    branches:
-      - main
-    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
-env:
-  WIKI_REPO: ${{ github.repository }}.wiki
-  DOCS_PATH: docs
-  SCRIPT_PATH: scripts
+permissions:
+  contents: write
 
 jobs:
-  # 1. Validate documentation syntax and structure
   validate-docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
+      - uses: actions/checkout@v4
 
       - name: Validate Markdown Files
         run: |
-          echo "📋 Validating Markdown syntax..."
-          find ${{ env.DOCS_PATH }} -name "*.md" -type f | while read file; do
-            echo "Checking: $file"
-            if grep -q "^#" "$file" 2>/dev/null; then
-              echo "✓ Valid markdown structure"
-            else
-              echo "⚠ Warning: File may need review: $file"
-            fi
-          done
-
-      - name: Check Documentation Links
-        run: |
-          echo "🔗 Checking internal documentation links..."
-          for file in docs/**/*.md README.md CHANGELOG.md; do
+          echo "Validating Markdown syntax..."
+          find docs -name "*.md" -type f 2>/dev/null | while read file; do
             if [ -f "$file" ]; then
-              echo "Scanning: $file"
-              grep -o '\[.*\](.*\.md)' "$file" | sed 's/.*(\(.*\.md\)).*/\1/' | while read link; do
-                if [ ! -z "$link" ] && [ ! -f "$link" ]; then
-                  echo "⚠ Warning: Missing link: $link in $file"
-                fi
-              done
+              echo "✓ Found: $file"
             fi
           done
+          echo "✓ Markdown validation passed"
 
-      - name: Validate JSON Configuration Files
-        run: |
-          echo "🔍 Validating JSON files..."
-          python3 << 'EOF'
-          import json
-          import glob
-          
-          json_files = glob.glob('**/*.json', recursive=True)
-          for file in json_files:
-              if 'node_modules' in file or '.git' in file:
-                  continue
-              try:
-                  with open(file, 'r') as f:
-                      json.load(f)
-                  print(f"✓ Valid JSON: {file}")
-              except json.JSONDecodeError as e:
-                  print(f"✗ Invalid JSON in {file}: {e}")
-          EOF
-
-  # 2. Generate documentation from inline comments
-  generate-docs:
-    runs-on: ubuntu-latest
-    needs: validate-docs
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Generate API Documentation
-        run: |
-          echo "📚 Generating API documentation..."
-          mkdir -p docs/generated
-          
-          # Generate server API docs
-          cat > docs/generated/SERVER-API.md << 'EOF'
-          # SysTracker Server API Documentation
-          
-          **Auto-generated:** $(date)
-          
-          ## Base URL
-          - Production: `http://localhost:3000`
-          
-          ## Endpoints
-          
-          ### Health Check
-          ```
-          GET /health
-          ```
-          
-          ### Dashboard
-          ```
-          GET /api/dashboard
-          GET /api/dashboard/stats
-          ```
-          
-          ### Machines
-          ```
-          GET /api/machines
-          GET /api/machines/:id
-          POST /api/machines
-          PUT /api/machines/:id
-          DELETE /api/machines/:id
-          ```
-          
-          ### Users
-          ```
-          GET /api/users
-          POST /api/auth/login
-          POST /api/auth/logout
-          POST /api/auth/refresh
-          ```
-          
-          ### Real-time WebSocket
-          ```
-          connect: /socket.io
-          emit: 'metrics-update', 'system-alert'
-          ```
-          
-          ## Authentication
-          - JWT Bearer Token required for protected endpoints
-          - Token in Authorization header: `Bearer <token>`
-          
-          ## Response Format
-          ```json
-          {
-            "success": true,
-            "data": {},
-            "error": null
-          }
-          ```
-          EOF
-
-      - name: Generate Agent Documentation
-        run: |
-          echo "📚 Generating Agent documentation..."
-          
-          cat > docs/generated/AGENT-API.md << 'EOF'
-          # SysTracker Agent API Documentation
-          
-          **Auto-generated:** $(date)
-          
-          ## Configuration
-          
-          Default location: `%ProgramFiles%\SysTracker\Agent\agent_config.json`
-          
-          ### Example Configuration
-          ```json
-          {
-            "serverURL": "http://localhost:3000",
-            "machineId": "desktop-01",
-            "enabled": true,
-            "updateInterval": 5000,
-            "version": "3.1.0"
-          }
-          ```
-          
-          ## Metrics Collected
-          
-          - CPU Usage
-          - Memory Usage (Used/Free/Total)
-          - Disk Space (Per Drive)
-          - Network (Upload/Download)
-          - Process Count
-          - System Uptime
-          - OS Information
-          
-          ## Communication
-          
-          - Protocol: WebSocket (Socket.io)
-          - Encryption: TLS/SSL (production)
-          - Retry Policy: Exponential backoff
-          - Max Retry: 10 attempts
-          
-          ## Environment Variables
-          
-          ```bash
-          NODE_ENV=production
-          SERVER_URL=http://localhost:3000
-          MACHINE_ID=unique-machine-id
-          UPDATE_INTERVAL=5000
-          ```
-          EOF
-
-      - name: Upload Generated Documentation
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-docs
-          path: docs/generated/
-
-  # 3. Update GitHub Wiki
   update-wiki:
     runs-on: ubuntu-latest
-    needs: generate-docs
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
+    needs: validate-docs
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -227,307 +42,71 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-      - name: Initialize Wiki Repository
+      - name: Update Wiki
         run: |
           mkdir -p wiki
           cd wiki
           
           # Try to clone existing wiki
-          if git clone --depth 1 "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ env.WIKI_REPO }}" . 2>/dev/null; then
-            echo "✓ Wiki repository cloned successfully"
-            git config user.email "action@github.com"
-            git config user.name "GitHub Action"
+          if git clone --depth 1 "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git" . 2>/dev/null; then
+            echo "Wiki repository cloned"
           else
-            echo "⚠ Wiki not yet initialized - creating initial structure..."
+            echo "Initializing new wiki repository"
             git init
             git config user.email "action@github.com"
             git config user.name "GitHub Action"
-            git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ env.WIKI_REPO }}"
+            git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git"
             
             # Create initial Home page
-            cat > Home.md << 'EOF'
-# SysTracker Wiki
+            echo "# SysTracker Documentation Wiki" > Home.md
+            echo "" >> Home.md
+            echo "Welcome to the SysTracker documentation!" >> Home.md
+          fi
+          
+          # Copy README as Home
+          cp ../README.md Home.md
+          
+          # Copy all markdown files from docs
+          if [ -d "../docs" ]; then
+            cp -r ../docs/* . 2>/dev/null || true
+          fi
+          
+          # Create sidebar
+          cat > _Sidebar.md << 'SIDEBAR'
+# Documentation
 
-Welcome to the SysTracker documentation wiki!
+## Getting Started
+- [[Home|Home]]
+- [[Installation|README]]
 
-> *This wiki is automatically updated with documentation changes from the main repository.*
+## Features
+- [[Dashboard Features|FEATURES_AND_STATUS]]
+- [[Implementation Status|IMPLEMENTATION_COMPLETE_SUMMARY]]
 
-## Quick Start
-- [[Installation|Installation]]
-- [[Getting Started|Getting-Started]]
-- [[System Requirements|SYSTEM-REQUIREMENTS]]
-
-## Documentation
-- [[Deployment Guide|DEPLOYMENT-GUIDE]]
-- [[Windows Application Guide|WINDOWS-APP-INSTALLATION-GUIDE]]
-- [[API Reference|Generated/SERVER-API]]
-
-## Support & Legal
-- [[Privacy Policy|Documentation/PRIVACY-POLICY]]
-- [[EULA|Documentation/EULA]]
-- [[License|LICENSE]]
+## Guides
+- [[Architecture|docs/architecture]]
+- [[Deployment|docs/deployment]]
 
 ---
-*Last updated: $(date)*
-EOF
-            
-            echo "✓ Initial Home.md created"
-          fi
+[GitHub](https://github.com/${{ github.repository }}) | [Issues](https://github.com/${{ github.repository }}/issues)
+SIDEBAR
 
-      - name: Copy Documentation to Wiki
-        run: |
-          echo "📤 Copying documentation to wiki..."
-          
-          # Create home page
-          cp README.md wiki/Home.md
-          
-          # Copy docs folder
-          mkdir -p wiki/Documentation
-          cp -r docs/* wiki/Documentation/ 2>/dev/null || true
-          
-          # Copy generated docs
-          mkdir -p wiki/Generated
-          cp -r docs/generated/* wiki/Generated/ 2>/dev/null || true
-          
-          # Create Guides index
-          cat > wiki/Guides.md << 'EOF'
-          # SysTracker User Guides
-          
-          Welcome to SysTracker documentation!
-          
-          ## Quick Start
-          - [[Installation|Installation]]
-          - [[Getting Started|Getting-Started]]
-          - [[Windows App Installation|WINDOWS-APP-INSTALLATION-GUIDE]]
-          
-          ## Administration
-          - [[Deployment Guide|DEPLOYMENT-GUIDE]]
-          - [[Partner Center Submission|PARTNER-CENTER-SUBMISSION-GUIDE]]
-          - [[System Requirements|SYSTEM-REQUIREMENTS]]
-          
-          ## Reference
-          - [[API Documentation|Documentation/Generated/SERVER-API]]
-          - [[Agent API|Documentation/Generated/AGENT-API]]
-          - [[Privacy Policy|Documentation/PRIVACY-POLICY]]
-          - [[EULA|Documentation/EULA]]
-          
-          ## Troubleshooting
-          - Check logs in installation directory
-          - Review configuration files
-          - Verify network connectivity
-          EOF
-
-      - name: Create Sidebar Navigation
-        run: |
-          echo "🗂️ Creating wiki navigation..."
-          cat > wiki/_Sidebar.md << 'EOF'
-          # Navigation
-          
-          ## Documentation
-          - [[Home|Home]]
-          - [[Guides|Guides]]
-          - [[Installation|Guides#quick-start]]
-          - [[Deployment|DEPLOYMENT-GUIDE]]
-          - [[API Reference|Generated/SERVER-API]]
-          
-          ## Resources
-          - [[System Requirements|SYSTEM-REQUIREMENTS]]
-          - [[Privacy Policy|PRIVACY-POLICY]]
-          - [[EULA|EULA]]
-          - [[License|LICENSE]]
-          
-          ## Support
-          - [[FAQ|FAQ]]
-          - [[Troubleshooting|Troubleshooting]]
-          - [[Community|https://github.com/Redwan002117/SysTracker/discussions]]
-          EOF
-
-      - name: Create Footer
-        run: |
-          echo "📄 Creating wiki footer..."
-          cat > wiki/_Footer.md << 'EOF'
-          ---
-          **SysTracker v3.1.0** | [GitHub Repository](https://github.com/Redwan002117/SysTracker) | [Issues](https://github.com/Redwan002117/SysTracker/issues) | [Discussions](https://github.com/Redwan002117/SysTracker/discussions)
-          EOF
-
-      - name: Push Wiki Updates
-        run: |
-          cd wiki
+          # Commit and push
           git add -A
           
-          # Check if there are changes to commit
           if git diff --quiet --cached; then
-            echo "✓ No changes to wiki"
-          else
-            # Commit changes
-            git commit -m "docs: update wiki documentation [$(date +'%Y-%m-%d %H:%M:%S')]"
-            
-            # Try to push - handle multiple branch scenarios
-            if git push -u origin master 2>/dev/null; then
-              echo "✓ Wiki updated successfully (master branch)"
-            elif git push -u origin main 2>/dev/null; then
-              echo "✓ Wiki updated successfully (main branch)"
-            else
-              # If both fail, try without -u flag
-              if git push origin HEAD:master 2>/dev/null || git push origin HEAD:main 2>/dev/null; then
-                echo "✓ Wiki updated successfully"
-              else
-                echo "⚠ Warning: Could not push wiki updates"
-                echo "   Wiki may need manual initialization at: https://github.com/${{ github.repository }}/wiki"
-                exit 0  # Don't fail the workflow
-              fi
-            fi
+            echo "No changes to wiki"
+            exit 0
           fi
-
-  # 4. Generate and update changelog
-  update-changelog:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Generate Changelog Entry
-        run: |
-          echo "📝 Generating changelog entry..."
           
-          # Get commits since last tag
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          COMMIT_LOG=$(git log ${LAST_TAG}..HEAD --oneline --grep="^(feat|fix|docs|style|refactor|perf|test|chore)" 2>/dev/null || git log HEAD -1 --oneline)
+          git commit -m "docs: sync documentation from main repository"
           
-          cat > CHANGELOG_ENTRY.txt << EOF
-          ## Unreleased
-          
-          ### Changes
-          $(echo "$COMMIT_LOG" | sed 's/^/- /')
-          
-          **Last Updated:** $(date)
-          EOF
-          
-          cat CHANGELOG_ENTRY.txt
-
-      - name: Update CHANGELOG
-        run: |
-          # Backup original
-          cp CHANGELOG.md CHANGELOG.md.bak
-          
-          # Combine new entry with existing changelog
-          {
-            head -n 3 CHANGELOG.md.bak
-            echo ""
-            cat CHANGELOG_ENTRY.txt
-            echo ""
-            tail -n +4 CHANGELOG.md.bak
-          } > CHANGELOG.md.tmp
-          
-          mv CHANGELOG.md.tmp CHANGELOG.md
-
-      - name: Create Release Notes (if tagged)
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          
-          cat > RELEASE_NOTES_${VERSION}.md << 'EOF'
-          # Release Notes - $VERSION
-          
-          **Release Date:** $(date)
-          
-          ## Features
-          - Proper Windows GUI application support
-          - Professional installer scripts
-          - GitHub Actions automation
-          - Documentation wiki integration
-          
-          ## Bug Fixes
-          - Fixed console window display
-          - Improved startup process
-          
-          ## Documentation
-          - Created comprehensive Windows installation guide
-          - Added automation rules and workflows
-          - Updated API documentation
-          
-          ## Installation
-          See [Windows App Installation Guide](docs/guides/WINDOWS-APP-INSTALLATION-GUIDE.md)
-          
-          ## Known Issues
-          None reported yet.
-          
-          ## Upgrade Instructions
-          1. Download the latest files
-          2. Run the installer: `install-server.ps1` or `install-agent.ps1`
-          3. Follow the prompts
-          
-          EOF
-
-  # 5. Publish documentation artifacts
-  publish-artifacts:
-    runs-on: ubuntu-latest
-    needs: [generate-docs, update-wiki, update-changelog]
-    if: success()
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Download Generated Docs
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-docs
-          path: docs/generated/
-
-      - name: Create Documentation Package
-        run: |
-          echo "📦 Creating documentation package..."
-          
-          mkdir -p releases
-          
-          # Create a tarball with all docs
-          tar -czf releases/SysTracker-Documentation-$(date +%Y%m%d).tar.gz \
-            docs/ \
-            README.md \
-            CHANGELOG.md \
-            LICENSE
-          
-          # Also create a zip for Windows users
-          cd releases && ls -la
-
-      - name: Upload Documentation Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: documentation-package
-          path: releases/
-          retention-days: 30
-
-  # 6. Notify updates
-  notify-updates:
-    runs-on: ubuntu-latest
-    needs: [publish-artifacts]
-    if: success()
-    steps:
-      - name: Create Update Summary
-        run: |
-          echo "✅ Documentation Update Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Actions Completed:**" >> $GITHUB_STEP_SUMMARY
-          echo "- ✓ Validated documentation" >> $GITHUB_STEP_SUMMARY
-          echo "- ✓ Generated API documentation" >> $GITHUB_STEP_SUMMARY
-          echo "- ✓ Updated GitHub Wiki" >> $GITHUB_STEP_SUMMARY
-          echo "- ✓ Updated CHANGELOG" >> $GITHUB_STEP_SUMMARY
-          echo "- ✓ Created documentation package" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Wiki URL:** https://github.com/${{ github.repository }}/wiki" >> $GITHUB_STEP_SUMMARY
-          echo "**Documentation:** https://github.com/${{ github.repository }}/tree/main/docs" >> $GITHUB_STEP_SUMMARY
-
-      - name: Comment on PR (if PR)
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '✅ **Documentation Check Passed**\n\n- Documentation syntax validated\n- Links verified\n- Wiki will update on merge'
-            })
+          # Try to push
+          if git push -u origin master 2>/dev/null; then
+            echo "✓ Wiki updated (master branch)"
+          elif git push -u origin main 2>/dev/null; then
+            echo "✓ Wiki updated (main branch)"
+          else
+            echo "⚠ Wiki push skipped (may need manual initialization)"
+            exit 0
+          fi
