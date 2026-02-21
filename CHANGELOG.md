@@ -3,6 +3,18 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.2.2] - 2026-02-21
+
+### 🐛 Bug Fixes
+- **CI: manifest.ts TypeScript build failure** — `purpose: 'any maskable'` is not a valid `MetadataRoute.Manifest` icon purpose; split into two separate icon entries (`purpose: 'maskable'` and `purpose: 'any'`) in both the dashboard and portfolio repos
+- **CI: unexpected `any` types in SystemLoadChart** — added proper `TooltipProps` and `TooltipEntry` interfaces; replaced untyped `any` params
+- **CI: unexpected `any` types in PerformanceHistory** — added `RangeOption`, `HistoryDataPoint`, `TooltipProps`, and `TooltipEntry` interfaces; removed all `any` from component state, tooltip, and data processing; moved `fetchHistory` before its `useEffect` call; suppressed `react-hooks/exhaustive-deps` where dependencies are intentionally managed
+- **CI: unescaped apostrophe in setup/page.tsx** — replaced `Let's` with `Let&apos;s` in JSX
+- **CI: `catch (err: any)` in reset-password and forgot-password pages** — changed to `catch (err: unknown)` with proper `instanceof Error` guard
+- **CI: unused `Radio` import in MachineCard.tsx** — removed the dead import
+
+---
+
 ## [3.2.1] - 2026-02-21
 
 ### 🐛 Bug Fixes
