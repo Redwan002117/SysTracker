@@ -101,13 +101,13 @@ jobs:
             mkdir -p ~/.ssh
             echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
             chmod 600 ~/.ssh/id_ed25519
-            cat >> ~/.ssh/config << 'EOF'
-Host ssh.monitor.rico.bd
-  ProxyCommand cloudflared access ssh --hostname %h
-  IdentityFile ~/.ssh/id_ed25519
-  StrictHostKeyChecking no
-  User rickyadams2117
-EOF
+            {
+              echo "Host ssh.monitor.rico.bd"
+              echo "  ProxyCommand cloudflared access ssh --hostname %h"
+              echo "  IdentityFile ~/.ssh/id_ed25519"
+              echo "  StrictHostKeyChecking no"
+              echo "  User ${REMOTE_USER}"
+            } >> ~/.ssh/config
             chmod 600 ~/.ssh/config
             echo "✅ SSH + Cloudflare Tunnel configured"
           else
