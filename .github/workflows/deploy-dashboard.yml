@@ -80,21 +80,36 @@ jobs:
           echo "| Node Version | ${{ env.NODE_VERSION }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Environment | ${{ github.event.inputs.environment || 'production' }} |" >> $GITHUB_STEP_SUMMARY
 
-      - name: 🔑 Setup SSH Key
+      - name: 🌐 Install Cloudflare Tunnel Client
+        if: github.event_name != 'pull_request'
+        run: |
+          curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | \
+            sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-main.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] \
+            https://pkg.cloudflare.com/cloudflared any main" | \
+            sudo tee /etc/apt/sources.list.d/cloudflared.list
+          sudo apt-get update -qq && sudo apt-get install -y cloudflared
+          cloudflared version
+
+      - name: 🔑 Setup SSH via Cloudflare Tunnel
         if: github.event_name != 'pull_request'
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
         run: |
           if [ -n "$SSH_PRIVATE_KEY" ]; then
             mkdir -p ~/.ssh
-            echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
-            if [ -n "$SSH_KNOWN_HOSTS" ]; then
-              echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-              chmod 644 ~/.ssh/known_hosts
-            fi
-            echo "✅ SSH key configured"
+            echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+            chmod 600 ~/.ssh/id_ed25519
+            cat >> ~/.ssh/config << 'EOF'
+Host ssh.monitor.rico.bd
+  ProxyCommand cloudflared access ssh --hostname %h
+  IdentityFile ~/.ssh/id_ed25519
+  StrictHostKeyChecking no
+  User rickyadams2117
+EOF
+            chmod 600 ~/.ssh/config
+            echo "✅ SSH + Cloudflare Tunnel configured"
           else
             echo "⚠️ SSH key not configured, deployment will be skipped"
           fi
@@ -103,13 +118,11 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
-          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
-          REMOTE_PORT: ${{ secrets.REMOTE_PORT || '22' }}
           REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          if [ -n "$REMOTE_HOST" ] && [ -n "$REMOTE_USER" ] && [ -n "$REMOTE_PATH" ]; then
+          if [ -n "$REMOTE_USER" ] && [ -n "$REMOTE_PATH" ]; then
             BACKUP_NAME="dashboard-backup-$(date +%Y%m%d-%H%M%S)"
-            ssh -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} \
+            ssh ${REMOTE_USER}@ssh.monitor.rico.bd \
               "cd ${REMOTE_PATH} && [ -d server/dashboard-dist ] && tar -czf backups/${BACKUP_NAME}.tar.gz server/dashboard-dist || mkdir -p backups"
             echo "✅ Backup created: ${BACKUP_NAME}.tar.gz"
           else
@@ -120,18 +133,16 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
-          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
-          REMOTE_PORT: ${{ secrets.REMOTE_PORT || '22' }}
           REMOTE_DASHBOARD_PATH: ${{ secrets.REMOTE_DASHBOARD_PATH }}
         run: |
-          if [ -n "$REMOTE_HOST" ] && [ -n "$REMOTE_USER" ] && [ -n "$REMOTE_DASHBOARD_PATH" ]; then
+          if [ -n "$REMOTE_USER" ] && [ -n "$REMOTE_DASHBOARD_PATH" ]; then
             rsync -avz --delete \
-              -e "ssh -p ${REMOTE_PORT} -o StrictHostKeyChecking=no" \
+              -e "ssh -F ~/.ssh/config" \
               --exclude 'node_modules' \
               --exclude '.next' \
               --exclude '.git' \
               dashboard/out/ \
-              ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DASHBOARD_PATH}/
+              ${REMOTE_USER}@ssh.monitor.rico.bd:${REMOTE_DASHBOARD_PATH}/
             echo "✅ Dashboard deployed successfully"
           else
             echo "⚠️ Deployment not configured, skipping deployment (build artifacts available)"
@@ -141,19 +152,17 @@ jobs:
         if: github.event_name != 'pull_request' && (github.event.inputs.restart_server == 'true' || github.event_name == 'push')
         env:
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
-          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
-          REMOTE_PORT: ${{ secrets.REMOTE_PORT || '22' }}
           SERVER_SERVICE: ${{ secrets.SERVER_SERVICE || 'systracker' }}
           USE_PM2: ${{ secrets.USE_PM2 || 'false' }}
           PM2_APP_NAME: ${{ secrets.PM2_APP_NAME || 'systracker' }}
         run: |
-          if [ -n "$REMOTE_HOST" ] && [ -n "$REMOTE_USER" ]; then
+          if [ -n "$REMOTE_USER" ]; then
             if [ "$USE_PM2" = "true" ]; then
-              ssh -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "pm2 restart ${PM2_APP_NAME}"
+              ssh ${REMOTE_USER}@ssh.monitor.rico.bd "pm2 restart ${PM2_APP_NAME}"
               echo "✅ Server restarted via PM2"
             else
-              ssh -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} "sudo systemctl restart ${SERVER_SERVICE}"
-              echo "✅ Server restarted via systemd"
+              ssh ${REMOTE_USER}@ssh.monitor.rico.bd "docker restart ${SERVER_SERVICE}"
+              echo "✅ Container restarted: ${SERVER_SERVICE}"
             fi
           else
             echo "⚠️ Remote server not configured, skipping restart"
@@ -163,14 +172,12 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
-          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
-          REMOTE_PORT: ${{ secrets.REMOTE_PORT || '22' }}
           REMOTE_DASHBOARD_PATH: ${{ secrets.REMOTE_DASHBOARD_PATH }}
         run: |
-          if [ -n "$REMOTE_HOST" ] && [ -n "$REMOTE_USER" ] && [ -n "$REMOTE_DASHBOARD_PATH" ]; then
-            FILE_COUNT=$(ssh -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} \
+          if [ -n "$REMOTE_USER" ] && [ -n "$REMOTE_DASHBOARD_PATH" ]; then
+            FILE_COUNT=$(ssh ${REMOTE_USER}@ssh.monitor.rico.bd \
               "find ${REMOTE_DASHBOARD_PATH} -type f | wc -l")
-            DIR_SIZE=$(ssh -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} \
+            DIR_SIZE=$(ssh ${REMOTE_USER}@ssh.monitor.rico.bd \
               "du -sh ${REMOTE_DASHBOARD_PATH} | cut -f1")
             
             echo "## 📊 Deployment Verification" >> $GITHUB_STEP_SUMMARY
@@ -179,7 +186,7 @@ jobs:
             echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
             echo "| Files Deployed | ${FILE_COUNT} |" >> $GITHUB_STEP_SUMMARY
             echo "| Directory Size | ${DIR_SIZE} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Server | ${REMOTE_HOST} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Server | ssh.monitor.rico.bd (Cloudflare Tunnel) |" >> $GITHUB_STEP_SUMMARY
             echo "| Deploy Time | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Remote server not configured, skipping verification"
@@ -273,16 +280,14 @@ jobs:
         if: failure() && github.event_name != 'pull_request'
         env:
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
-          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
-          REMOTE_PORT: ${{ secrets.REMOTE_PORT || '22' }}
           REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          if [ -n "$REMOTE_HOST" ] && [ -n "$REMOTE_USER" ] && [ -n "$REMOTE_PATH" ]; then
+          if [ -n "$REMOTE_USER" ] && [ -n "$REMOTE_PATH" ]; then
             echo "⚠️ Deployment failed, attempting rollback..."
-            LATEST_BACKUP=$(ssh -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} \
+            LATEST_BACKUP=$(ssh ${REMOTE_USER}@ssh.monitor.rico.bd \
               "cd ${REMOTE_PATH}/backups && ls -t dashboard-backup-*.tar.gz | head -1")
             if [ -n "$LATEST_BACKUP" ]; then
-              ssh -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} \
+              ssh ${REMOTE_USER}@ssh.monitor.rico.bd \
                 "cd ${REMOTE_PATH} && tar -xzf backups/${LATEST_BACKUP}"
               echo "✅ Rolled back to: ${LATEST_BACKUP}"
             else

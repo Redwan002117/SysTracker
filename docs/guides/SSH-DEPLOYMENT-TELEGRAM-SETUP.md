@@ -1,29 +1,38 @@
 # SysTracker — SSH Deployment & Telegram Notifications Setup Guide
 
-> **Server:** `monitor.rico.bd` — Ubuntu 25.10, CasaOS, hostname `RickyAdams2117`, user `rickyadams2117`
+> **Server:** Ubuntu 25.10, CasaOS, hostname `RickyAdams2117`, user `rickyadams2117`
 >
-> **"Dev container terminal"** means the **terminal inside VS Code** (the editor where you're reading this file). It's the black terminal panel at the bottom of VS Code — NOT your server terminal. When the guide says "run in dev container terminal", open a terminal in VS Code (`Ctrl+` `` ` ``) and run it there.
+> **Tunnel:** SSH goes through Cloudflare Tunnel → `ssh.monitor.rico.bd` (not direct port 22)
+>
+> **"Dev container terminal"** means the **terminal inside VS Code** (the editor where you're reading this file). It's the black terminal panel at the bottom of VS Code — NOT your server terminal.
 
 ---
 
 ## Prerequisites
 
-- SSH access to `monitor.rico.bd` as `rickyadams2117`
-- GitHub CLI (`gh`) authenticated — verify with `gh auth status` **in VS Code terminal**
+- SSH access to your server (local network or via Cloudflare Tunnel)
+- Cloudflare Tunnel running on the server (`big-bear-cloudflared-web` container)
+- Cloudflare Zero Trust hostname `ssh.monitor.rico.bd` → `ssh://192.168.10.8:22` configured
+- GitHub Secrets set via `https://github.com/Redwan002117/SysTracker/settings/secrets/actions`
 - Telegram bot already created via `@BotFather`
+
+> ⚠️ The dev container's `GITHUB_TOKEN` is read-only — `gh secret set` won't work here. **Set all secrets via the GitHub web UI link above.**
 
 ---
 
-## Part 0 — Revoke Exposed Keys ✅ DONE
+## Part 0 — Key Security Status ✅ DONE
 
-> ✅ Already completed. Old keys removed, `github_deploy_new` is in place with correct permissions.
+> ✅ Two generations of exposed keys were revoked. `github_deploy_final` is the current safe key.
 
 **Verified state:**
-- `~/.ssh/github_deploy` — deleted ✅
-- `~/.ssh/github_deploy_new` — safe key, permissions `600` ✅
-- `~/.ssh/github_deploy_new.pub` — in `authorized_keys` ✅
+- `~/.ssh/github_deploy` — exposed & deleted ✅
+- `~/.ssh/github_deploy_new` — exposed & deleted ✅
+- `~/.ssh/github_deploy_final` — safe key, permissions `600` ✅
+- `~/.ssh/github_deploy_final.pub` — in `authorized_keys` ✅
 - `.ssh/` directory — permissions `700` ✅
 - Home directory — permissions `755` ✅
+
+> ⚠️ If the Telegram bot token was also exposed, revoke it: Telegram → `@BotFather` → `/mybots` → select bot → **Revoke current token** → copy new token.
 
 ---
 
@@ -31,11 +40,11 @@
 
 ### 1.1 — Generate a Dedicated Deploy SSH Key ✅ DONE
 
-Already done. Key is at `~/.ssh/github_deploy_new`.
+Already done. Key is at `~/.ssh/github_deploy_final`.
 
 ### 1.2 — Authorize the Key on the Server ✅ DONE
 
-Already done. Public key is in `~/.ssh/authorized_keys`.
+Already done. Public key (`github_deploy_final.pub`) is in `~/.ssh/authorized_keys`.
 
 ### 1.3 — Create Required Directories ✅ DONE
 
@@ -55,13 +64,16 @@ AuthorizedKeysFile .ssh/authorized_keys .ssh/authorized_keys2
 
 SSH was restarted successfully. Key authentication is enabled.
 
-### 1.5 — Find the SSH Port
+### 1.5 — Cloudflare Tunnel SSH Hostname ✅ CONFIGURED
 
+The Cloudflare Tunnel routes `ssh.monitor.rico.bd` → `ssh://192.168.10.8:22`.
+
+> ⚠️ **Action required:** In Cloudflare Zero Trust → Networks → Tunnels → edit tunnel → Public Hostnames → edit `ssh.monitor.rico.bd` → **clear the Path field** (must be empty, not `^/blog`) → Save.
+
+The tunnel container (`big-bear-cloudflared-web`) must be running on the server. Verify:
 ```bash
-sudo ss -tlnp | grep sshd
+docker ps | grep cloudflared
 ```
-
-Note the port number (default is `22`). You'll need this for secrets.
 
 ### 1.6 — CasaOS SysTracker Container ✅ CONFIRMED
 
@@ -76,7 +88,7 @@ Status: Up (healthy) ✅
 On your **server terminal**, run:
 
 ```bash
-cat ~/.ssh/github_deploy_new
+cat ~/.ssh/github_deploy_final
 ```
 
 You'll see:
@@ -95,81 +107,37 @@ Select and copy **everything** from `-----BEGIN` to `-----END` (including those 
 
 ## Part 3 — Add GitHub Secrets
 
-Open the **VS Code terminal** (`Ctrl+` `` ` `` in VS Code). Run each command below. For commands that ask for input, paste the value and press `Enter` then `Ctrl+D`.
+Open: **`https://github.com/Redwan002117/SysTracker/settings/secrets/actions`**
 
-### 3.1 — SSH Private Key
+Click **New repository secret** for each one below.
 
-```bash
-gh secret set SSH_PRIVATE_KEY
+> ℹ️ `gh secret set` won't work in this dev container (read-only token). Use the web UI.
+
+### Secrets to Add
+
+| Secret Name | Value | Notes |
+|-------------|-------|-------|
+| `SSH_PRIVATE_KEY` | Contents of `~/.ssh/github_deploy_final` on server | Run `cat ~/.ssh/github_deploy_final` on server, copy entire output |
+| `REMOTE_USER` | `rickyadams2117` | Your Linux username |
+| `REMOTE_PATH` | `/home/rickyadams2117` | Home directory (for backups) |
+| `REMOTE_DASHBOARD_PATH` | `/home/rickyadams2117/server/dashboard-dist` | Where static files are deployed |
+| `SERVER_SERVICE` | `systracker` | Docker container name (from `docker ps`) |
+| `TELEGRAM_BOT_TOKEN` | Your bot token from `@BotFather` | Revoke old token first if it was exposed |
+| `TELEGRAM_CHAT_ID` | `-1003771718059` | Your `@SysTracker` channel ID |
+
+> ✅ `SSH_KNOWN_HOSTS`, `REMOTE_HOST`, and `REMOTE_PORT` are **no longer needed** — the workflow connects through the Cloudflare Tunnel (`ssh.monitor.rico.bd`) with `StrictHostKeyChecking no`.
+
+### 3.1 — Verify Secrets Are Set
+
+After adding all secrets, the page should show:
 ```
-
-→ Paste the private key you copied in Part 2 → `Enter` → `Ctrl+D`
-
-### 3.2 — SSH Known Hosts
-
-```bash
-ssh-keyscan -H monitor.rico.bd | gh secret set SSH_KNOWN_HOSTS
-```
-
-→ Runs automatically, no paste needed.
-
-### 3.3 — Server Connection
-
-```bash
-gh secret set REMOTE_HOST --body "monitor.rico.bd"
-gh secret set REMOTE_USER --body "rickyadams2117"
-gh secret set REMOTE_PORT --body "22"
-```
-
-> Replace `22` if your SSH port is different (check from step 1.5).
-
-### 3.4 — Server Paths
-
-```bash
-gh secret set REMOTE_PATH --body "/home/rickyadams2117"
-gh secret set REMOTE_DASHBOARD_PATH --body "/home/rickyadams2117/server/dashboard-dist"
-```
-
-### 3.5 — CasaOS Docker Container Name
-
-Find your SysTracker container name (from step 1.6), then:
-
-```bash
-# Replace "systracker" with the actual container name if different
-gh secret set SERVER_SERVICE --body "systracker"
-```
-
-### 3.6 — Telegram
-
-```bash
-gh secret set TELEGRAM_BOT_TOKEN
-```
-
-→ Paste your bot token from `@BotFather` → `Enter` → `Ctrl+D`
-
-```bash
-gh secret set TELEGRAM_CHAT_ID --body "-1003771718059"
-```
-
-### 3.7 — Verify All Secrets Are Set
-
-```bash
-gh secret list
-```
-
-Expected output:
-```
-NAME                    UPDATED
-REMOTE_DASHBOARD_PATH   about now
-REMOTE_HOST             about now
-REMOTE_PATH             about now
-REMOTE_PORT             about now
-REMOTE_USER             about now
-SERVER_SERVICE          about now
-SSH_KNOWN_HOSTS         about now
-SSH_PRIVATE_KEY         about now
-TELEGRAM_BOT_TOKEN      about now
-TELEGRAM_CHAT_ID        about now
+REMOTE_DASHBOARD_PATH
+REMOTE_PATH
+REMOTE_USER
+SERVER_SERVICE
+SSH_PRIVATE_KEY
+TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID
 ```
 
 ---
@@ -183,18 +151,28 @@ TELEGRAM_CHAT_ID        about now
 
 ---
 
-## Part 5 — Test SSH Connection
+## Part 5 — Test SSH via Cloudflare Tunnel
 
-In your **VS Code terminal**, run:
+First, install `cloudflared` on your local machine if not already installed:
 
 ```bash
-ssh -i ~/.ssh/github_deploy_new \
-    -o StrictHostKeyChecking=no \
-    rickyadams2117@monitor.rico.bd \
-    "echo 'Connection OK' && whoami"
+# Linux/macOS:
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | \
+  sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-main.gpg
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] \
+  https://pkg.cloudflare.com/cloudflared any main" | \
+  sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt-get update && sudo apt-get install -y cloudflared
 ```
 
-> Note: This test uses the key on your local machine from when you SSHed in earlier. GitHub Actions uses the same key from the secret.
+Then test the tunnel connection from your **server terminal** (local network always works):
+
+```bash
+ssh -i ~/.ssh/github_deploy_final \
+    -o StrictHostKeyChecking=no \
+    rickyadams2117@192.168.10.8 \
+    "echo 'Connection OK' && whoami"
+```
 
 Expected:
 ```
@@ -202,7 +180,16 @@ Connection OK
 rickyadams2117
 ```
 
-If it fails with `Permission denied (publickey)`, go back to step 1.4 and confirm `PubkeyAuthentication yes` is uncommented and SSH was restarted.
+To test via Cloudflare Tunnel specifically:
+```bash
+ssh -i ~/.ssh/github_deploy_final \
+    -o ProxyCommand="cloudflared access ssh --hostname ssh.monitor.rico.bd" \
+    -o StrictHostKeyChecking=no \
+    rickyadams2117@ssh.monitor.rico.bd \
+    "echo 'Tunnel OK' && whoami"
+```
+
+> If this fails, confirm the Cloudflare Tunnel Path field is empty (not `^/blog`) — see step 1.5.
 
 ---
 
@@ -280,13 +267,14 @@ You'll also receive a Telegram message in `@SysTracker` on success or failure:
 | Install deps | `npm ci` in `dashboard/` |
 | Build | `npm run build` → generates `dashboard/out/` |
 | Verify build | Checks `out/` directory exists and reports file count |
-| Setup SSH | Loads `SSH_PRIVATE_KEY` + `SSH_KNOWN_HOSTS` from secrets |
-| Backup | Archives current `dashboard-dist` on server (keeps last 5) |
-| Deploy | `rsync` uploads `dashboard/out/` → `REMOTE_DASHBOARD_PATH` |
-| Restart | `docker restart <container>` or `systemctl restart` |
-| Verify | Reports file count on server |
+| Install cloudflared | Downloads and installs the Cloudflare Tunnel client on the runner |
+| Setup SSH | Writes `SSH_PRIVATE_KEY` to `~/.ssh/id_ed25519`, configures `~/.ssh/config` with `ProxyCommand cloudflared access ssh --hostname ssh.monitor.rico.bd` |
+| Backup | Archives current `dashboard-dist` via tunnel SSH |
+| Deploy | `rsync` uploads `dashboard/out/` → `REMOTE_DASHBOARD_PATH` via tunnel |
+| Restart | `docker restart systracker` via tunnel SSH |
+| Verify | Reports file count on server via tunnel SSH |
 | Telegram | Sends success/fail message to `@SysTracker` channel |
-| Rollback | If any step fails → restores latest backup automatically |
+| Rollback | If any step fails → restores latest backup automatically via tunnel SSH |
 
 ---
 
@@ -304,9 +292,18 @@ sudo sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/ssh
 sudo systemctl restart ssh
 
 # Confirm the public key is in authorized_keys
-grep "github-actions-systracker" ~/.ssh/authorized_keys
-# Must return exactly one line
+cat ~/.ssh/authorized_keys | grep -c "ssh-"
+# Must return at least 1
 ```
+
+### Cloudflare Tunnel Not Routing SSH
+
+1. Confirm `big-bear-cloudflared-web` container is running: `docker ps | grep cloudflared`
+2. In Cloudflare Zero Trust → Networks → Tunnels → your tunnel → Public Hostnames:
+   - Subdomain: `ssh.monitor`, Domain: `rico.bd`
+   - Service Type: `SSH`, URL: `192.168.10.8:22`
+   - **Path field: must be EMPTY** (clear `^/blog` or any other value)
+3. Save and wait ~30 seconds for config to propagate
 
 ### Telegram Not Sending
 
@@ -347,16 +344,17 @@ gh secret set SERVER_SERVICE --body "actual-container-name"
 
 ## Summary of All Secrets
 
-| Secret | Value to Use | How to Get It |
-|--------|-------------|---------------|
-| `SSH_PRIVATE_KEY` | Contents of `~/.ssh/github_deploy_new` | `cat ~/.ssh/github_deploy_new` on server |
-| `SSH_KNOWN_HOSTS` | Server fingerprint | `ssh-keyscan monitor.rico.bd` in VS Code terminal |
-| `REMOTE_HOST` | `monitor.rico.bd` | Your domain |
+Set these at: `https://github.com/Redwan002117/SysTracker/settings/secrets/actions`
+
+| Secret | Value | How to Get It |
+|--------|-------|---------------|
+| `SSH_PRIVATE_KEY` | Contents of `~/.ssh/github_deploy_final` | `cat ~/.ssh/github_deploy_final` on server |
 | `REMOTE_USER` | `rickyadams2117` | Your Linux username |
-| `REMOTE_PORT` | `22` | `ss -tlnp \| grep sshd` on server |
 | `REMOTE_PATH` | `/home/rickyadams2117` | Your home directory |
-| `REMOTE_DASHBOARD_PATH` | `/home/rickyadams2117/server/dashboard-dist` | Where to deploy static files |
+| `REMOTE_DASHBOARD_PATH` | `/home/rickyadams2117/server/dashboard-dist` | Where static files are deployed |
 | `SERVER_SERVICE` | `systracker` | `docker ps` container name on server |
-| `TELEGRAM_BOT_TOKEN` | `123456789:AAF...` | `@BotFather` → `/mybots` → API Token |
+| `TELEGRAM_BOT_TOKEN` | Your new bot token | `@BotFather` → `/mybots` → Revoke & get new token |
 | `TELEGRAM_CHAT_ID` | `-1003771718059` | Your `@SysTracker` channel ID |
+
+> ❌ **Not needed:** `SSH_KNOWN_HOSTS`, `REMOTE_HOST`, `REMOTE_PORT` — the workflow hardcodes `ssh.monitor.rico.bd` via Cloudflare Tunnel with `StrictHostKeyChecking no`.
 
