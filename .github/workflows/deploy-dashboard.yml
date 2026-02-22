@@ -96,6 +96,8 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           if [ -n "$SSH_PRIVATE_KEY" ]; then
             mkdir -p ~/.ssh
@@ -103,12 +105,17 @@ jobs:
             chmod 600 ~/.ssh/id_ed25519
             {
               echo "Host ssh.monitor.rico.bd"
-              echo "  ProxyCommand cloudflared access tcp --hostname %h"
+              echo "  ProxyCommand cloudflared access ssh --hostname %h"
               echo "  IdentityFile ~/.ssh/id_ed25519"
               echo "  StrictHostKeyChecking no"
               echo "  User ${REMOTE_USER}"
             } >> ~/.ssh/config
             chmod 600 ~/.ssh/config
+            if [ -n "$CF_ACCESS_CLIENT_ID" ] && [ -n "$CF_ACCESS_CLIENT_SECRET" ]; then
+              echo "CF_ACCESS_CLIENT_ID=${CF_ACCESS_CLIENT_ID}" >> "$GITHUB_ENV"
+              echo "CF_ACCESS_CLIENT_SECRET=${CF_ACCESS_CLIENT_SECRET}" >> "$GITHUB_ENV"
+              echo "✅ Cloudflare Access service token configured"
+            fi
             echo "✅ SSH + Cloudflare Tunnel configured"
           else
             echo "⚠️ SSH key not configured, deployment will be skipped"
