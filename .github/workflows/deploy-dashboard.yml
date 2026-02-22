@@ -25,7 +25,7 @@ on:
         default: true
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
 
 jobs:
   build-and-deploy:
@@ -185,7 +185,43 @@ jobs:
             echo "⚠️ Remote server not configured, skipping verification"
           fi
 
-      - name: 📢 Notify Slack
+      - name: � Notify Telegram
+        if: always() && github.event_name != 'pull_request'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram not configured, skipping notification"
+            exit 0
+          fi
+          if [ "${{ job.status }}" = "success" ]; then
+            ICON="✅"
+            STATUS="succeeded"
+          else
+            ICON="❌"
+            STATUS="failed"
+          fi
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1)
+          MESSAGE="${ICON} *SysTracker Deploy ${STATUS}*
+
+🌿 Branch: \`${{ github.ref_name }}\`
+👤 By: \`${{ github.actor }}\`
+📝 \`${COMMIT_MSG}\`
+🔗 [View Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          RESULT=$(curl -s -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d parse_mode="Markdown" \
+            -d disable_web_page_preview="true" \
+            -d text="${MESSAGE}")
+          if echo "$RESULT" | grep -q '"ok":true'; then
+            echo "✅ Telegram notification sent"
+          else
+            echo "⚠️ Telegram error: $RESULT"
+          fi
+
+      - name: �📢 Notify Slack
         if: success() && github.event_name != 'pull_request'
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
@@ -262,7 +298,27 @@ jobs:
     needs: build-and-deploy
     if: failure()
     steps:
-      - name: 📢 Send Failure Alert
+      - name: � Telegram Failure Alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s -X POST \
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              -d parse_mode="Markdown" \
+              -d disable_web_page_preview="true" \
+              -d text="🚨 *SysTracker Deploy FAILED*
+
+👤 By: \`${{ github.actor }}\`
+🔗 [View Failed Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo "✅ Telegram failure alert sent"
+          else
+            echo "Telegram not configured"
+          fi
+
+      - name: �📢 Send Failure Alert
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: |
