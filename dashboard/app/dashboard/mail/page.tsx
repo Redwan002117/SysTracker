@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { fetchWithAuth } from '../../../lib/auth';
-import { Mail, Send, Trash2, RefreshCw, Inbox, ChevronDown, ChevronUp, Search, Plus, Reply, X, User, Clock, Eye, AtSign } from 'lucide-react';
+import { Mail, Send, Trash2, RefreshCw, Inbox, ChevronDown, ChevronUp, Search, Plus, Reply, X, User, Clock, Eye, AtSign, Wrench, AlertOctagon, PartyPopper, Radio, FileText, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface MailMessage {
@@ -23,29 +23,44 @@ interface MailUser {
     avatar?: string;
 }
 
-const TEMPLATES: Record<string, { label: string; subject: string; body: string }> = {
+const TEMPLATES: Record<string, { label: string; subject: string; body: string; icon: React.ElementType; color: string; desc: string }> = {
     maintenance: {
         label: 'Maintenance Notice',
+        icon: Wrench,
+        color: 'from-amber-500 to-orange-500',
+        desc: 'Scheduled downtime alert',
         subject: 'Scheduled Maintenance Window',
         body: 'Dear user,\n\nWe want to inform you that SysTracker will undergo scheduled maintenance.\n\nStart: [START_TIME]\nEnd: [END_TIME]\n\nDuring this window, the dashboard may be temporarily unavailable. We apologize for any inconvenience.\n\nRegards,\nSysTracker Admin',
     },
     machine_offline: {
-        label: 'Machine Offline Alert',
+        label: 'Machine Offline',
+        icon: Radio,
+        color: 'from-red-500 to-rose-500',
+        desc: 'Machine went offline',
         subject: 'Alert: Machine Has Gone Offline',
         body: 'Hello,\n\nThis is an automated alert to inform you that a machine under your account has gone offline.\n\nHostname: [HOSTNAME]\nLast Seen: [LAST_SEEN]\n\nPlease check the agent is running and the machine has internet connectivity.\n\nRegards,\nSysTracker Monitoring',
     },
     welcome: {
         label: 'Welcome Message',
+        icon: PartyPopper,
+        color: 'from-emerald-500 to-teal-500',
+        desc: 'New user onboarding',
         subject: 'Welcome to SysTracker!',
         body: 'Hi [USERNAME],\n\nWelcome to SysTracker — your real-time infrastructure monitoring solution.\n\nYour account has been created successfully. You can now:\n- Monitor connected machines\n- View real-time CPU, RAM, and Disk metrics\n- Manage alerts and notifications\n\nIf you have any questions, feel free to reach out.\n\nWelcome aboard!\nSysTracker Team',
     },
     alert_critical: {
         label: 'Critical Alert',
+        icon: AlertOctagon,
+        color: 'from-red-600 to-red-700',
+        desc: 'Critical threshold breach',
         subject: 'Critical System Alert',
         body: 'WARNING: A critical threshold has been detected on one of your monitored machines.\n\nMachine: [HOSTNAME]\nMetric: [METRIC]\nValue: [VALUE]%\n\nPlease investigate immediately to prevent service disruption.\n\nSysTracker Monitoring System',
     },
     custom: {
         label: 'Custom Message',
+        icon: FileText,
+        color: 'from-slate-400 to-slate-500',
+        desc: 'Write your own message',
         subject: '',
         body: '',
     },
@@ -165,23 +180,23 @@ export default function MailboxPage() {
     );
 
     return (
-        <main className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
+        <main className="max-w-350 mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-2xl shadow-lg shadow-blue-500/25">
+                    <div className="bg-linear-to-br from-blue-500 to-purple-600 p-3 rounded-2xl shadow-lg shadow-blue-500/25">
                         <Mail className="text-white" size={24} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                        <h1 className="text-2xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
                             Mailbox
-                            <span className="text-xs bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">Admin</span>
+                            <span className="text-xs bg-linear-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">Admin</span>
                         </h1>
                         <p className="text-sm text-slate-500">Internal messaging & external email system</p>
                     </div>
                 </div>
                 <button
                     onClick={() => { setComposeOpen(true); setForm({ to_user: '', subject: '', body: '' }); }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 hover:scale-105"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 hover:scale-105"
                 >
                     <Plus size={16} strokeWidth={2.5} /> Compose
                 </button>
@@ -195,7 +210,7 @@ export default function MailboxPage() {
                         <button
                             key={f}
                             onClick={() => { setFolder(f); setSelected(null); }}
-                            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${folder === f ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:scale-[1.02]'}`}
+                            className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${folder === f ? 'bg-linear-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:scale-[1.02]'}`}
                         >
                             {f === 'inbox' ? <Inbox size={16} strokeWidth={2.5} /> : <Send size={16} strokeWidth={2.5} />}
                             {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -229,7 +244,7 @@ export default function MailboxPage() {
                                 className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50/80 border border-slate-200/60 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-200 hover:shadow-sm"
                             />
                         </div>
-                        <button onClick={loadMessages} className="p-2 hover:bg-gradient-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl text-slate-400 hover:text-blue-500 transition-all duration-200 hover:scale-110" title="Refresh">
+                        <button onClick={loadMessages} className="p-2 hover:bg-linear-to-br hover:from-blue-50 hover:to-purple-50 rounded-xl text-slate-400 hover:text-blue-500 transition-all duration-200 hover:scale-110" title="Refresh">
                             <RefreshCw size={15} strokeWidth={2.5} className={loading ? 'animate-spin' : ''} />
                         </button>
                     </div>
@@ -255,7 +270,7 @@ export default function MailboxPage() {
                                     className={`px-4 py-3 cursor-pointer hover:bg-blue-50/50 transition-all ${selected?.id === msg.id ? 'bg-blue-50/80' : ''}`}
                                 >
                                     <div className="flex items-start gap-3">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${folder === 'inbox' ? 'bg-gradient-to-br from-blue-400 to-indigo-500 text-white' : 'bg-gradient-to-br from-slate-400 to-slate-500 text-white'}`}>
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${folder === 'inbox' ? 'bg-linear-to-br from-blue-400 to-indigo-500 text-white' : 'bg-linear-to-br from-slate-400 to-slate-500 text-white'}`}>
                                             {getInitials(folder === 'inbox' ? msg.from_user : msg.to_user)}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -283,7 +298,7 @@ export default function MailboxPage() {
                 <div className="flex flex-col overflow-hidden bg-white/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
                     {!selected ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-                            <div className="bg-gradient-to-br from-blue-100 to-purple-100 p-6 rounded-2xl mb-4">
+                            <div className="bg-linear-to-br from-blue-100 to-purple-100 p-6 rounded-2xl mb-4">
                                 <Eye size={40} className="text-blue-500 opacity-60" strokeWidth={2} />
                             </div>
                             <p className="text-sm font-medium">Select a message to preview</p>
@@ -335,8 +350,8 @@ export default function MailboxPage() {
                         transition={{ type: 'spring', stiffness: 300, damping: 28 }}
                         className="fixed bottom-6 right-6 w-[480px] z-50 flex flex-col bg-white/95 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-[0_24px_48px_rgba(0,0,0,0.12)] max-h-[560px]"
                     >
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100/60 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
-                            <h3 className="text-sm font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100/60 bg-linear-to-r from-blue-50/50 to-purple-50/50">
+                            <h3 className="text-sm font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
                                 <Send size={14} className="text-blue-500" strokeWidth={2.5} /> New Message
                             </h3>
                             <button onClick={() => setComposeOpen(false)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-all duration-200 hover:scale-110">
@@ -402,32 +417,43 @@ export default function MailboxPage() {
                             />
 
                             {/* Template picker */}
-                            <div className="border border-slate-200 rounded-xl overflow-hidden">
+                            <div>
                                 <button
                                     onClick={() => setTemplatePickerOpen(v => !v)}
-                                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-colors"
+                                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-700 transition-colors"
                                 >
                                     <span>Use a template</span>
-                                    {templatePickerOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                    <ChevronDown size={13} className={`transition-transform duration-200 ${templatePickerOpen ? 'rotate-180' : ''}`} />
                                 </button>
                                 <AnimatePresence>
                                     {templatePickerOpen && (
                                         <motion.div
-                                            initial={{ height: 0 }}
-                                            animate={{ height: 'auto' }}
-                                            exit={{ height: 0 }}
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ duration: 0.15 }}
                                             className="overflow-hidden"
                                         >
-                                            <div className="grid grid-cols-2 gap-1 px-2 pb-2">
-                                                {Object.entries(TEMPLATES).map(([key, t]) => (
-                                                    <button
-                                                        key={key}
-                                                        onClick={() => applyTemplate(key)}
-                                                        className="text-left px-2.5 py-2 text-xs rounded-lg bg-slate-50 hover:bg-blue-50 hover:text-blue-700 text-slate-600 transition-colors"
-                                                    >
-                                                        {t.label}
-                                                    </button>
-                                                ))}
+                                            <div className="grid grid-cols-1 gap-1.5 pb-1">
+                                                {Object.entries(TEMPLATES).map(([key, t]) => {
+                                                    const Icon = t.icon;
+                                                    return (
+                                                        <button
+                                                            key={key}
+                                                            onClick={() => applyTemplate(key)}
+                                                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/50 text-left transition-all group"
+                                                        >
+                                                            <div className={`w-8 h-8 rounded-lg bg-linear-to-br ${t.color} flex items-center justify-center shrink-0 shadow-sm`}>
+                                                                <Icon size={14} className="text-white" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-xs font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">{t.label}</p>
+                                                                <p className="text-[10px] text-slate-400 truncate">{t.desc}</p>
+                                                            </div>
+                                                            <Check size={13} className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </motion.div>
                                     )}
@@ -440,7 +466,7 @@ export default function MailboxPage() {
                             <button
                                 onClick={sendMail}
                                 disabled={sending}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 transition-all duration-200 hover:scale-[1.02]"
+                                className="w-full flex items-center justify-center gap-2 py-2.5 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-50 transition-all duration-200 hover:scale-[1.02]"
                             >
                                 {sending ? <RefreshCw size={14} strokeWidth={2.5} className="animate-spin" /> : <Send size={14} strokeWidth={2.5} />}
                                 {sending ? 'Sending...' : 'Send Message'}

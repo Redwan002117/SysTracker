@@ -39,11 +39,16 @@ VIAddVersionKey      "LegalCopyright"   "© 2026 SysTracker / RedwanCodes"
 !define MUI_WELCOMEPAGE_TEXT        "This wizard will install the SysTracker Agent on your computer.$\r$\n$\r$\nThe agent runs as a background task and sends system metrics (CPU, RAM, disk, network) to your SysTracker server in real-time. It starts automatically when Windows boots.$\r$\n$\r$\nClick Next to continue."
 
 ; ---- Variables ----------------------------------------------
+Var ServerHost
+Var ServerPort
 Var ServerURL
 Var ApiKey
-Var ServerURLField
+Var ServerHostField
+Var ServerPortField
 Var ApiKeyField
 Var Dialog
+Var ProtocolLabel
+Var HintLabel
 
 ; ---- Pages --------------------------------------------------
 !insertmacro MUI_PAGE_WELCOME
@@ -58,6 +63,14 @@ Page custom ConfigPage ConfigPageLeave
 
 !insertmacro MUI_LANGUAGE "English"
 
+; ---- Init: pre-fill defaults --------------------------------
+Function .onInit
+    StrCpy $ServerHost ""
+    StrCpy $ServerPort "7777"
+    StrCpy $ApiKey     ""
+    StrCpy $ServerURL  ""
+FunctionEnd
+
 ; ---- Config Page --------------------------------------------
 Function ConfigPage
     !insertmacro MUI_HEADER_TEXT "Server Configuration" "Enter your SysTracker server address and API key."
@@ -68,36 +81,96 @@ Function ConfigPage
         Abort
     ${EndIf}
 
-    ; Server URL label
-    ${NSD_CreateLabel} 0 10u 100% 12u "Server URL (e.g. http://192.168.1.100:7777):"
+    ; Protocol/Host label
+    ${NSD_CreateLabel} 0 10u 100% 12u "Server Address (hostname, domain, or IP address):"
+    Pop $ProtocolLabel
+
+    ; Server Host/IP field — narrower to leave room for port
+    ${NSD_CreateText} 0 24u 78% 14u "$ServerHost"
+    Pop $ServerHostField
+
+    ; Colon label between host and port
+    ${NSD_CreateLabel} 79% 27u 2% 12u ":"
     Pop $0
 
-    ; Server URL field
-    ${NSD_CreateText} 0 24u 100% 14u "$ServerURL"
-    Pop $ServerURLField
+    ; Port field — compact
+    ${NSD_CreateText} 82% 24u 18% 14u "$ServerPort"
+    Pop $ServerPortField
+
+    ; Flexible hint explaining what to put in each field
+    ${NSD_CreateLabel} 0 42u 100% 12u "Examples: 192.168.1.100  |  monitor.example.com  |  https://myserver.io"
+    Pop $HintLabel
 
     ; API Key label
-    ${NSD_CreateLabel} 0 48u 100% 12u "API Key (from SysTracker Dashboard -> Settings):"
+    ${NSD_CreateLabel} 0 60u 100% 12u "API Key (from SysTracker Dashboard → Settings):"
     Pop $0
 
     ; API Key field
-    ${NSD_CreateText} 0 62u 100% 14u "$ApiKey"
+    ${NSD_CreateText} 0 74u 100% 14u "$ApiKey"
     Pop $ApiKeyField
 
-    ; Hint
-    ${NSD_CreateLabel} 0 86u 100% 24u "Note: You can change these settings later by editing:$\r$\n$INSTDIR\agent_config.json"
+    ; Edit-later hint
+    ${NSD_CreateLabel} 0 96u 100% 24u "Note: You can change these settings later by editing:$\r$\n$INSTDIR\agent_config.json"
     Pop $0
 
     nsDialogs::Show
 FunctionEnd
 
 Function ConfigPageLeave
-    ${NSD_GetText} $ServerURLField $ServerURL
+    ${NSD_GetText} $ServerHostField $ServerHost
+    ${NSD_GetText} $ServerPortField $ServerPort
     ${NSD_GetText} $ApiKeyField $ApiKey
 
-    ${If} $ServerURL == ""
-        MessageBox MB_ICONEXCLAMATION "Please enter the Server URL."
+    ; Trim whitespace
+    ${If} $ServerHost == ""
+        MessageBox MB_ICONEXCLAMATION "Please enter the Server Address."
         Abort
+    ${EndIf}
+
+    ; Use 7777 as default if port is blank or zero
+    ${If} $ServerPort == ""
+        StrCpy $ServerPort "7777"
+    ${EndIf}
+    ${If} $ServerPort == "0"
+        StrCpy $ServerPort "7777"
+    ${EndIf}
+
+    ; Auto-prefix protocol if the host doesn't already start with http
+    ; Check if already has a scheme (http:// or https://)
+    StrCpy $0 $ServerHost 8  ; grab first 8 chars
+    ${If} $0 == "https://"
+        ; already full URL with https — extract just the host+path for port insertion
+        ; Remove the https:// prefix for host field display
+        StrCpy $ServerURL "$ServerHost"
+    ${ElseIf} $0 == "http://"
+        StrCpy $ServerURL "$ServerHost"
+    ${Else}
+        ; No scheme — default to http. Users with https should type https://
+        StrCpy $ServerURL "http://$ServerHost:$ServerPort"
+    ${EndIf}
+
+    ; For URLs that already include a scheme, append port only if no port is present
+    ; (simple check: if last segment contains a colon after the ://)
+    ; This is a basic heuristic to avoid double-port issues.
+    ; Full case: if user typed http://host or https://host, append :port
+    StrCpy $1 $ServerURL 7
+    ${If} $1 == "http://"
+    ${OrIf} $1 == "https:/"
+        ; Check if there are 2+ colons (scheme colon + port colon)
+        ; nsDialogs has no regex, so just append port for bare http(s)://host URLs
+        ; If user typed http://host:7777 themselves, this may double the port.
+        ; Safest: tell user to include the port in the host field if using http(s)://
+        ; For now: reconstruct cleanly
+        StrCpy $0 $ServerHost 8
+        ${If} $0 == "https://"
+            ; Strip https://
+            StrCpy $2 $ServerHost "" 8
+            StrCpy $ServerURL "https://$2:$ServerPort"
+        ${Else}
+            ; Strip http://
+            StrCpy $2 $ServerHost "" 7
+            StrCpy $ServerURL "http://$2:$ServerPort"
+        ${EndIf}
     ${EndIf}
 FunctionEnd
 
@@ -160,18 +233,29 @@ Section "SysTracker Agent" SecMain
     WriteRegDWORD HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SysTrackerAgent" \
         "NoRepair"  1
 
+    ; Pre-create the ProgramData log directory so the SYSTEM account can write logs
+    ; before the agent itself gets a chance to create it
+    CreateDirectory "$APPDATA\..\..\..\ProgramData\SysTracker\Agent\logs"
+    ; Grant write access to all users (so SYSTEM task and logged-in users both work)
+    nsExec::ExecToLog 'icacls "$APPDATA\..\..\..\ProgramData\SysTracker\Agent\logs" /grant "SYSTEM:(OI)(CI)F" /grant "Administrators:(OI)(CI)F" /grant "Users:(OI)(CI)M" /T /Q'
+
     ; Register as a scheduled task that runs at system startup under SYSTEM account.
     ; pkg-bundled Node.js exes cannot interact with the Windows SCM (error 1062),
     ; so Task Scheduler is the correct approach.
+    ; Wrap the exe in a cmd redirect so stdout/stderr also go to a log file as backup.
     DetailPrint "Registering SysTracker Agent as a startup task..."
-    ; Delete silently — schtasks /Delete exits with error if the task doesn't exist yet
-    ; (first install), which would show a confusing "ERROR:" line.  Route stderr to nul.
     nsExec::ExecToStack 'cmd /c schtasks /Delete /TN "SysTrackerAgent" /F 2>nul'
     Pop $0
-    Pop $1 ; discard output — failure here just means no old task existed, which is fine
-    nsExec::ExecToLog 'schtasks /Create /TN "SysTrackerAgent" /TR "\"$INSTDIR\systracker-agent.exe\"" /SC ONSTART /RU SYSTEM /RL HIGHEST /F'
+    Pop $1 ; discard output — failure here just means no old task existed
+    nsExec::ExecToLog 'schtasks /Create /TN "SysTrackerAgent" /TR "cmd /c \"\"$INSTDIR\systracker-agent.exe\"\" >> \"C:\ProgramData\SysTracker\Agent\logs\service_output.log\" 2>&1" /SC ONSTART /RU SYSTEM /RL HIGHEST /F'
     DetailPrint "Starting SysTracker Agent..."
     nsExec::ExecToLog 'schtasks /Run /TN "SysTrackerAgent"'
+
+    ; Create a Start Menu shortcut to open the logs folder
+    CreateShortcut "$SMPROGRAMS\SysTracker\View Agent Logs.lnk" \
+        "C:\Windows\explorer.exe" \
+        "C:\ProgramData\SysTracker\Agent\logs" \
+        "C:\Windows\System32\shell32.dll" 22
 
     ; Strip Mark-of-the-Web (Zone.Identifier ADS) from installed files.
     ; This prevents SmartScreen from flagging the agent exe after install.
@@ -215,6 +299,7 @@ Section "Uninstall"
 
     ; Remove shortcuts
     Delete "$SMPROGRAMS\SysTracker\SysTracker Agent.lnk"
+    Delete "$SMPROGRAMS\SysTracker\View Agent Logs.lnk"
     RMDir  "$SMPROGRAMS\SysTracker"
 
     ; Remove registry

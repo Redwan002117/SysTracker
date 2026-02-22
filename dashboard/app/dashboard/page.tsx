@@ -212,17 +212,17 @@ export default function Dashboard() {
 
   return (
     <>
-      <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
+      <main className="max-w-400 mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
 
         {/* Dashboard Header & Stats */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 mb-6">
           <div className="lg:col-span-3 flex flex-col justify-between">
             <div>
               <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+                <div className="p-2 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
                   <Activity className="text-white" size={24} />
                 </div>
-                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">Dashboard</span>
+                <span className="bg-linear-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">Dashboard</span>
               </h1>
               <p className="text-slate-500 text-sm mt-2 ml-1">Live infrastructure metrics and system overview.</p>
             </div>
@@ -232,36 +232,36 @@ export default function Dashboard() {
               <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(34,197,94,0.15)] transition-all duration-300 flex items-center justify-between group hover:scale-[1.02]">
                 <div>
                   <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Online Agents</p>
-                  <p className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                  <p className="text-4xl font-bold bg-linear-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
                     {onlineAgents}
                   </p>
                   <p className="text-xs text-slate-400 font-medium mt-1">of {totalAgents} total</p>
                 </div>
-                <div className="p-3 bg-gradient-to-br from-emerald-100 to-green-50 rounded-xl text-green-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                <div className="p-3 bg-linear-to-br from-emerald-100 to-green-50 rounded-xl text-green-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
                   <Wifi size={24} strokeWidth={2.5} />
                 </div>
               </div>
               <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(239,68,68,0.15)] transition-all duration-300 flex items-center justify-between group hover:scale-[1.02]">
                 <div>
                   <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Critical Alerts</p>
-                  <p className="text-4xl font-bold bg-gradient-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">
+                  <p className="text-4xl font-bold bg-linear-to-r from-red-600 to-rose-600 bg-clip-text text-transparent">
                     {criticalAlerts}
                   </p>
                   <p className="text-xs text-slate-400 font-medium mt-1">high usage</p>
                 </div>
-                <div className="p-3 bg-gradient-to-br from-red-100 to-rose-50 rounded-xl text-red-500 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                <div className="p-3 bg-linear-to-br from-red-100 to-rose-50 rounded-xl text-red-500 shadow-sm group-hover:scale-110 transition-transform duration-300">
                   <Activity size={24} strokeWidth={2.5} />
                 </div>
               </div>
               <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(59,130,246,0.15)] transition-all duration-300 flex items-center justify-between group hover:scale-[1.02]">
                 <div>
                   <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Avg CPU Load</p>
-                  <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  <p className="text-4xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     {totalAgents > 0 ? Math.round(machines.reduce((acc, m) => acc + (m.metrics?.cpu || 0), 0) / totalAgents) : 0}%
                   </p>
                   <p className="text-xs text-slate-400 font-medium mt-1">across fleet</p>
                 </div>
-                <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-50 rounded-xl text-blue-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                <div className="p-3 bg-linear-to-br from-blue-100 to-indigo-50 rounded-xl text-blue-600 shadow-sm group-hover:scale-110 transition-transform duration-300">
                   <Cpu size={24} strokeWidth={2.5} />
                 </div>
               </div>
@@ -288,7 +288,7 @@ export default function Dashboard() {
                     key={f}
                     onClick={() => setFilter(f)}
                     className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all duration-300 border ${filter === f
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white border-transparent shadow-[0_4px_12px_rgba(99,102,241,0.3)] scale-105'
+                      ? 'bg-linear-to-r from-blue-500 to-purple-600 text-white border-transparent shadow-[0_4px_12px_rgba(99,102,241,0.3)] scale-105'
                       : 'bg-white text-slate-600 border-slate-200/50 hover:border-blue-300 hover:text-blue-600 hover:shadow-sm hover:scale-105'
                       }`}
                   >
@@ -342,7 +342,7 @@ export default function Dashboard() {
                   return (
                     <div key={os}>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-slate-600 font-medium truncate max-w-[120px]">{os}</span>
+                        <span className="text-slate-600 font-medium truncate max-w-30">{os}</span>
                         <span className="text-slate-500 font-semibold">{count} ({pct}%)</span>
                       </div>
                       <div className="h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
@@ -363,19 +363,19 @@ export default function Dashboard() {
               Network I/O
             </p>
             <div className="flex flex-col gap-3">
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl px-4 py-3 border border-blue-100/50 shadow-sm">
+              <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl px-4 py-3 border border-blue-100/50 shadow-sm">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs text-blue-600 font-bold uppercase">Upload</p>
                   <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                 </div>
-                <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{fmtNet(totalNetUp)}</p>
+                <p className="text-2xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{fmtNet(totalNetUp)}</p>
               </div>
-              <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl px-4 py-3 border border-emerald-100/50 shadow-sm">
+              <div className="bg-linear-to-br from-emerald-50 to-green-50 rounded-xl px-4 py-3 border border-emerald-100/50 shadow-sm">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs text-emerald-600 font-bold uppercase">Download</p>
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
-                <p className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">{fmtNet(totalNetDown)}</p>
+                <p className="text-2xl font-bold bg-linear-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">{fmtNet(totalNetDown)}</p>
               </div>
             </div>
           </div>
@@ -392,12 +392,12 @@ export default function Dashboard() {
               <div className="flex flex-col gap-2.5">
                 {topCPU.map(m => {
                   const cpu = m.metrics?.cpu || 0;
-                  const col = cpu > 80 ? 'bg-gradient-to-r from-red-500 to-rose-500' : cpu > 50 ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-emerald-500 to-green-500';
+                  const col = cpu > 80 ? 'bg-linear-to-r from-red-500 to-rose-500' : cpu > 50 ? 'bg-linear-to-r from-amber-500 to-orange-500' : 'bg-linear-to-r from-emerald-500 to-green-500';
                   const textCol = cpu > 80 ? 'text-red-600' : cpu > 50 ? 'text-amber-600' : 'text-emerald-600';
                   return (
                     <div key={m.id}>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-slate-700 font-medium truncate max-w-[120px]">{m.nickname || m.hostname}</span>
+                        <span className="text-slate-700 font-medium truncate max-w-30">{m.nickname || m.hostname}</span>
                         <span className={`font-bold ${textCol}`}>{cpu}%</span>
                       </div>
                       <div className="h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">

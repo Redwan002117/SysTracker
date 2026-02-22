@@ -89,7 +89,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ machine, onUpdate }) => {
 
                 {/* Avatar */}
                 <div className={`relative group/avatar mt-2 ${isEditing ? 'mb-3' : 'mb-8'}`}>
-                    <div className={`rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 p-2 shadow-inner relative mx-auto ring-4 ring-white/50 ${isEditing ? 'w-20 h-20' : 'w-40 h-40'}`}>
+                    <div className={`rounded-full bg-linear-to-br from-blue-100 to-indigo-100 p-2 shadow-inner relative mx-auto ring-4 ring-white/50 ${isEditing ? 'w-20 h-20' : 'w-40 h-40'}`}>
                         <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden relative">
                             {profile.avatar ? (
                                 <img src={isEditing ? tempProfile.avatar! : profile.avatar} alt="Profile" className="w-full h-full object-cover" />

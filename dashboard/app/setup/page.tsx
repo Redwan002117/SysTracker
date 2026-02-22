@@ -94,7 +94,7 @@ function SetupForm() {
     return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 relative overflow-hidden font-sans">
             {/* Dynamic Background */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/20 via-slate-950 to-blue-900/20" />
+            <div className="absolute inset-0 bg-linear-to-tr from-indigo-900/20 via-slate-950 to-blue-900/20" />
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none opacity-20" />
 
             <div className="relative z-10 w-full max-w-lg">
@@ -216,7 +216,7 @@ function SetupForm() {
                             <button
                                 type="submit"
                                 disabled={status === 'loading' || status === 'success'}
-                                className="w-full group relative flex items-center justify-center gap-2 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-blue-500/25 transition-all hover:shadow-blue-500/40 hover:-translate-y-0.5 disabled:opacity-70 disabled:pointer-events-none overflow-hidden"
+                                className="w-full group relative flex items-center justify-center gap-2 py-4 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-blue-500/25 transition-all hover:shadow-blue-500/40 hover:-translate-y-0.5 disabled:opacity-70 disabled:pointer-events-none overflow-hidden"
                             >
                                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 pointer-events-none" />
                                 {status === 'loading' ? (

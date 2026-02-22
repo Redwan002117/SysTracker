@@ -22,9 +22,9 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick, isViewerMod
     };
 
     const getProgressBarColor = (usage: number) => {
-        if (usage >= 90) return 'bg-gradient-to-r from-rose-500 to-rose-600 shadow-rose-200';
-        if (usage >= 70) return 'bg-gradient-to-r from-amber-400 to-amber-500 shadow-amber-200';
-        return 'bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-emerald-200';
+        if (usage >= 90) return 'bg-linear-to-r from-rose-500 to-rose-600 shadow-rose-200';
+        if (usage >= 70) return 'bg-linear-to-r from-amber-400 to-amber-500 shadow-amber-200';
+        return 'bg-linear-to-r from-emerald-400 to-emerald-500 shadow-emerald-200';
     };
 
     const formatNetworkSpeed = (kbps: number | undefined) => {
@@ -55,7 +55,7 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick, isViewerMod
             {/* Lock Icon Overlay for Viewers */}
             {isViewerMode && (
                 <div className="absolute inset-0 bg-slate-900/5 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 pointer-events-none">
-                    <div className="bg-gradient-to-br from-amber-500 to-orange-600 text-white p-3 rounded-2xl shadow-2xl shadow-amber-500/40 ring-2 ring-white/50">
+                    <div className="bg-linear-to-br from-amber-500 to-orange-600 text-white p-3 rounded-2xl shadow-2xl shadow-amber-500/40 ring-2 ring-white/50">
                         <Lock size={20} />
                     </div>
                 </div>
@@ -63,7 +63,7 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick, isViewerMod
 
             {/* Online Glow Effect */}
             {isOnline && (
-                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-40 h-40 bg-gradient-to-br from-blue-400/20 to-purple-400/20 blur-3xl rounded-full pointer-events-none group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all duration-700" />
+                <div className="absolute top-0 right-0 -mr-16 -mt-16 w-40 h-40 bg-linear-to-br from-blue-400/20 to-purple-400/20 blur-3xl rounded-full pointer-events-none group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all duration-700" />
             )}
 
             {/* Header */}
@@ -72,7 +72,7 @@ const MachineCard: React.FC<MachineCardProps> = ({ machine, onClick, isViewerMod
                     <div className={`
                         p-2.5 rounded-xl shadow-sm ring-1 ring-inset transition-all duration-300
                         ${isOnline
-                            ? 'bg-gradient-to-br from-blue-100 via-indigo-50 to-purple-100 text-blue-600 ring-blue-200/50 group-hover:ring-blue-300 group-hover:scale-110 group-hover:shadow-md'
+                            ? 'bg-linear-to-br from-blue-100 via-indigo-50 to-purple-100 text-blue-600 ring-blue-200/50 group-hover:ring-blue-300 group-hover:scale-110 group-hover:shadow-md'
                             : 'bg-slate-100 text-slate-400 ring-slate-200'}
                     `}>
                         <Server size={20} strokeWidth={1.5} />

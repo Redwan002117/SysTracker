@@ -17,7 +17,7 @@
 
 ✅ Build Dashboard Job
    - Uses Node.js 20
-   - Runs: npm install && npm run build
+   - Runs: npm inhttps://github.com/Redwan002117/SysTracker/actions/runs/22275613147/workflowstall && npm run build
    - Output: dashboard/.next/ (CORRECTED from out/)
    - Frontend: Next.js 13 routes compiled
 

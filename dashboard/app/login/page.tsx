@@ -45,11 +45,12 @@ function LoginForm() {
             // Clean URL
             window.history.replaceState({}, '', '/login');
             
-            // Show success message
+            const returnTo = searchParams.get('returnTo');
+            const dest = returnTo && returnTo.startsWith('/dashboard') ? returnTo : '/dashboard';
             if (firstLogin) {
-                setTimeout(() => router.replace('/dashboard?welcome=true'), 600);
+                setTimeout(() => router.replace(`${dest}?welcome=true`), 600);
             } else {
-                setTimeout(() => router.replace('/dashboard'), 600);
+                setTimeout(() => router.replace(dest), 600);
             }
             return;
         }
@@ -75,7 +76,9 @@ function LoginForm() {
 
         // Check if already logged in
         if (isAuthenticated()) {
-            router.replace('/dashboard');
+            const returnTo = searchParams.get('returnTo');
+            const dest = returnTo && returnTo.startsWith('/dashboard') ? returnTo : '/dashboard';
+            router.replace(dest);
             return;
         }
         
@@ -129,7 +132,9 @@ function LoginForm() {
 
             setToken(data.token, data.username, data.role);
             setStatus('success');
-            setTimeout(() => router.replace('/dashboard'), 600);
+            const returnTo = searchParams.get('returnTo');
+            const dest = returnTo && returnTo.startsWith('/dashboard') ? returnTo : '/dashboard';
+            setTimeout(() => router.replace(dest), 600);
         } catch {
             setStatus('error');
             setErrorMsg('Cannot reach server. Is SysTracker running?');
@@ -137,12 +142,15 @@ function LoginForm() {
     };
 
     const handleGoogleSignIn = () => {
-        // Redirect to Google OAuth endpoint
-        window.location.href = '/api/auth/google';
+        // Redirect to Google OAuth endpoint, preserving returnTo so the
+        // server can append it after successful OAuth callback
+        const returnTo = searchParams.get('returnTo');
+        const url = returnTo ? `/api/auth/google?returnTo=${encodeURIComponent(returnTo)}` : '/api/auth/google';
+        window.location.href = url;
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center px-4 relative overflow-hidden">
+        <div className="min-h-screen bg-linear-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center px-4 relative overflow-hidden">
             {/* Background blobs */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
@@ -160,10 +168,10 @@ function LoginForm() {
                     animate={{ opacity: 1, y: 0 }}
                     className="flex flex-col items-center mb-10"
                 >
-                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white p-4 rounded-2xl shadow-2xl shadow-blue-500/50 mb-5 ring-4 ring-white/20">
+                    <div className="bg-linear-to-br from-blue-500 to-purple-600 text-white p-4 rounded-2xl shadow-2xl shadow-blue-500/50 mb-5 ring-4 ring-white/20">
                         <Zap size={36} fill="currentColor" strokeWidth={2} />
                     </div>
-                    <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">SysTracker</h1>
+                    <h1 className="text-3xl font-extrabold bg-linear-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">SysTracker</h1>
                     <p className="text-slate-400 text-sm mt-2 font-medium">Admin Dashboard</p>
                 </motion.div>
 
@@ -175,7 +183,7 @@ function LoginForm() {
                             animate={{ opacity: 1, y: 0 }}
                             className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3"
                         >
-                            <Shield size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                            <Shield size={18} className="text-amber-400 shrink-0 mt-0.5" />
                             <div>
                                 <p className="text-amber-300 text-sm font-semibold">First-time setup required</p>
                                 <p className="text-amber-400/80 text-xs mt-0.5">
@@ -258,7 +266,7 @@ function LoginForm() {
                                     exit={{ opacity: 0, height: 0 }}
                                     className="flex items-center gap-2.5 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm"
                                 >
-                                    <AlertCircle size={16} className="flex-shrink-0" />
+                                    <AlertCircle size={16} className="shrink-0" />
                                     <div>
                                         {errorMsg}
                                         {oauthRequired && googleOAuthEnabled && (
@@ -278,7 +286,7 @@ function LoginForm() {
                                     animate={{ opacity: 1, height: 'auto' }}
                                     className="flex items-center gap-2.5 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-sm"
                                 >
-                                    <CheckCircle size={16} className="flex-shrink-0" />
+                                    <CheckCircle size={16} className="shrink-0" />
                                     Login successful! Redirecting...
                                 </motion.div>
                             )}

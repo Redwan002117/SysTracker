@@ -5,16 +5,112 @@ const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
 
-// Configuration: Prefer Command Line Args > CONFIG file > Env Var > Default
+// ─── File Logger ────────────────────────────────────────────────────────────
+// When running as a hidden background process (launched via VBScript), there
+// is no console window at all — so all console.log output is silently discarded.
+// This logger writes to a rotating daily file with multiple fallback directories.
+
+const IS_PKG = typeof process.pkg !== 'undefined';
+const INSTALL_DIR = IS_PKG ? path.dirname(process.execPath) : __dirname;
+
+function resolveLogDir() {
+    const candidates = [
+        // 1. ProgramData — best for services, accessible by all users/SYSTEM
+        path.join(process.env.PROGRAMDATA || 'C:\\ProgramData', 'SysTracker', 'Agent', 'logs'),
+        // 2. AppData\Roaming — per-user fallback
+        path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'SysTracker', 'Agent', 'logs'),
+        // 3. Temp — always writable
+        path.join(os.tmpdir(), 'SysTracker', 'logs'),
+        // 4. Install directory — last resort
+        path.join(INSTALL_DIR, 'logs'),
+    ];
+
+    for (const dir of candidates) {
+        try {
+            fs.mkdirSync(dir, { recursive: true });
+            // Write-test to confirm we actually have write permission
+            const probe = path.join(dir, '.write_test');
+            fs.writeFileSync(probe, 'ok');
+            fs.unlinkSync(probe);
+            return dir;
+        } catch (_) { /* try next */ }
+    }
+    return null; // console-only fallback
+}
+
+const LOG_DIR = resolveLogDir();
+
+function getLogStream() {
+    if (!LOG_DIR) return null;
+    const dateStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const logFile = path.join(LOG_DIR, `agent_${dateStr}.log`);
+    // Re-open each call so date-rollover creates a new file automatically
+    try {
+        return fs.createWriteStream(logFile, { flags: 'a', encoding: 'utf8' });
+    } catch (_) { return null; }
+}
+
+function writeLog(level, ...args) {
+    const ts = new Date().toISOString();
+    const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+    const line = `${ts} | ${level.padEnd(5)} | ${msg}\n`;
+
+    // Always try console (works in dev / direct run)
+    try {
+        if (level === 'ERROR') process.stderr.write(line);
+        else process.stdout.write(line);
+    } catch (_) { /* headless — ignore */ }
+
+    // Write to file
+    if (LOG_DIR) {
+        try {
+            const stream = getLogStream();
+            if (stream) { stream.write(line); stream.end(); }
+        } catch (_) { /* non-fatal */ }
+    }
+}
+
+// Patch global console so all existing console.log/warn/error calls get file logging
+console.log   = (...a) => writeLog('INFO',  ...a);
+console.warn  = (...a) => writeLog('WARN',  ...a);
+console.error = (...a) => writeLog('ERROR', ...a);
+
+// Rotate: delete log files older than 14 days
+function rotateLogs() {
+    if (!LOG_DIR) return;
+    try {
+        const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+        for (const f of fs.readdirSync(LOG_DIR)) {
+            if (!f.startsWith('agent_') || !f.endsWith('.log')) continue;
+            const fp = path.join(LOG_DIR, f);
+            try { if (fs.statSync(fp).mtimeMs < cutoff) fs.unlinkSync(fp); } catch (_) {}
+        }
+    } catch (_) {}
+}
+rotateLogs();
+
+console.log('SysTracker Agent initializing...');
+if (LOG_DIR) {
+    console.log(`Log directory: ${LOG_DIR}`);
+} else {
+    process.stderr.write('[WARN] Could not create log directory — file logging disabled\n');
+}
+
+// Capture any unhandled errors so crashes are recorded in the log file
+process.on('uncaughtException', (err) => {
+    console.error('UNCAUGHT EXCEPTION:', err.stack || err.message);
+    process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('UNHANDLED REJECTION:', reason instanceof Error ? reason.stack : String(reason));
+});
+
+// ─── Configuration ───────────────────────────────────────────────────────────
+// Prefer Command Line Args > CONFIG file > Env Var > Default
 const args = process.argv.slice(2);
 
-// When bundled with pkg, __dirname is the virtual snapshot path (inside the exe),
-// NOT the real directory where the exe lives.  Use process.execPath's directory
-// so we read the agent_config.json that the installer wrote to Program Files.
-const configDir = (typeof process.pkg !== 'undefined')
-    ? path.dirname(process.execPath)   // pkg bundle — real install dir
-    : __dirname;                       // dev / node run
-const configPath = path.resolve(configDir, 'agent_config.json');
+// configDir / INSTALL_DIR are already resolved above (after IS_PKG detection)
+const configPath = path.resolve(INSTALL_DIR, 'agent_config.json');
 let config = {};
 
 if (fs.existsSync(configPath)) {

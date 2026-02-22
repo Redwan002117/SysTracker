@@ -138,23 +138,23 @@ export default function AlertsPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold flex items-center gap-3">
-                        <div className="p-2.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+                        <div className="p-2.5 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
                             <Shield className="text-white" size={26} />
                         </div>
-                        <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">Security & Alerts</span>
+                        <span className="bg-linear-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">Security & Alerts</span>
                     </h1>
                     <p className="text-slate-500 mt-2 ml-1">Monitor system health and configure automated policies.</p>
                 </div>
                 <div className="flex bg-white/80 backdrop-blur-xl rounded-xl p-1.5 border border-slate-200/50 shadow-lg">
                     <button
                         onClick={() => setActiveTab('overview')}
-                        className={`px-5 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 flex items-center gap-2 ${activeTab === 'overview' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/30' : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'}`}
+                        className={`px-5 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 flex items-center gap-2 ${activeTab === 'overview' ? 'bg-linear-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/30' : 'text-slate-600 hover:text-blue-600 hover:bg-blue-50'}`}
                     >
                         <Activity size={16} /> Overview
                     </button>
                     <button
                         onClick={() => setActiveTab('policies')}
-                        className={`px-5 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 flex items-center gap-2 ${activeTab === 'policies' ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md shadow-purple-500/30' : 'text-slate-600 hover:text-purple-600 hover:bg-purple-50'}`}
+                        className={`px-5 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 flex items-center gap-2 ${activeTab === 'policies' ? 'bg-linear-to-r from-purple-500 to-purple-600 text-white shadow-md shadow-purple-500/30' : 'text-slate-600 hover:text-purple-600 hover:bg-purple-50'}`}
                     >
                         <Settings size={16} /> Policies
                     </button>
@@ -167,7 +167,7 @@ export default function AlertsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-white/80 backdrop-blur-xl p-6 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(239,68,68,0.15)] transition-all duration-300 group hover:scale-[1.02]">
                             <div className="flex items-center gap-4">
-                                <div className="p-4 bg-gradient-to-br from-red-100 to-rose-50 text-red-600 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300"><AlertTriangle size={26} strokeWidth={2.5} /></div>
+                                <div className="p-4 bg-linear-to-br from-red-100 to-rose-50 text-red-600 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300"><AlertTriangle size={26} strokeWidth={2.5} /></div>
                                 <div>
                                     <h3 className="text-3xl font-bold text-slate-800">{alerts.filter(a => a.priority === 'high').length}</h3>
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Critical Alerts</p>
@@ -176,7 +176,7 @@ export default function AlertsPage() {
                         </div>
                         <div className="bg-white/80 backdrop-blur-xl p-6 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(245,158,11,0.15)] transition-all duration-300 group hover:scale-[1.02]">
                             <div className="flex items-center gap-4">
-                                <div className="p-4 bg-gradient-to-br from-amber-100 to-orange-50 text-amber-600 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300"><Bell size={26} strokeWidth={2.5} /></div>
+                                <div className="p-4 bg-linear-to-br from-amber-100 to-orange-50 text-amber-600 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300"><Bell size={26} strokeWidth={2.5} /></div>
                                 <div>
                                     <h3 className="text-3xl font-bold text-slate-800">{alerts.length}</h3>
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Total Active</p>
@@ -185,7 +185,7 @@ export default function AlertsPage() {
                         </div>
                         <div className="bg-white/80 backdrop-blur-xl p-6 rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_40px_rgba(34,197,94,0.15)] transition-all duration-300 group hover:scale-[1.02]">
                             <div className="flex items-center gap-4">
-                                <div className="p-4 bg-gradient-to-br from-emerald-100 to-green-50 text-emerald-600 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300"><CheckCircle size={26} strokeWidth={2.5} /></div>
+                                <div className="p-4 bg-linear-to-br from-emerald-100 to-green-50 text-emerald-600 rounded-xl shadow-sm group-hover:scale-110 transition-transform duration-300"><CheckCircle size={26} strokeWidth={2.5} /></div>
                                 <div>
                                     <h3 className="text-3xl font-bold text-slate-800">{policies.filter(p => p.enabled).length}</h3>
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Active Policies</p>
@@ -196,12 +196,12 @@ export default function AlertsPage() {
 
                     {/* Active Alerts List */}
                     <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] overflow-hidden">
-                        <div className="p-6 border-b border-slate-200/50 bg-gradient-to-r from-slate-50/50 to-blue-50/30 flex items-center justify-between">
+                        <div className="p-6 border-b border-slate-200/50 bg-linear-to-r from-slate-50/50 to-blue-50/30 flex items-center justify-between">
                             <h3 className="font-bold text-slate-800 text-lg">Active Incidents</h3>
                             <button
                                 onClick={refreshData}
                                 disabled={loading}
-                                className="px-4 py-2 text-sm font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:scale-100 shadow-md"
+                                className="px-4 py-2 text-sm font-bold bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:scale-100 shadow-md"
                             >
                                 {loading ? 'Refreshing...' : 'Refresh'}
                             </button>

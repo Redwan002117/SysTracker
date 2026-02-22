@@ -43,9 +43,9 @@ export default function Profile() {
                     setBio(data.user.bio || '');
                     setLocation(data.user.location || '');
                     setAvatar(data.user.avatar || '');
-                    // Check auth methods
-                    setHasPassword(!!data.user.password_hash);
-                    setGoogleLinked(!!data.user.google_id);
+                    // Check auth methods using safe boolean flags from server
+                    setHasPassword(data.user.has_password === 1 || data.user.has_password === true);
+                    setGoogleLinked(data.user.has_google === 1 || data.user.has_google === true);
                     
                     // Auto-fetch Gravatar if no avatar and user has email
                     if (!data.user.avatar && data.user.email) {
@@ -204,17 +204,17 @@ export default function Profile() {
     };
 
     return (
-        <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30">\n
+        <main className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50/30 to-purple-50/30">\n
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
                 
                 {/* Header Section */}
                 <div className="mb-12">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25">
+                        <div className="p-3 bg-linear-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25">
                             <User size={28} className="text-white" strokeWidth={2.5} />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            <h1 className="text-3xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                 User Profile
                             </h1>
                             <p className="text-slate-600 mt-1">Manage your account settings and security preferences.</p>
@@ -229,7 +229,7 @@ export default function Profile() {
                             ? 'bg-emerald-50/90 border-emerald-200/60 text-emerald-800 shadow-[0_8px_32px_rgba(16,185,129,0.15)]' 
                             : 'bg-red-50/90 border-red-200/60 text-red-800 shadow-[0_8px_32px_rgba(239,68,68,0.15)]'
                     }`}>
-                        <div className="mt-0.5 flex-shrink-0">
+                        <div className="mt-0.5 shrink-0">
                             {message.type === 'success' ? (
                                 <CheckCircle size={20} className="text-green-600" />
                             ) : (
@@ -248,7 +248,7 @@ export default function Profile() {
                             <div className="flex flex-col items-center">
                                 {/* Avatar */}
                                 <div className="relative group/avatar mb-6">
-                                    <div className="relative w-32 h-32 rounded-full overflow-hidden ring-4 ring-blue-500/20 group-hover/avatar:ring-purple-500/30 shadow-xl bg-gradient-to-br from-blue-500 to-purple-600 transition-all duration-300">
+                                    <div className="relative w-32 h-32 rounded-full overflow-hidden ring-4 ring-blue-500/20 group-hover/avatar:ring-purple-500/30 shadow-xl bg-linear-to-br from-blue-500 to-purple-600 transition-all duration-300">
                                         {avatar ? (
                                             <img
                                                 src={avatar}
@@ -261,7 +261,7 @@ export default function Profile() {
                                                 <User size={48} className="text-white" strokeWidth={2} />
                                             </div>
                                         )}
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                                        <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
                                             <Camera size={32} className="text-white" strokeWidth={2.5} />
                                         </div>
                                     </div>
@@ -285,7 +285,7 @@ export default function Profile() {
                                     <button
                                         onClick={handleFetchGravatar}
                                         disabled={!email || loadingGravatar}
-                                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+                                        className="w-full flex items-center justify-center gap-2 bg-linear-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
                                         title="Fetch avatar from Gravatar based on your email"
                                     >
                                         {loadingGravatar ? (
@@ -339,10 +339,10 @@ export default function Profile() {
                         <div className="group/card">
                             <div className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.12)] transition-all duration-300 p-8">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2.5 bg-gradient-to-br from-blue-100 to-purple-100 rounded-xl group-hover/card:scale-110 transition-transform duration-200">
+                                    <div className="p-2.5 bg-linear-to-br from-blue-100 to-purple-100 rounded-xl group-hover/card:scale-110 transition-transform duration-200">
                                         <User size={20} className="text-blue-600" strokeWidth={2.5} />
                                     </div>
-                                    <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Account Information</h2>
+                                    <h2 className="text-xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Account Information</h2>
                                 </div>
 
                                 <form onSubmit={handleUpdateProfile} className="space-y-6">
@@ -450,7 +450,7 @@ export default function Profile() {
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="w-full mt-8 bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg hover:shadow-blue-500/30 disabled:from-slate-400 disabled:to-slate-400 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex justify-center items-center gap-2 shadow-md disabled:shadow-none cursor-pointer hover:scale-[1.02]"
+                                        className="w-full mt-8 bg-linear-to-r from-blue-600 to-purple-600 hover:shadow-lg hover:shadow-blue-500/30 disabled:from-slate-400 disabled:to-slate-400 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex justify-center items-center gap-2 shadow-md disabled:shadow-none cursor-pointer hover:scale-[1.02]"
                                     >
                                         {loading ? (
                                             <>
@@ -472,17 +472,17 @@ export default function Profile() {
                         <div className="group/card">
                             <div className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] hover:shadow-[0_12px_40px_rgba(251,146,60,0.12)] transition-all duration-300 p-8">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2.5 bg-gradient-to-br from-amber-100 to-orange-100 rounded-xl group-hover/card:scale-110 transition-transform duration-200">
+                                    <div className="p-2.5 bg-linear-to-br from-amber-100 to-orange-100 rounded-xl group-hover/card:scale-110 transition-transform duration-200">
                                         <Lock size={20} className="text-amber-600" strokeWidth={2.5} />
                                     </div>
-                                    <h2 className="text-xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                                    <h2 className="text-xl font-bold bg-linear-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
                                         {hasPassword ? 'Security & Password' : 'Set Password'}
                                     </h2>
                                 </div>
 
                                 {/* Authentication Methods Info */}
                                 {(hasPassword || googleLinked) && (
-                                    <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200/60 rounded-xl">
+                                    <div className="mb-6 p-4 bg-linear-to-r from-blue-50 to-cyan-50 border border-blue-200/60 rounded-xl">
                                         <h3 className="text-sm font-semibold text-blue-900 mb-2">Authentication Methods</h3>
                                         <div className="flex flex-wrap gap-2">
                                             {hasPassword && (
@@ -594,7 +594,7 @@ export default function Profile() {
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="w-full mt-8 bg-gradient-to-r from-amber-600 to-orange-600 hover:shadow-lg hover:shadow-amber-500/30 disabled:from-slate-400 disabled:to-slate-400 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex justify-center items-center gap-2 shadow-md disabled:shadow-none cursor-pointer hover:scale-[1.02]"
+                                        className="w-full mt-8 bg-linear-to-r from-amber-600 to-orange-600 hover:shadow-lg hover:shadow-amber-500/30 disabled:from-slate-400 disabled:to-slate-400 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex justify-center items-center gap-2 shadow-md disabled:shadow-none cursor-pointer hover:scale-[1.02]"
                                     >
                                         {loading ? (
                                             <>

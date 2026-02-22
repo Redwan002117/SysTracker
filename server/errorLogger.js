@@ -2,9 +2,19 @@
 const path = require('path');
 const fs = require('fs');
 
-const LOG_DIR = path.join(__dirname, 'logs');
-if (!fs.existsSync(LOG_DIR)) {
-    fs.mkdirSync(LOG_DIR, { recursive: true });
+// In pkg bundles, __dirname is the read-only virtual snapshot.
+// Writable files (logs) must live next to the real executable on disk.
+const IS_PKG = typeof process.pkg !== 'undefined';
+const BASE_DIR = IS_PKG ? path.dirname(process.execPath) : __dirname;
+const LOG_DIR = path.join(BASE_DIR, 'logs');
+
+try {
+    if (!fs.existsSync(LOG_DIR)) {
+        fs.mkdirSync(LOG_DIR, { recursive: true });
+    }
+} catch (e) {
+    // Non-fatal: log dir creation may fail in restricted envs; file logging disabled
+    console.warn('[errorLogger] Could not create logs directory:', e.message);
 }
 
 /**

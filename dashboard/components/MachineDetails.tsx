@@ -260,7 +260,7 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose, onDel
 
                                 {/* Delete Confirmation Modal */}
                                 {showDeleteConfirm && (
-                                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)}>
+                                    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)}>
                                         <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
                                             <div className="flex items-center gap-3 mb-4">
                                                 <div className="p-2.5 bg-rose-100 rounded-xl text-rose-600 shrink-0">
@@ -555,7 +555,7 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose, onDel
                                                                         <div className={`p-1.5 rounded-lg text-xs ${net.type === 'Wi-Fi' ? 'bg-sky-50 text-sky-600' : 'bg-slate-100 text-slate-500'}`}>
                                                                             {net.type === 'Wi-Fi' ? <Radio size={14} /> : <CircuitBoard size={14} />}
                                                                         </div>
-                                                                        <span className="font-semibold text-slate-700 text-xs truncate max-w-[150px]" title={net.interface}>{net.interface}</span>
+                                                                        <span className="font-semibold text-slate-700 text-xs truncate max-w-37.5" title={net.interface}>{net.interface}</span>
                                                                     </div>
                                                                     {net.speed_mbps ? <span className="text-[10px] font-bold bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-100">{formatLinkSpeed(net.speed_mbps)}</span> : null}
                                                                 </div>
@@ -662,7 +662,7 @@ const MachineDetails: React.FC<MachineDetailsProps> = ({ machine, onClose, onDel
                                                         <tbody className="divide-y divide-slate-50">
                                                             {sortedProcesses.slice(0, 10).map((p, i) => (
                                                                 <tr key={i} className="hover:bg-blue-50/30 transition-colors group">
-                                                                    <td className="px-4 py-2.5 font-medium text-slate-700 truncate max-w-[140px]" title={p.name}>{p.name}</td>
+                                                                    <td className="px-4 py-2.5 font-medium text-slate-700 truncate max-w-35" title={p.name}>{p.name}</td>
                                                                     <td className={`px-4 py-2.5 text-right font-mono ${p.cpu > 10 ? 'text-rose-600 font-bold bg-rose-50' : 'text-slate-600'}`}>{p.cpu}%</td>
                                                                     <td className="px-4 py-2.5 text-right font-mono text-slate-600">
                                                                         <div className="flex flex-col items-end leading-tight">

@@ -98,11 +98,11 @@ const TopBar = () => {
         <div className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-b border-slate-200/50 shadow-[0_4px_12px_rgba(0,0,0,0.05)] px-4 h-16 flex items-center justify-between">
             {/* Logo Area */}
             <Link href="/dashboard" className="flex items-center gap-2 group">
-                <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white p-2 rounded-xl shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300 group-hover:scale-110">
+                <div className="bg-linear-to-br from-blue-500 to-purple-600 text-white p-2 rounded-xl shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300 group-hover:scale-110">
                     <Zap size={20} fill="currentColor" />
                 </div>
                 <span className="font-bold text-xl tracking-tight">
-                    <span className="text-slate-800">Sys</span><span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Tracker</span>
+                    <span className="text-slate-800">Sys</span><span className="bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Tracker</span>
                 </span>
             </Link>
 
@@ -112,7 +112,7 @@ const TopBar = () => {
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                     className="flex items-center gap-2 hover:bg-white p-1.5 pr-3 rounded-2xl transition-all duration-300 border border-transparent hover:border-slate-200 hover:shadow-sm"
                 >
-                    <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center shadow-sm">
+                    <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 bg-linear-to-br from-blue-50 to-purple-50 flex items-center justify-center shadow-sm">
                         {profile?.avatar
                             ? <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
                             : <User size={18} className="text-slate-600" />
@@ -135,10 +135,10 @@ const TopBar = () => {
                             className="absolute right-0 top-full mt-2 w-72 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 overflow-hidden"
                         >
                             {/* Profile card header */}
-                            <div className="relative bg-gradient-to-br from-blue-50 via-purple-50 to-slate-50 px-4 pt-5 pb-4 border-b border-slate-200/50">
+                            <div className="relative bg-linear-to-br from-blue-50 via-purple-50 to-slate-50 px-4 pt-5 pb-4 border-b border-slate-200/50">
                                 <div className="flex items-center gap-3">
                                     {/* Avatar */}
-                                    <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-white shadow-lg bg-gradient-to-br from-blue-100 to-purple-100 flex-shrink-0 flex items-center justify-center">
+                                    <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-white shadow-lg bg-linear-to-br from-blue-100 to-purple-100 shrink-0 flex items-center justify-center">
                                         {profile?.avatar
                                             ? <img src={profile.avatar} alt="avatar" className="w-full h-full object-cover" />
                                             : <User size={24} className="text-slate-500" />
@@ -150,7 +150,7 @@ const TopBar = () => {
                                             {profile?.display_name || username || 'User'}
                                         </p>
                                         <p className="text-xs text-slate-500 truncate">@{username}</p>
-                                        <span className="inline-block mt-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white text-[10px] font-bold capitalize shadow-sm">
+                                        <span className="inline-block mt-1.5 px-2.5 py-1 rounded-lg bg-linear-to-r from-blue-500 to-purple-600 text-white text-[10px] font-bold capitalize shadow-sm">
                                             {userRole}
                                         </span>
                                     </div>
@@ -160,13 +160,13 @@ const TopBar = () => {
                                 <div className="mt-3 space-y-1.5">
                                     {profile?.location && (
                                         <div className="flex items-center gap-2 text-xs text-slate-600 bg-white/60 px-2 py-1 rounded-lg">
-                                            <MapPin size={12} className="flex-shrink-0 text-slate-400" />
+                                            <MapPin size={12} className="shrink-0 text-slate-400" />
                                             <span className="truncate">{profile.location}</span>
                                         </div>
                                     )}
                                     {profile?.email && (
                                         <div className="flex items-center gap-2 text-xs text-slate-600 bg-white/60 px-2 py-1 rounded-lg">
-                                            <Mail size={12} className="flex-shrink-0 text-slate-400" />
+                                            <Mail size={12} className="shrink-0 text-slate-400" />
                                             <span className="truncate">{profile.email}</span>
                                         </div>
                                     )}
@@ -177,7 +177,7 @@ const TopBar = () => {
                                 <Link
                                     href="/dashboard/profile"
                                     onClick={() => setIsMenuOpen(false)}
-                                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 group"
+                                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-linear-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 group"
                                 >
                                     <User size={16} className="group-hover:scale-110 transition-transform duration-300" />
                                     Profile
@@ -186,7 +186,7 @@ const TopBar = () => {
                                     <Link
                                         href="/dashboard/settings"
                                         onClick={() => setIsMenuOpen(false)}
-                                        className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 group"
+                                        className="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-600 hover:text-blue-600 hover:bg-linear-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 group"
                                     >
                                         <Settings size={16} className="group-hover:scale-110 transition-transform duration-300" />
                                         Settings
@@ -194,7 +194,7 @@ const TopBar = () => {
                                 )}
                             </div>
 
-                            <div className="h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent my-1" />
+                            <div className="h-px bg-linear-to-r from-transparent via-slate-300 to-transparent my-1" />
 
                             <div className="p-2">
                                 <button

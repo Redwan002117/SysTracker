@@ -27,7 +27,7 @@ export default function DashboardLayout({
 
                 <Link
                     href="/dashboard/chat"
-                    className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-2xl shadow-blue-500/40 hover:shadow-blue-500/60 hover:scale-110 transition-all duration-300 group"
+                    className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-16 h-16 rounded-2xl bg-linear-to-br from-blue-500 to-purple-600 text-white shadow-2xl shadow-blue-500/40 hover:shadow-blue-500/60 hover:scale-110 transition-all duration-300 group"
                     aria-label="Open chat"
                 >
                     <MessageCircle size={24} className="group-hover:scale-110 transition-transform duration-300" />

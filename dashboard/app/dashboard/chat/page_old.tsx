@@ -275,7 +275,7 @@ export default function ChatPage() {
     );
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 p-6 pt-24">
+        <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-slate-50 p-6 pt-24">
             <div className="max-w-6xl mx-auto">
                 <div className="flex items-center justify-between mb-6">
                     <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">

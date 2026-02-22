@@ -32,17 +32,19 @@ export default function AuthGuard({ children }: AuthGuardProps) {
             // Quick local check first
             if (!isAuthenticated()) {
                 // Check if setup is needed
+                const returnTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '';
+                const returnParam = returnTo && returnTo.length > 1 ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
                 try {
                     const res = await fetchWithTimeout('/api/auth/status');
                     const data = await res.json();
                     if (data.setup_required) {
                         router.replace('/setup');
                     } else {
-                        router.replace('/login');
+                        router.replace(`/login${returnParam}`);
                     }
                 } catch {
                     // If network fails, go to login
-                    router.replace('/login');
+                    router.replace(`/login${returnParam}`);
                 }
                 setStatus('redirect');
                 return;
@@ -58,7 +60,9 @@ export default function AuthGuard({ children }: AuthGuardProps) {
                     setStatus('authenticated');
                 } else {
                     clearToken();
-                    router.replace('/login');
+                    const returnTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '';
+                    const returnParam = returnTo && returnTo.length > 1 ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
+                    router.replace(`/login${returnParam}`);
                     setStatus('redirect');
                 }
             } catch {

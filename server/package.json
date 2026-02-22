@@ -1,9 +1,12 @@
 {
   "name": "systracker-server",
-  "version": "3.3.1",
+  "version": "3.3.3",
   "main": "server.js",
   "bin": "server.js",
   "scripts": {
+    "dev": "node server.js",
+    "sync-dashboard": "cp -r ../dashboard/out/. ./dashboard-dist/",
+    "build:dashboard": "cd ../dashboard && npm run build && cd ../server && npm run sync-dashboard",
     "build:win": "pkg . --targets node18-win-x64 --output dist/systracker-server-win.exe && node ./scripts/add-icon.js",
     "build:linux": "pkg . --targets node18-linux-x64 --output dist/systracker-server-linux",
     "build:all": "pkg . --targets node18-win-x64,node18-linux-x64 --out-path dist && node ./scripts/add-icon.js",

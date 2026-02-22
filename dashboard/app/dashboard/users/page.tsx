@@ -177,7 +177,7 @@ export default function UserManagement() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/30 p-6 pt-24">
+        <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50/30 to-purple-50/30 p-6 pt-24">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <motion.div
@@ -187,11 +187,11 @@ export default function UserManagement() {
                 >
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25">
+                            <div className="p-3 bg-linear-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25">
                                 <Users size={28} className="text-white" strokeWidth={2.5} />
                             </div>
                             <div>
-                                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                <h1 className="text-3xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                     User Management
                                 </h1>
                                 <p className="text-slate-500 mt-1">Manage dashboard users and their permissions</p>
@@ -199,7 +199,7 @@ export default function UserManagement() {
                         </div>
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 hover:scale-105 shadow-md"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 hover:scale-105 shadow-md"
                         >
                             <UserPlus size={18} strokeWidth={2.5} />
                             Add User
@@ -219,7 +219,7 @@ export default function UserManagement() {
                         </div>
                     ) : (
                         <table className="w-full">
-                            <thead className="bg-gradient-to-r from-blue-50/50 to-purple-50/50 border-b border-slate-200/60">
+                            <thead className="bg-linear-to-r from-blue-50/50 to-purple-50/50 border-b border-slate-200/60">
                                 <tr>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">User</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Email</th>
@@ -230,10 +230,10 @@ export default function UserManagement() {
                             </thead>
                             <tbody className="divide-y divide-slate-100/60">
                                 {users.map((user) => (
-                                    <tr key={user.id} className="hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-purple-50/30 transition-all duration-200 group">
+                                    <tr key={user.id} className="hover:bg-linear-to-r hover:from-blue-50/30 hover:to-purple-50/30 transition-all duration-200 group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center text-blue-600 font-semibold group-hover:scale-110 transition-transform duration-200">
+                                                <div className="w-10 h-10 bg-linear-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center text-blue-600 font-semibold group-hover:scale-110 transition-transform duration-200">
                                                     {user.username.charAt(0).toUpperCase()}
                                                 </div>
                                                 <span className="font-medium text-slate-800">{user.username}</span>
@@ -312,7 +312,7 @@ export default function UserManagement() {
                             className="bg-white/95 backdrop-blur-2xl rounded-2xl shadow-[0_24px_48px_rgba(0,0,0,0.12)] border border-white/20 max-w-md w-full p-6"
                         >
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                                <h2 className="text-xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
                                     <UserPlus size={24} strokeWidth={2.5} />
                                     Create New User
                                 </h2>
@@ -404,7 +404,7 @@ export default function UserManagement() {
                                     <button
                                         type="submit"
                                         disabled={creating}
-                                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 hover:scale-[1.02]"
+                                        className="flex-1 px-4 py-2.5 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 hover:scale-[1.02]"
                                     >
                                         {creating ? (
                                             <>
@@ -440,7 +440,7 @@ export default function UserManagement() {
                             className="bg-white/95 backdrop-blur-2xl rounded-2xl shadow-[0_24px_48px_rgba(0,0,0,0.12)] border border-white/20 max-w-md w-full p-6"
                         >
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                                <h2 className="text-xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
                                     <Edit2 size={24} strokeWidth={2.5} />
                                     Edit User
                                 </h2>
@@ -492,7 +492,7 @@ export default function UserManagement() {
 
                                 <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl">
                                     <div className="flex items-start gap-2">
-                                        <Mail size={16} className="text-purple-600 flex-shrink-0 mt-0.5" />
+                                        <Mail size={16} className="text-purple-600 shrink-0 mt-0.5" />
                                         <div className="text-xs text-slate-700">
                                             <p className="font-semibold mb-1">Need to reset password?</p>
                                             <p>Use the "Send password setup email" button from the user list to let them set a new password.</p>
@@ -512,7 +512,7 @@ export default function UserManagement() {
                                     <button
                                         type="submit"
                                         disabled={updating}
-                                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 hover:scale-[1.02]"
+                                        className="flex-1 px-4 py-2.5 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 hover:scale-[1.02]"
                                     >
                                         {updating ? (
                                             <>
@@ -548,11 +548,11 @@ export default function UserManagement() {
                             className="bg-white/95 backdrop-blur-2xl rounded-2xl shadow-[0_24px_48px_rgba(0,0,0,0.12)] border border-white/20 max-w-md w-full p-6"
                         >
                             <div className="flex items-start gap-4 mb-6">
-                                <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <div className="w-12 h-12 bg-linear-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center shrink-0">
                                     <AlertCircle size={24} className="text-red-600" strokeWidth={2.5} />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">Delete User</h2>
+                                    <h2 className="text-xl font-bold bg-linear-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">Delete User</h2>
                                     <p className="text-slate-600 mt-1">Are you sure you want to delete this user? This action cannot be undone.</p>
                                 </div>
                             </div>
@@ -566,7 +566,7 @@ export default function UserManagement() {
                                 </button>
                                 <button
                                     onClick={() => handleDeleteUser(deleteUserId)}
-                                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-xl hover:shadow-lg hover:shadow-red-500/30 transition-all duration-200 hover:scale-[1.02]"
+                                    className="flex-1 px-4 py-2.5 bg-linear-to-r from-red-600 to-orange-600 text-white rounded-xl hover:shadow-lg hover:shadow-red-500/30 transition-all duration-200 hover:scale-[1.02]"
                                 >
                                     Delete
                                 </button>

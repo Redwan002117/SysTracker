@@ -256,17 +256,17 @@ export default function ChatPage() {
     };
 
     return (
-        <div className="h-full flex bg-gradient-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
+        <div className="h-full flex bg-linear-to-br from-slate-50 via-blue-50/30 to-purple-50/20">
             {/* Sidebar - Glassmorphism Style */}
             <div className="w-80 bg-white/80 backdrop-blur-xl border-r border-slate-200/50 shadow-[0_8px_32px_rgba(0,0,0,0.06)] flex flex-col">
                 {/* Header with Gradient */}
-                <div className="p-5 border-b border-slate-200/50 bg-gradient-to-br from-blue-50/70 via-purple-50/50 to-white/70">
+                <div className="p-5 border-b border-slate-200/50 bg-linear-to-br from-blue-50/70 via-purple-50/50 to-white/70">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-2xl font-bold flex items-center gap-2">
-                            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+                            <div className="p-2 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
                                 <MessageCircle className="h-5 w-5 text-white" />
                             </div>
-                            <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
+                            <span className="bg-linear-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
                                 Chat
                             </span>
                         </h2>
@@ -295,7 +295,7 @@ export default function ChatPage() {
                         <button
                             onClick={createThread}
                             disabled={!targetUser}
-                            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-xl hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(99,102,241,0.3)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-medium"
+                            className="w-full bg-linear-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-xl hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-[0_4px_12px_rgba(99,102,241,0.3)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-medium"
                         >
                             <Plus className="h-4 w-4" />
                             New Chat
@@ -322,14 +322,14 @@ export default function ChatPage() {
                                     onClick={() => setSelectedThreadId(thread.id)}
                                     className={`w-full text-left p-3 rounded-xl transition-all duration-300 group ${
                                         selectedThreadId === thread.id
-                                            ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10 shadow-sm ring-2 ring-blue-500/20'
+                                            ? 'bg-linear-to-r from-blue-500/10 to-purple-500/10 shadow-sm ring-2 ring-blue-500/20'
                                             : 'hover:bg-white/60 hover:shadow-sm'
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className={`w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden shadow-sm transition-all duration-300 ${
                                             selectedThreadId === thread.id
-                                                ? 'bg-gradient-to-br from-blue-500 to-purple-600 ring-2 ring-blue-500/30'
+                                                ? 'bg-linear-to-br from-blue-500 to-purple-600 ring-2 ring-blue-500/30'
                                                 : 'bg-slate-100 group-hover:bg-slate-200'
                                         }`}>
                                             {thread.is_group ? (
@@ -346,7 +346,7 @@ export default function ChatPage() {
                                                     {thread.is_group ? (thread.name || 'Group Chat') : (thread.other_display_name || thread.other_username || 'Unknown')}
                                                 </p>
                                                 {!!thread.unread_count && thread.unread_count > 0 && (
-                                                    <span className="ml-2 px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-sm">
+                                                    <span className="ml-2 px-2 py-0.5 text-[10px] font-bold bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-sm">
                                                         {thread.unread_count}
                                                     </span>
                                                 )}
@@ -368,7 +368,7 @@ export default function ChatPage() {
                 {/* Chat Header */}
                 <div className="p-5 border-b border-slate-200/50 bg-white/80 backdrop-blur-xl shadow-sm">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
+                        <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-md">
                             {selectedThread?.is_group ? (
                                 <Users size={20} className="text-white" />
                             ) : selectedThread?.other_avatar ? (
@@ -406,7 +406,7 @@ export default function ChatPage() {
                                     <div className={`max-w-[75%] ${msg.sender === me ? 'order-1' : 'order-2'}`}>
                                         <div className={`px-4 py-3 rounded-2xl shadow-sm ${
                                             msg.sender === me
-                                                ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(99,102,241,0.25)]'
+                                                ? 'bg-linear-to-br from-blue-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(99,102,241,0.25)]'
                                                 : 'bg-white text-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
                                         }`}>
                                             <div className={`text-[10px] font-medium mb-1.5 ${msg.sender === me ? 'text-blue-100' : 'text-slate-500'}`}>
@@ -520,7 +520,7 @@ export default function ChatPage() {
                             />
                             <button
                                 onClick={() => (uploadFiles && uploadFiles.length > 0 ? sendFiles() : sendMessage())}
-                                className="px-5 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl flex items-center gap-2 shadow-[0_4px_12px_rgba(99,102,241,0.3)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                                className="px-5 py-3 bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-xl flex items-center gap-2 shadow-[0_4px_12px_rgba(99,102,241,0.3)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                                 disabled={!selectedThreadId || (!newMessage.trim() && !uploadFiles?.length)}
                             >
                                 <Send size={16} />
@@ -537,7 +537,7 @@ export default function ChatPage() {
                     <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in slide-in-from-bottom-4 duration-300 border border-slate-200/50">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-bold text-slate-800 flex items-center gap-3">
-                                <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+                                <div className="p-2 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
                                     <Users size={20} className="text-white" />
                                 </div>
                                 New Group
@@ -600,7 +600,7 @@ export default function ChatPage() {
                                 <button
                                     onClick={createGroup}
                                     disabled={!groupName.trim() || groupMembers.length === 0}
-                                    className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium shadow-[0_4px_12px_rgba(99,102,241,0.3)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex-1 px-4 py-3 bg-linear-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium shadow-[0_4px_12px_rgba(99,102,241,0.3)] hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Create Group
                                 </button>

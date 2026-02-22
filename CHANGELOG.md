@@ -3,6 +3,120 @@
 All notable changes to SysTracker are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [3.3.3] - 2026-02-22
+
+### 🐛 Bug Fixes
+
+- **Broadcast Mail Visibility** — Maintenance notification emails (`to_user: '__broadcast__'`) now appear in every user's inbox
+  - Mail GET, unread-count, and message-read endpoints updated to include `'__broadcast__'` as a match alongside the user's own username
+  - Previously broadcast messages were stored but invisible to recipients
+
+- **Email Validation** — `PUT /api/auth/profile` now validates email format with a regex before writing to the database
+  - Returns `400 Invalid email format` instead of storing an invalid value
+
+- **Refresh/Reload Redirect** — Refreshing any `/dashboard/*` page no longer redirects to the dashboard home
+  - Root issue: `dashboard/maintenance.html` was missing from `server/dashboard-dist` (new page not yet synced)
+  - Secondary fix: `AuthGuard` now encodes the current path as `?returnTo=` when redirecting to login
+  - Login page (password + Google OAuth) uses `returnTo` to send users back to their original page after authentication
+  - Google OAuth state parameter carries `returnTo` through the full OAuth redirect cycle
+  - Server SPA fallback upgraded: `/dashboard/*` routes served `dashboard.html` context instead of root `index.html`, preventing the root `LandingPage` from firing `router.replace('/dashboard')`
+
+### 🎨 UI/UX Improvements
+
+- **Tailwind v4 — Remaining Fixes** — Migrated remaining deprecated arbitrary-value classes:
+  - `max-w-[1600px]` → `max-w-400` (dashboard main layout)
+  - `max-w-[1400px]` → `max-w-350` (mail page)
+  - `max-w-[140px]` → `max-w-35` (MachineDetails network interface names)
+
+### 🔧 Technical Improvements
+
+- **Next.js Turbopack Warning** — Added `turbopack.root` to `next.config.ts` to suppress monorepo workspace root detection warning during builds
+
+- **Docker Base Image** — Updated `Dockerfile` and `server/Dockerfile` from `node:20-slim` to `node:22-slim`
+  - Node 22 is the current LTS with significantly fewer high/critical OS-level CVEs
+
+- **npm Scripts** — Added `sync-dashboard` and `build:dashboard` scripts to `server/package.json` for easy dashboard build and sync workflow
+
+---
+
+## [3.3.2] - 2026-02-22
+
+### 🐛 Bug Fixes
+
+- **Server Syntax Error** — Fixed critical `SyntaxError: Unexpected token '}'` at `server.js:901`
+  - Restored accidentally dropped `GET /api/settings/smtp` route wrapper
+  - Server was completely unable to start until this was resolved
+
+- **OAuth-Only Password Change** — `PUT /api/auth/change-password` no longer crashes for users with no password hash
+  - OAuth-only accounts (Google login, no password set) now get a friendly error instead of a `bcrypt.compare` exception
+
+- **SMTP Settings Not Loading** — `GET /api/settings/oauth` and `GET /api/auth/oauth-status` were only checking environment variables, ignoring database-stored config
+  - Both endpoints now read from the DB first, falling back to env vars
+
+- **errorLogger.js Binary Path** — Resolved log directory creation failure when running as a `pkg` binary
+  - `__dirname` is not the binary's directory in pkg; switched to `path.dirname(process.execPath)`
+
+### ✨ New Features
+
+- **Maintenance Windows** — Full maintenance scheduling system
+  - Dashboard page at `/dashboard/maintenance` with schedule, edit, delete, activate/cancel
+  - 5 quick-start templates (Planned Downtime, Security Patch, Backup, Network, Emergency)
+  - Server API: `GET/POST /api/maintenance`, `PUT/DELETE /api/maintenance/:id`, `GET /api/maintenance/active`
+  - Active maintenance banner shown on dashboard when a window is active or about to start
+  - Email notification support via existing mail system
+
+- **OAuth / SSO Settings Tab** — New tab in Settings page for Google OAuth configuration
+  - Manage Google Client ID and Client Secret from the UI
+  - Shows OAuth enabled/disabled status, callback URL helper
+  - Setup instructions card with step-by-step Google Cloud Console guide
+
+- **Server Config Tab** — New Config tab in Settings for runtime configuration
+  - Server port and JWT expiry configurable from the UI
+  - Shows server version, Node.js version, and uptime
+  - JWT expiry changes take effect immediately without restart
+
+- **Agent File Logging** — Agent no longer silently discards output when running as a background service
+  - `resolveLogDir()` tries 4 locations: `%PROGRAMDATA%\SysTracker\Agent\logs`, `%APPDATA%`, `%TEMP%`, then install dir
+  - Global `console.log/warn/error` patched to write to daily rotating `.log` files
+  - 14-day log rotation cleanup
+  - `uncaughtException` and `unhandledRejection` handlers write crash info to log
+  - `launch-agent.bat` redirects stdout/stderr to log file
+  - Installer pre-creates log directory with correct NTFS permissions (SYSTEM:F, Admins:F, Users:M)
+  - "View Agent Logs" shortcut added to Start Menu
+
+- **Auth Status Flags** — `GET /api/auth/status` now returns `has_password` and `has_google` booleans
+  - Profile page uses these to show/hide password and Google account sections appropriately
+
+- **Config & OAuth DB Bootstrap** — Server loads `oauth_*` and `config_*` settings from DB into `process.env` on startup
+  - Ensures settings persist across restarts without requiring environment variable configuration
+
+### 🎨 UI/UX Improvements
+
+- **SystemLoadChart Rewrite** — 3-tab chart view replacing single-metric display
+  - Tab 1: CPU & RAM (AreaChart with dual series)
+  - Tab 2: Disk I/O (AreaChart for average disk usage)
+  - Tab 3: Network (LineChart for upload/download speeds)
+  - Fleet machine count badge
+
+- **Mail Template Picker Redesign** — Template select now uses full-width icon cards with gradient backgrounds
+  - Each template has an icon, color scheme, and description
+  - Cleaner layout replacing plain select dropdown
+
+- **Sidebar Restructure** — Separated admin-only navigation from general user navigation
+  - Main nav: Overview, Alerts, Chat
+  - Admin section: Mail, Maintenance, Users, Settings
+
+### 🔧 Technical Improvements
+
+- **Tailwind CSS v4 Migration** — Updated all deprecated class names across the entire dashboard
+  - `bg-gradient-to-*` → `bg-linear-to-*` (20 files, 100+ occurrences)
+  - `flex-shrink-0` → `shrink-0`
+  - Arbitrary `max-w-[Npx]` → scale-based equivalents (`max-w-300`, `max-w-30`, `max-w-40`)
+
+- **History API Extension** — `GET /api/history/global` now returns `avg_disk`, `avg_net_up`, `avg_net_down`, `machine_count`
+
+---
+
 ## [3.3.1] - 2026-02-21
 
 ### 🐛 Bug Fixes

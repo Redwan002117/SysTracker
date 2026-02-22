@@ -86,7 +86,7 @@ function SetupUsernameForm() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center px-4 relative overflow-hidden">
+        <div className="min-h-screen bg-linear-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center px-4 relative overflow-hidden">
             {/* Background blobs */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
@@ -104,10 +104,10 @@ function SetupUsernameForm() {
                     animate={{ opacity: 1, y: 0 }}
                     className="flex flex-col items-center mb-10"
                 >
-                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white p-4 rounded-2xl shadow-2xl shadow-blue-500/50 mb-5 ring-4 ring-white/20">
+                    <div className="bg-linear-to-br from-blue-500 to-purple-600 text-white p-4 rounded-2xl shadow-2xl shadow-blue-500/50 mb-5 ring-4 ring-white/20">
                         <Zap size={36} fill="currentColor" strokeWidth={2} />
                     </div>
-                    <h1 className="text-3xl font-extrabold bg-gradient-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">Welcome to SysTracker!</h1>
+                    <h1 className="text-3xl font-extrabold bg-linear-to-r from-white via-blue-100 to-white bg-clip-text text-transparent">Welcome to SysTracker!</h1>
                     <p className="text-slate-400 text-sm mt-2 font-medium">One more step to get started</p>
                 </motion.div>
 
@@ -125,7 +125,7 @@ function SetupUsernameForm() {
 
                     {/* Info banner */}
                     <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-start gap-3">
-                        <Info size={18} className="text-blue-400 flex-shrink-0 mt-0.5" />
+                        <Info size={18} className="text-blue-400 shrink-0 mt-0.5" />
                         <div className="text-sm text-blue-300">
                             <p className="font-semibold mb-1">Your account details:</p>
                             <p className="text-blue-400/80">Email: {urlEmail}</p>
@@ -164,7 +164,7 @@ function SetupUsernameForm() {
                                 animate={{ opacity: 1, height: 'auto' }}
                                 className="flex items-center gap-2.5 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm"
                             >
-                                <AlertCircle size={16} className="flex-shrink-0" />
+                                <AlertCircle size={16} className="shrink-0" />
                                 {errorMsg}
                             </motion.div>
                         )}
@@ -174,7 +174,7 @@ function SetupUsernameForm() {
                                 animate={{ opacity: 1, height: 'auto' }}
                                 className="flex items-center gap-2.5 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-sm"
                             >
-                                <CheckCircle size={16} className="flex-shrink-0" />
+                                <CheckCircle size={16} className="shrink-0" />
                                 Username set successfully! Redirecting...
                             </motion.div>
                         )}

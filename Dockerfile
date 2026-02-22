@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Build Dashboard (Next.js)
 # ============================================
-FROM node:20-slim AS builder-dashboard
+FROM node:22-slim AS builder-dashboard
 
 WORKDIR /app/dashboard
 
@@ -23,7 +23,7 @@ RUN ls -la out/ && echo "Dashboard build successful"
 # ============================================
 # Stage 2: Server Runtime
 # ============================================
-FROM node:20-slim
+FROM node:22-slim
 
 WORKDIR /app
 

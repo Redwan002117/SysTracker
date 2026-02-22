@@ -443,6 +443,57 @@ function initializeDb() {
                 });
             }
         });
+
+        // Maintenance Windows Table
+        db.run(`CREATE TABLE IF NOT EXISTS maintenance_windows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            start_time DATETIME NOT NULL,
+            end_time DATETIME NOT NULL,
+            status TEXT DEFAULT 'scheduled',
+            notify_users INTEGER DEFAULT 1,
+            affected_machines TEXT,
+            created_by TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, (err) => {
+            if (err) console.error('Error creating maintenance_windows table:', err.message);
+        });
+
+        // Google OAuth: add google_id column to admin_users if not present
+        db.run("ALTER TABLE admin_users ADD COLUMN google_id TEXT", (err) => {
+            if (err && !err.message.includes("duplicate column name")) {
+                console.error("Migration error (admin_users google_id):", err.message);
+            }
+        });
+        db.run("ALTER TABLE admin_users ADD COLUMN google_email TEXT", (err) => {
+            if (err && !err.message.includes("duplicate column name")) {
+                console.error("Migration error (admin_users google_email):", err.message);
+            }
+        });
+
+        // Load OAuth settings from DB into process.env at startup (if not already set via env)
+        db.all("SELECT key, value FROM settings WHERE key LIKE 'oauth_%'", [], (err, rows) => {
+            if (err || !rows) return;
+            const cfg = {};
+            rows.forEach(r => (cfg[r.key] = r.value));
+            if (!process.env.GOOGLE_CLIENT_ID && cfg['oauth_google_client_id'])
+                process.env.GOOGLE_CLIENT_ID = cfg['oauth_google_client_id'];
+            if (!process.env.GOOGLE_CLIENT_SECRET && cfg['oauth_google_client_secret'])
+                process.env.GOOGLE_CLIENT_SECRET = cfg['oauth_google_client_secret'];
+            if (!process.env.GOOGLE_CALLBACK_URL && cfg['oauth_google_callback_url'])
+                process.env.GOOGLE_CALLBACK_URL = cfg['oauth_google_callback_url'];
+            if (process.env.GOOGLE_CLIENT_ID)
+                console.log('[OAuth] Google OAuth loaded from DB settings.');
+        });
+
+        // Load config settings from DB at startup
+        db.all("SELECT key, value FROM settings WHERE key LIKE 'config_%'", [], (err, rows) => {
+            if (err || !rows) return;
+            rows.forEach(r => {
+                if (r.key === 'config_jwt_expires_in' && r.value) process.env.JWT_EXPIRES_IN = r.value;
+            });
+        });
     });
 }
 
@@ -609,12 +660,141 @@ app.get('/api/auth/status', (req, res) => {
             if (err) return res.json({ authenticated: false, setup_required: setupRequired });
 
             // Fetch full user details (email) from DB
-            db.get("SELECT id, username, email, role, avatar, display_name, bio, location FROM admin_users WHERE id = ?", [decoded.id], (err, user) => {
+            db.get("SELECT id, username, email, role, avatar, display_name, bio, location, google_id, (CASE WHEN password_hash IS NOT NULL AND password_hash != '' THEN 1 ELSE 0 END) as has_password FROM admin_users WHERE id = ?", [decoded.id], (err, user) => {
                 if (err || !user) return res.json({ authenticated: false, setup_required: setupRequired });
-                res.json({ authenticated: true, user: user, setup_required: setupRequired });
+                const safeUser = { ...user, has_google: !!user.google_id, google_id: undefined };
+                res.json({ authenticated: true, user: safeUser, setup_required: setupRequired });
             });
         });
     });
+});
+
+// OAuth status — lets the frontend know if Google Sign-In is available
+app.get('/api/auth/oauth-status', (req, res) => {
+    // Check env vars first, then fall back to DB settings
+    if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+        return res.json({ google_oauth_enabled: true });
+    }
+    // Check DB for saved settings
+    db.all("SELECT key, value FROM settings WHERE key IN ('oauth_google_client_id','oauth_google_client_secret')", [], (err, rows) => {
+        if (err || !rows) return res.json({ google_oauth_enabled: false });
+        const cfg = {};
+        rows.forEach(r => (cfg[r.key] = r.value));
+        const enabled = !!(cfg['oauth_google_client_id'] && cfg['oauth_google_client_secret']);
+        if (enabled) {
+            // Load into process.env for subsequent OAuth redirects
+            process.env.GOOGLE_CLIENT_ID = cfg['oauth_google_client_id'];
+            process.env.GOOGLE_CLIENT_SECRET = cfg['oauth_google_client_secret'];
+            if (cfg['oauth_google_callback_url']) process.env.GOOGLE_CALLBACK_URL = cfg['oauth_google_callback_url'];
+        }
+        res.json({ google_oauth_enabled: enabled });
+    });
+});
+
+// Google OAuth — redirect to Google
+app.get('/api/auth/google', (req, res) => {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const callbackUrl = process.env.GOOGLE_CALLBACK_URL ||
+        `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+    if (!clientId) {
+        return res.redirect('/login?error=oauth_not_configured');
+    }
+    // Encode returnTo in the state param so we can restore it after callback
+    const returnTo = req.query.returnTo ? String(req.query.returnTo) : '';
+    const state = returnTo ? Buffer.from(JSON.stringify({ returnTo })).toString('base64url') : '';
+    const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: callbackUrl,
+        response_type: 'code',
+        scope: 'openid email profile',
+        access_type: 'offline',
+        prompt: 'select_account',
+        ...(state ? { state } : {})
+    });
+    res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+// Google OAuth callback
+app.get('/api/auth/google/callback', async (req, res) => {
+    const { code, error, state } = req.query;
+    if (error || !code) return res.redirect('/login?error=oauth_failed');
+
+    // Decode returnTo from state
+    let returnTo = '';
+    try {
+        if (state) {
+            const decoded = JSON.parse(Buffer.from(String(state), 'base64url').toString());
+            if (decoded.returnTo && String(decoded.returnTo).startsWith('/dashboard')) {
+                returnTo = decoded.returnTo;
+            }
+        }
+    } catch { /* ignore invalid state */ }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const callbackUrl = process.env.GOOGLE_CALLBACK_URL ||
+        `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+
+    if (!clientId || !clientSecret) return res.redirect('/login?error=oauth_not_configured');
+
+    try {
+        // Exchange code for tokens
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: callbackUrl, grant_type: 'authorization_code' })
+        });
+        const tokenData = await tokenRes.json();
+        if (!tokenData.access_token) return res.redirect('/login?error=oauth_failed');
+
+        // Get user profile from Google
+        const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` }
+        });
+        const profile = await profileRes.json();
+        if (!profile.email) return res.redirect('/login?error=no_email');
+
+        const googleId = profile.id;
+        const googleEmail = profile.email;
+        const googleName = profile.name || googleEmail.split('@')[0];
+        const googleAvatar = profile.picture || null;
+
+        // Find or create user by google_id / email
+        db.get("SELECT * FROM admin_users WHERE google_id = ? OR email = ?", [googleId, googleEmail], (err, user) => {
+            if (err) return res.redirect('/login?error=database_error');
+
+            const issueJwt = (u, firstLogin) => {
+                const token = jwt.sign({ id: u.id, username: u.username, role: u.role || 'admin' }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+                logAudit(u.username, u.id, 'login', null, `Google OAuth login`, req.ip);
+                const params = new URLSearchParams({ token, username: u.username, role: u.role || 'admin', ...(firstLogin ? { first_login: '1' } : {}), ...(returnTo ? { returnTo } : {}) });
+                res.redirect(`/login?${params}`);
+            };
+
+            if (user) {
+                // Update google_id and avatar if not set
+                db.run("UPDATE admin_users SET google_id = COALESCE(google_id, ?), google_email = ?, avatar = COALESCE(avatar, ?) WHERE id = ?",
+                    [googleId, googleEmail, googleAvatar, user.id]);
+                issueJwt(user, false);
+            } else {
+                // First-time Google login: create account
+                const username = googleName.replace(/\s+/g, '').toLowerCase().slice(0, 20) + '_' + googleId.slice(-4);
+                const passwordHash = null; // Google-only login — no password
+                db.run("INSERT INTO admin_users (username, email, display_name, avatar, google_id, google_email, role, password_hash) VALUES (?, ?, ?, ?, ?, ?, 'viewer', ?)",
+                    [username, googleEmail, googleName, googleAvatar, googleId, googleEmail, passwordHash],
+                    function(err) {
+                        if (err) return res.redirect('/login?error=user_creation_failed');
+                        db.get("SELECT * FROM admin_users WHERE id = ?", [this.lastID], (err, newUser) => {
+                            if (err || !newUser) return res.redirect('/login?error=processing_failed');
+                            issueJwt(newUser, true);
+                        });
+                    }
+                );
+            }
+        });
+    } catch (err) {
+        console.error('[OAuth] Error:', err);
+        res.redirect('/login?error=oauth_failed');
+    }
 });
 
 // Login Endpoint
@@ -652,7 +832,19 @@ app.get('/api/settings/general', authenticateDashboard, (req, res) => {
     db.get("SELECT value FROM settings WHERE key = 'general_api_key'", (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         const apiKey = row ? row.value : (process.env.API_KEY || 'YOUR_STATIC_API_KEY_HERE');
-        res.json({ api_key: apiKey });
+        // Also include server runtime info
+        db.all("SELECT key, value FROM settings WHERE key IN ('config_server_port','config_jwt_expires_in')", [], (err2, rows) => {
+            const cfg = {};
+            (rows || []).forEach(r => (cfg[r.key] = r.value));
+            res.json({
+                api_key: apiKey,
+                version: require('./package.json').version || '3.x',
+                node_version: process.version,
+                uptime_seconds: Math.floor(process.uptime()),
+                server_port: cfg['config_server_port'] || (process.env.PORT || '7777'),
+                jwt_expires_in: cfg['config_jwt_expires_in'] || process.env.JWT_EXPIRES_IN || '7d'
+            });
+        });
     });
 });
 
@@ -668,6 +860,41 @@ app.put('/api/settings/general', authenticateDashboard, (req, res) => {
             res.json({ success: true, message: 'API Key updated' });
         }
     );
+});
+
+// Get Runtime Config
+app.get('/api/settings/config', authenticateDashboard, requireAdmin, (req, res) => {
+    db.all("SELECT key, value FROM settings WHERE key LIKE 'config_%'", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const cfg = {};
+        (rows || []).forEach(r => (cfg[r.key.replace('config_', '')] = r.value));
+        res.json({
+            server_port: cfg['server_port'] || process.env.PORT || '7777',
+            jwt_expires_in: cfg['jwt_expires_in'] || process.env.JWT_EXPIRES_IN || '7d'
+        });
+    });
+});
+
+// Update Runtime Config
+app.put('/api/settings/config', authenticateDashboard, requireAdmin, (req, res) => {
+    const { server_port, jwt_expires_in } = req.body;
+    const upsert = (key, value, cb) => {
+        db.run("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+            [key, value], cb);
+    };
+    const tasks = [];
+    if (server_port) tasks.push(cb => upsert('config_server_port', String(server_port), cb));
+    if (jwt_expires_in) tasks.push(cb => upsert('config_jwt_expires_in', jwt_expires_in, cb));
+    if (tasks.length === 0) return res.json({ success: true, message: 'Nothing to update' });
+    let done = 0;
+    tasks.forEach(fn => fn(err => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (++done === tasks.length) {
+            // Apply jwt_expires_in at runtime immediately (port requires restart)
+            if (jwt_expires_in) process.env.JWT_EXPIRES_IN = jwt_expires_in;
+            res.json({ success: true, message: 'Configuration saved' });
+        }
+    }));
 });
 
 // Get SMTP Settings
@@ -755,6 +982,47 @@ app.put('/api/settings/chat', authenticateDashboard, requireAdmin, (req, res) =>
     });
 });
 
+// Get Google OAuth Settings
+app.get('/api/settings/oauth', authenticateDashboard, requireAdmin, (req, res) => {
+    db.all("SELECT key, value FROM settings WHERE key LIKE 'oauth_%'", [], (err, rows) => {
+        const cfg = {};
+        if (rows) rows.forEach(r => (cfg[r.key] = r.value));
+        const clientId = process.env.GOOGLE_CLIENT_ID || cfg['oauth_google_client_id'] || '';
+        const hasSecret = !!(process.env.GOOGLE_CLIENT_SECRET || cfg['oauth_google_client_secret']);
+        const callbackUrl = process.env.GOOGLE_CALLBACK_URL || cfg['oauth_google_callback_url'] || '';
+        res.json({
+            google_client_id: clientId,
+            has_secret: hasSecret,
+            google_callback_url: callbackUrl,
+            google_oauth_enabled: !!(clientId && hasSecret)
+        });
+    });
+});
+
+// Save Google OAuth Settings (writes to .env file next to exe)
+app.put('/api/settings/oauth', authenticateDashboard, requireAdmin, (req, res) => {
+    const { google_client_id, google_client_secret, google_callback_url } = req.body;
+    // Persist in DB settings table (runtime only; env vars override if set)
+    const updates = [
+        { key: 'oauth_google_client_id', value: google_client_id || '' },
+        { key: 'oauth_google_client_secret', value: google_client_secret || '' },
+        { key: 'oauth_google_callback_url', value: google_callback_url || '' }
+    ];
+    db.serialize(() => {
+        const stmt = db.prepare("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP");
+        updates.forEach(u => stmt.run([u.key, u.value]));
+        stmt.finalize((err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            // Apply to runtime process.env for immediate effect
+            if (google_client_id) process.env.GOOGLE_CLIENT_ID = google_client_id;
+            if (google_client_secret) process.env.GOOGLE_CLIENT_SECRET = google_client_secret;
+            if (google_callback_url) process.env.GOOGLE_CALLBACK_URL = google_callback_url;
+            logAudit(req.admin.username, req.admin.id, 'settings_changed', 'oauth', 'Google OAuth settings updated', req.ip);
+            res.json({ success: true, message: 'Google OAuth settings saved. Restart server to fully apply from env file.' });
+        });
+    });
+});
+
 // Test SMTP Settings
 app.post('/api/settings/smtp/test', authenticateDashboard, (req, res) => {
     const { email: testToEmail } = req.body;
@@ -783,24 +1051,37 @@ app.post('/api/settings/smtp/test', authenticateDashboard, (req, res) => {
 // Change password
 app.post('/api/auth/change-password', authenticateDashboard, (req, res) => {
     const { current_password, new_password } = req.body;
-    if (!current_password || !new_password) {
-        return res.status(400).json({ error: 'current_password and new_password are required' });
-    }
+    if (!new_password) return res.status(400).json({ error: 'new_password is required' });
     if (new_password.length < 8) {
         return res.status(400).json({ error: 'New password must be at least 8 characters' });
     }
     db.get('SELECT * FROM admin_users WHERE id = ?', [req.admin.id], (err, user) => {
         if (err || !user) return res.status(500).json({ error: 'User not found' });
-        bcrypt.compare(current_password, user.password_hash, (err, match) => {
-            if (err || !match) return res.status(401).json({ error: 'Current password is incorrect' });
+
+        const doHash = () => {
             bcrypt.hash(new_password, 12, (err, hash) => {
                 if (err) return res.status(500).json({ error: 'Error hashing password' });
                 db.run('UPDATE admin_users SET password_hash = ? WHERE id = ?', [hash, user.id], (err) => {
                     if (err) return res.status(500).json({ error: err.message });
                     console.log(`[Auth] Password changed: ${user.username}`);
-                    res.json({ success: true });
+                    res.json({ success: true, message: 'Password updated successfully!' });
                 });
             });
+        };
+
+        // OAuth-only users (no password_hash) can set a password without current_password
+        if (!user.password_hash) {
+            return doHash();
+        }
+
+        // Regular users must provide current_password
+        if (!current_password) {
+            return res.status(400).json({ error: 'current_password is required' });
+        }
+
+        bcrypt.compare(current_password, user.password_hash, (err, match) => {
+            if (err || !match) return res.status(401).json({ error: 'Current password is incorrect' });
+            doHash();
         });
     });
 });
@@ -810,7 +1091,9 @@ app.put('/api/auth/profile', authenticateDashboard, (req, res) => {
     const { email, username, display_name, bio, location, avatar } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
-    // TODO: Validate email format
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return res.status(400).json({ error: 'Invalid email format' });
 
     db.run('UPDATE admin_users SET email = ?, username = COALESCE(?, username), display_name = ?, bio = ?, location = ?, avatar = ? WHERE id = ?',
         [email, username || null, display_name || null, bio || null, location || null, avatar || null, req.admin.id],
@@ -1382,7 +1665,8 @@ app.get('/api/mail', authenticateDashboard, (req, res) => {
         query = 'SELECT * FROM mail_messages WHERE from_user = ? ORDER BY created_at DESC LIMIT 100';
         params = [me];
     } else {
-        query = 'SELECT * FROM mail_messages WHERE to_user = ? ORDER BY created_at DESC LIMIT 100';
+        // Include messages sent directly to the user OR broadcast to all
+        query = "SELECT * FROM mail_messages WHERE (to_user = ? OR to_user = '__broadcast__') ORDER BY created_at DESC LIMIT 100";
         params = [me];
     }
     db.all(query, params, (err, rows) => {
@@ -1394,7 +1678,7 @@ app.get('/api/mail', authenticateDashboard, (req, res) => {
 // GET /api/mail/unread-count
 app.get('/api/mail/unread-count', authenticateDashboard, (req, res) => {
     const me = req.admin.username;
-    db.get('SELECT COUNT(*) as count FROM mail_messages WHERE to_user = ? AND is_read = 0', [me], (err, row) => {
+    db.get("SELECT COUNT(*) as count FROM mail_messages WHERE (to_user = ? OR to_user = '__broadcast__') AND is_read = 0", [me], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ count: row ? row.count : 0 });
     });
@@ -1403,10 +1687,11 @@ app.get('/api/mail/unread-count', authenticateDashboard, (req, res) => {
 // GET /api/mail/:id - single message + mark read
 app.get('/api/mail/:id', authenticateDashboard, (req, res) => {
     const me = req.admin.username;
-    db.get('SELECT * FROM mail_messages WHERE id = ? AND (to_user = ? OR from_user = ?)', [req.params.id, me, me], (err, row) => {
+    db.get("SELECT * FROM mail_messages WHERE id = ? AND (to_user = ? OR from_user = ? OR to_user = '__broadcast__')", [req.params.id, me, me], (err, row) => {
         if (err) return res.status(500).json({ error: err.message });
         if (!row) return res.status(404).json({ error: 'Message not found' });
-        if (row.to_user === me && !row.is_read) {
+        // Only mark as read if it's specifically addressed to the user
+        if ((row.to_user === me) && !row.is_read) {
             db.run('UPDATE mail_messages SET is_read = 1 WHERE id = ?', [row.id]);
         }
         res.json(row);
@@ -2275,6 +2560,10 @@ app.get('/api/history/global', authenticateDashboard, (req, res) => {
             ${range === '1h' ? "strftime('%Y-%m-%d %H:%M', timestamp)" : "strftime('%Y-%m-%d %H:00', timestamp)"} as time_label,
             AVG(cpu_usage) as avg_cpu,
             AVG(ram_usage) as avg_ram,
+            AVG(CASE WHEN disk_total_gb > 0 THEN (1.0 - disk_free_gb / disk_total_gb) * 100 ELSE NULL END) as avg_disk,
+            AVG(network_up_kbps) as avg_net_up,
+            AVG(network_down_kbps) as avg_net_down,
+            COUNT(DISTINCT machine_id) as machine_count,
             MAX(timestamp) as timestamp
         FROM metrics 
         WHERE timestamp > ${timeFilter}
@@ -2285,6 +2574,72 @@ app.get('/api/history/global', authenticateDashboard, (req, res) => {
     db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
+    });
+});
+
+// --- Maintenance Windows API ---
+
+// List maintenance windows
+app.get('/api/maintenance', authenticateDashboard, (req, res) => {
+    db.all("SELECT * FROM maintenance_windows ORDER BY start_time DESC LIMIT 100", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Create maintenance window
+app.post('/api/maintenance', authenticateDashboard, requireAdmin, (req, res) => {
+    const { title, description, start_time, end_time, notify_users, affected_machines } = req.body;
+    if (!title || !start_time || !end_time) return res.status(400).json({ error: 'title, start_time, and end_time are required' });
+    db.run("INSERT INTO maintenance_windows (title, description, start_time, end_time, notify_users, affected_machines, created_by, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled')",
+        [title, description || null, start_time, end_time, notify_users ? 1 : 0, affected_machines ? JSON.stringify(affected_machines) : null, req.admin.username],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            logAudit(req.admin.username, req.admin.id, 'maintenance_created', title, `Start: ${start_time}`, req.ip);
+            // Send notification emails if requested
+            if (notify_users) {
+                const mailBody = `Scheduled Maintenance Window\n\nTitle: ${title}\nStart: ${start_time}\nEnd: ${end_time}\n\n${description || ''}`;
+                db.all("SELECT email FROM admin_users WHERE email IS NOT NULL AND email != ''", [], (err, users) => {
+                    if (!err && users) {
+                        users.forEach(u => sendEmail(u.email, `Maintenance: ${title}`, mailBody, null).catch(() => {}));
+                    }
+                });
+            }
+            res.json({ success: true, id: this.lastID });
+        }
+    );
+});
+
+// Update maintenance window status
+app.put('/api/maintenance/:id', authenticateDashboard, requireAdmin, (req, res) => {
+    const { status, title, description, start_time, end_time, notify_users, affected_machines } = req.body;
+    db.run("UPDATE maintenance_windows SET status = COALESCE(?, status), title = COALESCE(?, title), description = COALESCE(?, description), start_time = COALESCE(?, start_time), end_time = COALESCE(?, end_time), notify_users = COALESCE(?, notify_users), affected_machines = COALESCE(?, affected_machines) WHERE id = ?",
+        [status || null, title || null, description || null, start_time || null, end_time || null, notify_users != null ? (notify_users ? 1 : 0) : null, affected_machines ? JSON.stringify(affected_machines) : null, req.params.id],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ error: 'Not found' });
+            logAudit(req.admin.username, req.admin.id, 'maintenance_updated', req.params.id, `status=${status}`, req.ip);
+            res.json({ success: true });
+        }
+    );
+});
+
+// Delete maintenance window
+app.delete('/api/maintenance/:id', authenticateDashboard, requireAdmin, (req, res) => {
+    db.run("DELETE FROM maintenance_windows WHERE id = ?", [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ error: 'Not found' });
+        res.json({ success: true });
+    });
+});
+
+// Active maintenance check (public endpoint for agents/banner)
+app.get('/api/maintenance/active', (req, res) => {
+    const now = new Date().toISOString();
+    db.get("SELECT * FROM maintenance_windows WHERE status = 'active' OR (status = 'scheduled' AND start_time <= ? AND end_time >= ?) ORDER BY start_time ASC LIMIT 1",
+        [now, now], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(row || null);
     });
 });
 
@@ -2585,8 +2940,26 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
 
-// Handle client-side routing by serving index.html for all non-API routes
+// Handle client-side routing for the Next.js static export.
+// Try the route-specific HTML first, then fall back within the same section
+// so the Next.js client-side router can restore the exact URL without the
+// root LandingPage firing router.replace('/dashboard').
 // MUST BE LAST
 app.get('*', (req, res) => {
+    const fs = require('fs');
+
+    // 1. Try exact path with .html extension (catches files express.static missed)
+    const exactHtml = path.join(dashboardPath, req.path.replace(/\/$/, '') + '.html');
+    if (fs.existsSync(exactHtml)) return res.sendFile(exactHtml);
+
+    // 2. For /dashboard/* sub-routes, serve dashboard.html so the Next.js
+    //    client-side router hydrates in dashboard context and navigates to the
+    //    correct sub-page, rather than triggering the root page redirect.
+    if (req.path.startsWith('/dashboard/') || req.path === '/dashboard') {
+        const dashHtml = path.join(dashboardPath, 'dashboard.html');
+        if (fs.existsSync(dashHtml)) return res.sendFile(dashHtml);
+    }
+
+    // 3. Ultimate fallback
     res.sendFile(path.join(dashboardPath, 'index.html'));
 });

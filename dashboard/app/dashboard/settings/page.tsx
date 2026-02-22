@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { fetchWithAuth } from '../../../lib/auth';
-import { Mail, Save, Server, Shield, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw, Download, Upload, Package, ClipboardList, Filter, X, MessageCircle } from 'lucide-react';
+import { Mail, Save, Server, Shield, AlertCircle, CheckCircle, Send, Key, Copy, RefreshCw, Download, Upload, Package, ClipboardList, Filter, X, MessageCircle, LogIn, Settings2, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AuditLog {
@@ -28,8 +28,8 @@ const ACTION_COLORS: Record<string, string> = {
 
 function SettingsInner() {
     const searchParams = useSearchParams();
-    const [activeTab, setActiveTab] = useState<'general' | 'smtp' | 'agent' | 'logs' | 'chat'>(
-        (searchParams?.get('tab') as 'general' | 'smtp' | 'agent' | 'logs' | 'chat') || 'general'
+    const [activeTab, setActiveTab] = useState<'general' | 'smtp' | 'agent' | 'logs' | 'chat' | 'oauth' | 'config'>(
+        (searchParams?.get('tab') as 'general' | 'smtp' | 'agent' | 'logs' | 'chat' | 'oauth' | 'config') || 'general'
     );
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -63,6 +63,17 @@ function SettingsInner() {
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [logsLoading, setLogsLoading] = useState(false);
     const [logsFilter, setLogsFilter] = useState({ actor: '', action: '' });
+
+    // OAuth State
+    const [oauthForm, setOauthForm] = useState({ google_client_id: '', google_client_secret: '', google_callback_url: '' });
+    const [showOauthSecret, setShowOauthSecret] = useState(false);
+    const [oauthEnabled, setOauthEnabled] = useState(false);
+    const [savingOauth, setSavingOauth] = useState(false);
+
+    // Config State
+    const [configForm, setConfigForm] = useState({ server_port: '', jwt_expires_in: '7d' });
+    const [savingConfig, setSavingConfig] = useState(false);
+    const [serverInfo, setServerInfo] = useState<{ version?: string; node?: string; uptime?: number } | null>(null);
 
     // Chat Settings State
     const [chatSettings, setChatSettings] = useState({
@@ -142,6 +153,33 @@ function SettingsInner() {
                     history_days: chatData.history_days ?? 180
                 });
             }
+
+            // Load OAuth Settings
+            try {
+                const oauthRes = await fetchWithAuth('/api/settings/oauth');
+                if (oauthRes.ok) {
+                    const oauthData = await oauthRes.json();
+                    setOauthForm({
+                        google_client_id: oauthData.google_client_id || '',
+                        google_client_secret: oauthData.has_secret ? '••••••••••••••••' : '',
+                        google_callback_url: oauthData.google_callback_url || ''
+                    });
+                    setOauthEnabled(!!(oauthData.google_client_id && oauthData.has_secret));
+                }
+            } catch { /* OAuth settings unavailable */ }
+
+            // Load server info for Config tab
+            try {
+                const infoRes = await fetchWithAuth('/api/settings/general');
+                if (infoRes.ok) {
+                    const info = await infoRes.json();
+                    setServerInfo({ version: info.version, node: info.node_version, uptime: info.uptime_seconds });
+                    setConfigForm(f => ({ ...f,
+                        server_port: info.server_port || '7777',
+                        jwt_expires_in: info.jwt_expires_in || '7d'
+                    }));
+                }
+            } catch { /* Server info unavailable */ }
         } catch (err: unknown) {
             setMessage({ type: 'error', text: 'Failed to load settings: ' + getErrorMessage(err) });
         } finally {
@@ -291,11 +329,11 @@ function SettingsInner() {
 
             <div className="mb-8">
                 <div className="flex items-center gap-3 mb-3">
-                    <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25">
+                    <div className="p-3 bg-linear-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25">
                         <Server className="text-white" size={28} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        <h1 className="text-2xl font-bold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                             System Settings
                         </h1>
                         <p className="text-slate-500 mt-1">Configure global application settings.</p>
@@ -319,7 +357,7 @@ function SettingsInner() {
                 <button
                     onClick={() => setActiveTab('general')}
                     className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all  duration-200 ${
-                        activeTab === 'general' ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                        activeTab === 'general' ? 'bg-linear-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
                     }`}
                 >
                     <Shield size={16} strokeWidth={2.5} /> General & Security
@@ -327,7 +365,7 @@ function SettingsInner() {
                 <button
                     onClick={() => setActiveTab('smtp')}
                     className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all  duration-200 ${
-                        activeTab === 'smtp' ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                        activeTab === 'smtp' ? 'bg-linear-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
                     }`}
                 >
                     <Mail size={16} strokeWidth={2.5} /> SMTP Configuration
@@ -335,7 +373,7 @@ function SettingsInner() {
                 <button
                     onClick={() => setActiveTab('agent')}
                     className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all  duration-200 ${
-                        activeTab === 'agent' ? 'bg-gradient-to-r from-blue-500 to-purple-600  text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                        activeTab === 'agent' ? 'bg-linear-to-r from-blue-500 to-purple-600  text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
                     }`}
                 >
                     <Package size={16} strokeWidth={2.5} /> Agent Management
@@ -343,7 +381,7 @@ function SettingsInner() {
                 <button
                     onClick={() => setActiveTab('chat')}
                     className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all  duration-200 ${
-                        activeTab === 'chat' ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                        activeTab === 'chat' ? 'bg-linear-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
                     }`}
                 >
                     <MessageCircle size={16} strokeWidth={2.5} /> Chat Settings
@@ -351,10 +389,26 @@ function SettingsInner() {
                 <button
                     onClick={() => setActiveTab('logs')}
                     className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all  duration-200 ${
-                        activeTab === 'logs' ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                        activeTab === 'logs' ? 'bg-linear-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
                     }`}
                 >
                     <ClipboardList size={16} strokeWidth={2.5} /> Activity Logs
+                </button>
+                <button
+                    onClick={() => setActiveTab('oauth')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${
+                        activeTab === 'oauth' ? 'bg-linear-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                    }`}
+                >
+                    <LogIn size={16} strokeWidth={2.5} /> OAuth / SSO
+                </button>
+                <button
+                    onClick={() => setActiveTab('config')}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${
+                        activeTab === 'config' ? 'bg-linear-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 scale-105' : 'text-slate-600 hover:bg-slate-100/60 hover:text-slate-900 hover:scale-[1.02]'
+                    }`}
+                >
+                    <Settings2 size={16} strokeWidth={2.5} /> Config
                 </button>
             </div>
 
@@ -368,8 +422,8 @@ function SettingsInner() {
                         transition={{ duration: 0.2 }}
                         className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden"
                     >
-                        <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
-                            <h2 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                        <div className="p-6 border-b border-slate-100 bg-linear-to-r from-blue-50/50 to-purple-50/50">
+                            <h2 className="text-lg font-semibold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
                                 <Key size={18} strokeWidth={2.5} /> API Authentication
                             </h2>
                             <p className="text-sm text-slate-500 mt-1">Manage the API Key used by Agents to authenticate with the server.</p>
@@ -418,7 +472,7 @@ function SettingsInner() {
                                 <button
                                     onClick={handleSaveApiKey}
                                     disabled={saving || loading}
-                                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg hover:shadow-blue-500/30 text-white font-medium rounded-xl transition-all duration-200 flex items-center gap-2 disabled:opacity-50 hover:scale-[1.02]"
+                                    className="px-6 py-2 bg-linear-to-r from-blue-600 to-purple-600 hover:shadow-lg hover:shadow-blue-500/30 text-white font-medium rounded-xl transition-all duration-200 flex items-center gap-2 disabled:opacity-50 hover:scale-[1.02]"
                                 >
                                     {saving ? 'Saving...' : <><Save size={18} strokeWidth={2.5} /> Save Changes</>}
                                 </button>
@@ -436,8 +490,8 @@ function SettingsInner() {
                         transition={{ duration: 0.2 }}
                         className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden"
                     >
-                        <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-blue-50/50 to-purple-50/50">
-                            <h2 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                        <div className="p-6 border-b border-slate-100 bg-linear-to-r from-blue-50/50 to-purple-50/50">
+                            <h2 className="text-lg font-semibold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
                                 <Mail size={18} strokeWidth={2.5} /> SMTP Configuration
                             </h2>
                             <p className="text-sm text-slate-500 mt-1">Configure email server settings for notifications and password resets.</p>
@@ -569,7 +623,7 @@ function SettingsInner() {
 
                         <div className="p-6 space-y-6">
                             {/* Current Version Display */}
-                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                            <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                         <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">Currently Distributed Version</p>
@@ -678,7 +732,7 @@ function SettingsInner() {
                             <div className="space-y-4">
                                 <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
                                     <div className="flex gap-3">
-                                        <CheckCircle size={18} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                                        <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" />
                                         <div>
                                             <p className="text-sm font-semibold text-emerald-900 mb-1">Built-in Safety Mechanisms</p>
                                             <ul className="text-xs text-emerald-800 space-y-1">
@@ -693,7 +747,7 @@ function SettingsInner() {
 
                                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                                     <div className="flex gap-3">
-                                        <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                                        <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                                         <div>
                                             <p className="text-sm font-semibold text-amber-900 mb-1">How Auto-Updates Work</p>
                                             <ul className="text-xs text-amber-800 space-y-1">
@@ -851,8 +905,8 @@ function SettingsInner() {
                                                         {log.action}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-2.5 text-slate-600 max-w-[120px] truncate">{log.target || '—'}</td>
-                                                <td className="px-4 py-2.5 text-slate-500 max-w-[160px] truncate text-xs">{log.detail || '—'}</td>
+                                                <td className="px-4 py-2.5 text-slate-600 max-w-30 truncate">{log.target || '—'}</td>
+                                                <td className="px-4 py-2.5 text-slate-500 max-w-40 truncate text-xs">{log.detail || '—'}</td>
                                                 <td className="px-4 py-2.5 text-slate-400 font-mono text-xs">{log.ip || '—'}</td>
                                                 <td className="px-4 py-2.5 text-slate-400 text-xs whitespace-nowrap">{new Date(log.ts).toLocaleString()}</td>
                                             </tr>
@@ -860,6 +914,232 @@ function SettingsInner() {
                                     </tbody>
                                 </table>
                             )}
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* ─── OAUTH TAB ─── */}
+                {activeTab === 'oauth' && (
+                    <motion.div
+                        key="oauth"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden"
+                    >
+                        <div className="p-6 border-b border-slate-100 bg-linear-to-r from-blue-50/50 to-purple-50/50">
+                            <h2 className="text-lg font-semibold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                                <LogIn size={18} strokeWidth={2.5} /> OAuth / Single Sign-On
+                            </h2>
+                            <p className="text-sm text-slate-500 mt-1">Configure Google OAuth to allow users to sign in with their Google account.</p>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            {/* Status chip */}
+                            <div className="flex items-center gap-3">
+                                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${oauthEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${oauthEnabled ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                    {oauthEnabled ? 'Google Sign-In Enabled' : 'Google Sign-In Disabled'}
+                                </span>
+                                <span className="text-xs text-slate-400">Configure below to enable Google login on the sign-in page</span>
+                            </div>
+
+                            {/* Google OAuth setup instructions */}
+                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 text-sm text-blue-700 space-y-1">
+                                <p className="font-semibold">Setup Instructions:</p>
+                                <ol className="list-decimal list-inside space-y-1 text-blue-600 text-xs">
+                                    <li>Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="underline font-medium">Google Cloud Console</a> and create a project</li>
+                                    <li>Enable the <span className="font-mono bg-blue-100 px-1 rounded">Google OAuth 2.0</span> API</li>
+                                    <li>Create OAuth credentials (Web Application) and add the callback URL below to Authorized redirect URIs</li>
+                                    <li>Copy the Client ID and Client Secret here</li>
+                                </ol>
+                            </div>
+
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                setSavingOauth(true);
+                                setMessage(null);
+                                try {
+                                    // Don't send masked secret placeholder back
+                                    const secret = oauthForm.google_client_secret.includes('•') ? '' : oauthForm.google_client_secret;
+                                    const res = await fetchWithAuth('/api/settings/oauth', {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ ...oauthForm, google_client_secret: secret })
+                                    });
+                                    if (res.ok) {
+                                        setMessage({ type: 'success', text: 'OAuth settings saved successfully.' });
+                                        setOauthEnabled(!!(oauthForm.google_client_id && (secret || oauthForm.google_client_secret.includes('•'))));
+                                    } else {
+                                        const d = await res.json();
+                                        setMessage({ type: 'error', text: d.error || 'Failed to save OAuth settings.' });
+                                    }
+                                } catch {
+                                    setMessage({ type: 'error', text: 'Network error saving OAuth settings.' });
+                                } finally { setSavingOauth(false); }
+                            }} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Google Client ID</label>
+                                    <input
+                                        type="text"
+                                        value={oauthForm.google_client_id}
+                                        onChange={e => setOauthForm(f => ({ ...f, google_client_id: e.target.value }))}
+                                        placeholder="1234567890-abcdefghijklmnop.apps.googleusercontent.com"
+                                        className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Google Client Secret</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showOauthSecret ? 'text' : 'password'}
+                                            value={oauthForm.google_client_secret}
+                                            onChange={e => setOauthForm(f => ({ ...f, google_client_secret: e.target.value }))}
+                                            placeholder="GOCSPX-..."
+                                            className="w-full px-4 py-2.5 pr-10 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+                                        />
+                                        <button type="button" onClick={() => setShowOauthSecret(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            {showOauthSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-slate-400 mt-1">Leave blank to keep the existing secret unchanged.</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Callback URL</label>
+                                    <input
+                                        type="text"
+                                        value={oauthForm.google_callback_url}
+                                        onChange={e => setOauthForm(f => ({ ...f, google_callback_url: e.target.value }))}
+                                        placeholder="https://your-server.com/api/auth/google/callback"
+                                        className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+                                    />
+                                    <p className="text-xs text-slate-400 mt-1">Must match exactly what you entered in the Google Cloud Console.</p>
+                                </div>
+                                <div className="flex justify-end pt-2">
+                                    <button type="submit" disabled={savingOauth} className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-blue-500 to-purple-600 text-white text-sm font-medium rounded-xl hover:opacity-90 disabled:opacity-50 transition-all">
+                                        {savingOauth ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                                        {savingOauth ? 'Saving…' : 'Save OAuth Settings'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* ─── CONFIG TAB ─── */}
+                {activeTab === 'config' && (
+                    <motion.div
+                        key="config"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-6"
+                    >
+                        {/* Server Info Card */}
+                        {serverInfo && (
+                            <div className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] p-6">
+                                <h2 className="text-lg font-semibold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2 mb-4">
+                                    <Server size={18} strokeWidth={2.5} /> Server Information
+                                </h2>
+                                <div className="grid grid-cols-3 gap-4">
+                                    {serverInfo.version && (
+                                        <div className="p-4 bg-slate-50 rounded-xl">
+                                            <p className="text-xs text-slate-400 mb-1">Server Version</p>
+                                            <p className="text-sm font-semibold text-slate-700 font-mono">{serverInfo.version}</p>
+                                        </div>
+                                    )}
+                                    {serverInfo.node && (
+                                        <div className="p-4 bg-slate-50 rounded-xl">
+                                            <p className="text-xs text-slate-400 mb-1">Node.js Version</p>
+                                            <p className="text-sm font-semibold text-slate-700 font-mono">{serverInfo.node}</p>
+                                        </div>
+                                    )}
+                                    {serverInfo.uptime !== undefined && (
+                                        <div className="p-4 bg-slate-50 rounded-xl">
+                                            <p className="text-xs text-slate-400 mb-1">Uptime</p>
+                                            <p className="text-sm font-semibold text-slate-700">{Math.floor((serverInfo.uptime || 0) / 3600)}h {Math.floor(((serverInfo.uptime || 0) % 3600) / 60)}m</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Config Form */}
+                        <div className="bg-white/90 backdrop-blur-xl rounded-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden">
+                            <div className="p-6 border-b border-slate-100 bg-linear-to-r from-blue-50/50 to-purple-50/50">
+                                <h2 className="text-lg font-semibold bg-linear-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+                                    <Settings2 size={18} strokeWidth={2.5} /> Runtime Configuration
+                                </h2>
+                                <p className="text-sm text-slate-500 mt-1">These settings are applied to the server. Restart the server after changing port.</p>
+                            </div>
+                            <form onSubmit={async (e) => {
+                                e.preventDefault();
+                                setSavingConfig(true);
+                                setMessage(null);
+                                try {
+                                    const res = await fetchWithAuth('/api/settings/config', {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(configForm)
+                                    });
+                                    if (res.ok) {
+                                        setMessage({ type: 'success', text: 'Config saved. Restart the server for port changes to take effect.' });
+                                    } else {
+                                        const d = await res.json();
+                                        setMessage({ type: 'error', text: d.error || 'Failed to save config.' });
+                                    }
+                                } catch {
+                                    setMessage({ type: 'error', text: 'Network error saving config.' });
+                                } finally { setSavingConfig(false); }
+                            }} className="p-6 space-y-5">
+                                <div className="grid grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Server Port</label>
+                                        <input
+                                            type="number"
+                                            min="1024" max="65535"
+                                            value={configForm.server_port}
+                                            onChange={e => setConfigForm(f => ({ ...f, server_port: e.target.value }))}
+                                            className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+                                        />
+                                        <p className="text-xs text-slate-400 mt-1">Default: 7777. Requires server restart.</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1.5">JWT Token Expiry</label>
+                                        <select
+                                            value={configForm.jwt_expires_in}
+                                            onChange={e => setConfigForm(f => ({ ...f, jwt_expires_in: e.target.value }))}
+                                            className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        >
+                                            <option value="1d">1 Day</option>
+                                            <option value="7d">7 Days</option>
+                                            <option value="14d">14 Days</option>
+                                            <option value="30d">30 Days</option>
+                                            <option value="90d">90 Days</option>
+                                            <option value="365d">1 Year</option>
+                                        </select>
+                                        <p className="text-xs text-slate-400 mt-1">How long dashboard sessions stay active.</p>
+                                    </div>
+                                </div>
+
+                                {/* Read-only env info */}
+                                <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                                    <p className="text-xs font-semibold text-amber-700 mb-2">Environment Variables (read-only)</p>
+                                    <div className="space-y-1.5 text-xs font-mono text-amber-600">
+                                        <div className="flex justify-between"><span>JWT_SECRET</span><span className="text-slate-400">••••••••••••••••</span></div>
+                                        <div className="flex justify-between"><span>NODE_ENV</span><span className="text-slate-500">production</span></div>
+                                    </div>
+                                    <p className="text-xs text-amber-600 mt-2">Sensitive values are managed via environment variables and cannot be changed from the UI.</p>
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <button type="submit" disabled={savingConfig} className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-blue-500 to-purple-600 text-white text-sm font-medium rounded-xl hover:opacity-90 disabled:opacity-50 transition-all">
+                                        {savingConfig ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                                        {savingConfig ? 'Saving…' : 'Save Config'}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </motion.div>
                 )}
