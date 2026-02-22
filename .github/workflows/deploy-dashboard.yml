@@ -210,12 +210,12 @@ jobs:
             STATUS="failed"
           fi
           COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -1)
-          MESSAGE="${ICON} *SysTracker Deploy ${STATUS}*
-
-🌿 Branch: \`${{ github.ref_name }}\`
-👤 By: \`${{ github.actor }}\`
-📝 \`${COMMIT_MSG}\`
-🔗 [View Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          MESSAGE=$(printf '%s\n\n%s\n%s\n%s\n%s' \
+            "${ICON} *SysTracker Deploy ${STATUS}*" \
+            "🌿 Branch: \`${{ github.ref_name }}\`" \
+            "👤 By: \`${{ github.actor }}\`" \
+            "📝 \`${COMMIT_MSG}\`" \
+            "🔗 [View Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})")
           RESULT=$(curl -s -X POST \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
@@ -314,10 +314,9 @@ jobs:
               -d chat_id="${TELEGRAM_CHAT_ID}" \
               -d parse_mode="Markdown" \
               -d disable_web_page_preview="true" \
-              -d text="🚨 *SysTracker Deploy FAILED*
-
-👤 By: \`${{ github.actor }}\`
-🔗 [View Failed Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+              -d text="$(printf '🚨 *SysTracker Deploy FAILED*\n\n👤 By: `%s`\n🔗 [View Failed Run](%s)' \
+                '${{ github.actor }}' \
+                'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}')"
             echo "✅ Telegram failure alert sent"
           else
             echo "Telegram not configured"
