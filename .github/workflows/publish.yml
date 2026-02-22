@@ -9,164 +9,236 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.10'
+  DOTNET_VERSION: '8.0.x'
 
 jobs:
-  # 1. Build Client Agent (Windows)
+  # === 1. Build Agent (Windows) ==============================================
   build-agent:
+    name: Build Agent (Windows)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Python 3.10 (required for pkg/Node.js compilation)
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+
+      # pkg compiles Node.js from source; requires Python <= 3.10
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-          
-      - name: Install Agent Dependencies & Build
-        run: |
-          cd agent
-          npm install
-          npm run build:win
-          
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: agent/package-lock.json
+
+      - name: Install Agent Dependencies
+        working-directory: agent
+        run: npm ci
+
+      - name: Build Agent Executable
+        working-directory: agent
+        run: npm run build:win
+
       - name: Verify Agent Build
         run: |
           if (!(Test-Path "agent\dist\systracker-agent-win.exe")) {
-            Write-Error "Agent build failed"
+            Write-Error "::error::Agent exe not found after build"
             exit 1
           }
-          Write-Host "✓ Agent built successfully"
+          $size = [math]::Round((Get-Item "agent\dist\systracker-agent-win.exe").Length / 1MB, 1)
+          Write-Host "OK systracker-agent-win.exe ($size MB)"
 
-  # 2. Build Dashboard (Linux)
+      # Upload so build-server-release can download it (no rebuild needed)
+      - name: Upload Agent Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-exe
+          path: agent/dist/systracker-agent-win.exe
+          retention-days: 7
+
+  # === 2. Build Dashboard (Linux) ============================================
   build-dashboard:
+    name: Build Dashboard (Linux)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-          
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install Dashboard Dependencies
+        working-directory: dashboard
+        run: npm ci
+
       - name: Build Dashboard
-        run: |
-          cd dashboard
-          npm install --prefer-offline --no-audit
-          npm run build
-          
+        working-directory: dashboard
+        run: npm run build
+
       - name: Verify Dashboard Build
         run: |
           if [ ! -d "dashboard/out" ]; then
-            echo "Error: Dashboard build failed"
+            echo "::error::Dashboard build output not found at dashboard/out"
             exit 1
           fi
-          echo "✓ Dashboard built successfully"
-          du -sh dashboard/out
+          echo "OK Dashboard built: $(du -sh dashboard/out | cut -f1)"
 
-  # 3. Build Standalone Server & Release (Windows)
+      # Upload so build-server-release can download it (no rebuild needed)
+      - name: Upload Dashboard Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-out
+          path: dashboard/out
+          retention-days: 7
+
+  # === 3. Build Server Binaries + Installers + Release (Windows) =============
   build-server-release:
+    name: Build Server and Release (Windows)
     needs: [build-agent, build-dashboard]
     runs-on: windows-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Python 3.10 (required for pkg/Node.js compilation)
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+
+      # pkg needs Python <= 3.10 to cross-compile Node.js for both targets
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      
-      - name: Setup Node.js 20 (dashboard + agent)
-        uses: actions/setup-node@v3
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-          
-      - name: Rebuild Agent Locally
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Re-use the pre-built binaries from jobs 1 and 2 — no redundant rebuilds
+      - name: Download Agent Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-exe
+          path: agent/dist
+
+      - name: Download Dashboard Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-out
+          path: server/dashboard-dist
+
+      # Node 18 matches pkg target node18-win-x64/linux-x64 so sqlite3
+      # native prebuilts work without recompilation
+      - name: Setup Node.js 18 for pkg Server Build
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Server Dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Build Server Binaries (Windows + Linux cross-compile)
+        working-directory: server
+        run: npm run build:all
+
+      - name: Verify Server Binaries
         run: |
-          cd agent
-          npm install
-          npm run build:win
-          
-      - name: Rebuild Dashboard Locally
-        run: |
-          cd dashboard
-          npm install --prefer-offline --no-audit
-          npm run build
-          
-      - name: Copy Dashboard to Server
-        run: |
-          if (Test-Path "dashboard\out") {
-            Copy-Item -Path "dashboard\out\*" -Destination "server\dashboard-dist" -Recurse -Force
-          } else {
-            Write-Error "Dashboard build failed"
-            exit 1
+          $expected = @(
+            "server\dist\systracker-server-win.exe",
+            "server\dist\systracker-server-linux"
+          )
+          $allOk = $true
+          foreach ($f in $expected) {
+            if (Test-Path $f) {
+              $size = [math]::Round((Get-Item $f).Length / 1MB, 1)
+              Write-Host "OK $f ($size MB)"
+            } else {
+              Write-Error "Missing expected binary: $f"
+              $allOk = $false
+            }
           }
+          if (-not $allOk) { exit 1 }
 
-      - name: Switch to Node.js 18 (matches pkg node18-win-x64 target for sqlite3 prebuilts)
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Build Standalone Server EXEs (pkg + rcedit icon)
-        run: |
-          cd server
-          npm install
-          npm run build:all
-
+      # --- Tray Launcher (optional — skip gracefully if .csproj missing) -----
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Compile Server System Tray Launcher (C#)
+      - name: Build Tray Launcher (optional)
         run: |
-          dotnet publish server\tray\SysTrackerTray.csproj -c Release -o server\dist
-          if ($LASTEXITCODE -ne 0) { Write-Error "Tray launcher compile failed"; exit 1 }
-          Write-Host "✓ SysTrackerServer.exe (tray launcher) built"
-
-      - name: Embed Icon into Tray Launcher
-        run: |
-          $rcedit = "agent\node_modules\rcedit\bin\rcedit.exe"
-          if (Test-Path $rcedit) {
-            & $rcedit "server\dist\SysTrackerServer.exe" --set-icon "server\app.ico"
-            & $rcedit "server\dist\SysTrackerServer.exe" --set-version-string "ProductName" "SysTracker Server"
-            & $rcedit "server\dist\SysTrackerServer.exe" --set-version-string "FileDescription" "SysTracker Server Launcher"
-            & $rcedit "server\dist\SysTrackerServer.exe" --set-file-version "3.2.4.0"
-            Write-Host "✓ Icon embedded into tray launcher"
+          $csproj = "server\tray\SysTrackerTray.csproj"
+          if (-not (Test-Path $csproj)) {
+            Write-Host "INFO $csproj not found - skipping tray launcher build"
+            exit 0
+          }
+          dotnet publish $csproj -c Release -o server\dist
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Tray launcher build failed (non-fatal, continuing)"
           } else {
-            Write-Warning "rcedit not found, skipping icon embed for tray launcher"
+            Write-Host "OK SysTrackerServer.exe (tray launcher) built"
           }
 
+      - name: Embed Icon and Version into Tray Launcher (optional)
+        run: |
+          $rcedit  = "agent\node_modules\rcedit\bin\rcedit.exe"
+          $trayExe = "server\dist\SysTrackerServer.exe"
+          $icon    = "server\app.ico"
+          if (-not ((Test-Path $rcedit) -and (Test-Path $trayExe) -and (Test-Path $icon))) {
+            Write-Host "INFO Skipping icon embed (rcedit=$(Test-Path $rcedit), trayExe=$(Test-Path $trayExe), icon=$(Test-Path $icon))"
+            exit 0
+          }
+          # Derive version from tag or package.json — never hardcoded
+          $version = if ($env:GITHUB_REF -match 'refs/tags/v([\d.]+)') {
+            $Matches[1]
+          } else {
+            (Get-Content "server\package.json" | ConvertFrom-Json).version
+          }
+          $parts = ($version -split '\.')[0..3]
+          while ($parts.Count -lt 4) { $parts += '0' }
+          $winVer = $parts -join '.'
+          & $rcedit $trayExe --set-icon $icon
+          & $rcedit $trayExe --set-version-string "ProductName"     "SysTracker Server"
+          & $rcedit $trayExe --set-version-string "FileDescription" "SysTracker Server Launcher"
+          & $rcedit $trayExe --set-file-version $winVer
+          Write-Host "OK Icon + version ($winVer) embedded into tray launcher"
+
+      # --- NSIS Installers (optional — skip gracefully if .nsi missing) ------
       - name: Install NSIS
         run: |
           choco install nsis --no-progress -y
-          $nsisPath = "C:\Program Files (x86)\NSIS"
-          echo "$nsisPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          Write-Host "✓ NSIS installed"
+          Add-Content $env:GITHUB_PATH "C:\Program Files (x86)\NSIS"
+          Write-Host "OK NSIS installed"
 
-      - name: Build NSIS Agent Installer
+      - name: Build NSIS Agent Installer (optional)
         run: |
+          if (-not (Test-Path "agent\installer.nsi")) {
+            Write-Host "INFO agent\installer.nsi not found - skipping agent installer"
+            exit 0
+          }
           makensis /V4 agent\installer.nsi
-          if ($LASTEXITCODE -ne 0) { Write-Error "Agent NSIS build failed"; exit 1 }
-          Write-Host "✓ SysTracker-Agent-Setup.exe created"
+          if ($LASTEXITCODE -ne 0) { Write-Error "Agent NSIS installer build failed"; exit 1 }
+          Write-Host "OK SysTracker-Agent-Setup.exe created"
 
-      - name: Build NSIS Server Installer
+      - name: Build NSIS Server Installer (optional)
         run: |
-          cd server
+          if (-not (Test-Path "server\installer.nsi")) {
+            Write-Host "INFO server\installer.nsi not found - skipping server installer"
+            exit 0
+          }
+          Push-Location server
           makensis /V4 installer.nsi
-          if ($LASTEXITCODE -ne 0) { Write-Error "Server NSIS build failed"; exit 1 }
-          Write-Host "✓ SysTracker-Server-Setup.exe created"
+          $exit = $LASTEXITCODE
+          Pop-Location
+          if ($exit -ne 0) { Write-Error "Server NSIS installer build failed"; exit 1 }
+          Write-Host "OK SysTracker-Server-Setup.exe created"
 
-      # ──  Code Signing ────────────────────────────────────────────────────────
-      # Requires GitHub Secret: CODESIGN_PFX_BASE64 (base64-encoded PFX).
-      # Optional secret: CODESIGN_PFX_PASSWORD (PFX password, if set).
-      # If secret is absent the signing steps are skipped gracefully.
-
+      # --- Code Signing (optional — requires CODESIGN_PFX_BASE64 secret) ----
       - name: Install Code Signing Certificate
         env:
           CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
@@ -174,10 +246,9 @@ jobs:
           CODESIGN_CA_BASE64: ${{ secrets.CODESIGN_CA_BASE64 }}
         run: |
           if (-not $env:CODESIGN_PFX_BASE64) {
-            Write-Host "⚠️ Code signing certificate not configured, skipping..."
+            Write-Host "WARN CODESIGN_PFX_BASE64 not set - skipping code signing"
             exit 0
           }
-          # --- Install code-signing cert (includes chain via BuildChain export) ---
           $pfxPath = "$env:RUNNER_TEMP\systracker-codesign.pfx"
           [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:CODESIGN_PFX_BASE64))
           $securePass = if ($env:CODESIGN_PFX_PASSWORD) {
@@ -185,21 +256,21 @@ jobs:
           } else {
             New-Object System.Security.SecureString
           }
-          Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation "Cert:\CurrentUser\My" -Password $securePass | Out-Null
-          Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation "Cert:\LocalMachine\TrustedPublisher" -Password $securePass | Out-Null
+          Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation "Cert:\CurrentUser\My" `
+            -Password $securePass | Out-Null
+          Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation "Cert:\LocalMachine\TrustedPublisher" `
+            -Password $securePass | Out-Null
           Remove-Item $pfxPath -Force
-          Write-Host "✓ Code signing certificate installed"
-
-          # --- Install Root CA so signtool chain-verify works in CI ---
+          Write-Host "OK Code signing certificate installed"
           if ($env:CODESIGN_CA_BASE64) {
             $caPath = "$env:RUNNER_TEMP\systracker-ca.cer"
             [IO.File]::WriteAllBytes($caPath, [Convert]::FromBase64String($env:CODESIGN_CA_BASE64))
-            $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("Root", "LocalMachine")
+            $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("Root","LocalMachine")
             $store.Open("ReadWrite")
             $store.Add([System.Security.Cryptography.X509Certificates.X509Certificate2]::new($caPath))
             $store.Close()
             Remove-Item $caPath -Force
-            Write-Host "✓ Root CA trusted on CI runner"
+            Write-Host "OK Root CA trusted on CI runner"
           }
 
       - name: Sign Windows Executables
@@ -207,144 +278,162 @@ jobs:
           CODESIGN_PFX_BASE64: ${{ secrets.CODESIGN_PFX_BASE64 }}
         run: |
           if (-not $env:CODESIGN_PFX_BASE64) {
-            Write-Host "⚠️  Code signing certificate not configured, skipping..."
+            Write-Host "WARN Skipping code signing - no certificate configured"
             exit 0
           }
-          # Find signtool.exe from the Windows SDK
-          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter "signtool.exe" |
-            Where-Object { $_.FullName -match "x64" } |
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse `
+            -Filter "signtool.exe" | Where-Object { $_.FullName -match 'x64' } |
             Sort-Object FullName | Select-Object -Last 1 -ExpandProperty FullName
-          if (-not $signtool) { Write-Error "signtool.exe not found"; exit 1 }
-          Write-Host "Using signtool: $signtool"
-
-          # Use RFC 3161 timestamping (/tr + /td sha256) — required for long-term
-          # validity after the signing cert expires. Legacy /t is SHA1-only.
+          if (-not $signtool) { Write-Error "signtool.exe not found in Windows SDK"; exit 1 }
           $tsUrl = "http://timestamp.digicert.com"
-          $filesToSign = @(
+          $files = @(
             "agent\dist\systracker-agent-win.exe",
             "server\dist\systracker-server-win.exe",
             "server\dist\SysTrackerServer.exe",
             "agent\dist\SysTracker-Agent-Setup.exe",
             "server\dist\SysTracker-Server-Setup.exe"
           )
-
-          foreach ($file in $filesToSign) {
-            if (Test-Path $file) {
-              Write-Host "  Signing: $file"
-              # /n matches the cert Subject CN exactly ("SysTracker")
-              # /fd sha256  = file digest algorithm
-              # /tr         = RFC 3161 timestamp server
-              # /td sha256  = timestamp digest algorithm
-              & $signtool sign /fd sha256 /n "SysTracker" /tr $tsUrl /td sha256 $file
-              if ($LASTEXITCODE -ne 0) { Write-Warning "Signing failed for $file (non-fatal)" }
-              & $signtool verify /pa /v $file 2>&1 | Select-String -Pattern 'Successfully|error' | Write-Host
-              Write-Host "    ✓ Signed"
+          foreach ($f in $files) {
+            if (Test-Path $f) {
+              & $signtool sign /fd sha256 /n "SysTracker" /tr $tsUrl /td sha256 $f
+              if ($LASTEXITCODE -ne 0) {
+                Write-Warning "Signing failed for $f (non-fatal, continuing)"
+              } else {
+                Write-Host "  OK Signed: $f"
+              }
             } else {
-              Write-Warning "  File not found, skipping: $file"
+              Write-Host "  INFO Not found (skipped signing): $f"
             }
           }
-          Write-Host "✓ Code signing complete"
-      # ────────────────────────────────────────────────────────────────────────
+          Write-Host "OK Code signing complete"
 
-      - name: List Release Artifacts
+      # --- Collect and summarize artifacts ----------------------------------
+      - name: Collect Release Files
         run: |
-          # Copy install helper so it can be attached to the release
-          Copy-Item scripts\Install-SysTracker.ps1 agent\dist\Install-SysTracker.ps1
-          Write-Host "=== Release Artifacts ==="
-          Get-ChildItem agent\dist\, server\dist\ -Filter "*.exe" | 
-            Format-Table Name, @{L='Size (MB)';E={[math]::Round($_.Length/1MB,1)}}
-          Get-Item server\dist\systracker-server-linux | 
-            Format-Table Name, @{L='Size (MB)';E={[math]::Round($_.Length/1MB,1)}}
+          if (Test-Path "scripts\Install-SysTracker.ps1") {
+            New-Item -ItemType Directory -Force -Path "agent\dist" | Out-Null
+            Copy-Item "scripts\Install-SysTracker.ps1" "agent\dist\Install-SysTracker.ps1"
+            Write-Host "OK Install-SysTracker.ps1 copied"
+          }
+          Write-Host ""
+          Write-Host "=== Release Artifact Summary ==="
+          $candidates = @(
+            "agent\dist\SysTracker-Agent-Setup.exe",
+            "server\dist\SysTracker-Server-Setup.exe",
+            "server\dist\systracker-server-win.exe",
+            "server\dist\systracker-server-linux",
+            "agent\dist\Install-SysTracker.ps1"
+          )
+          foreach ($f in $candidates) {
+            if (Test-Path $f) {
+              $size = [math]::Round((Get-Item $f).Length / 1MB, 1)
+              Write-Host "  OK  $f ($size MB)"
+            } else {
+              Write-Host "  WARN  Missing (will not be uploaded): $f"
+            }
+          }
 
+      # --- Create GitHub Release (tag pushes only) --------------------------
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: false
+          # Don't fail the build if optional artifacts were not produced
+          fail_on_unmatched_files: false
           body: |
             ## SysTracker ${{ github.ref_name }}
 
-            ### 📦 Downloads
+            ### Downloads
 
             | File | Description |
             |------|-------------|
             | `SysTracker-Agent-Setup.exe` | **Windows Agent Installer** — setup wizard, installs as startup task |
             | `SysTracker-Server-Setup.exe` | **Windows Server Installer** — setup wizard, system tray launcher |
-            | `systracker-server-linux` | Linux server binary (standalone) |
-            | `Install-SysTracker.ps1` | **Recommended**: PowerShell script — downloads & installs without SmartScreen prompt |
+            | `systracker-server-linux` | Linux server binary (standalone, no installer needed) |
+            | `Install-SysTracker.ps1` | **Recommended**: PowerShell installer — bypasses SmartScreen prompt |
 
-            ### ⚡ Recommended Installation (bypasses Windows SmartScreen)
-
-            > Files downloaded via a browser are tagged with a "Mark of the Web" and may trigger SmartScreen.
-            > The PowerShell method strips that tag before running, so no warning appears.
+            ### Recommended Installation
 
             Open **PowerShell as Administrator** and paste:
 
             ```powershell
-            # Install both Server and Agent from the official website:
             irm https://systracker.rico.bd/install | iex
-
-            # — or install components separately:
-            irm https://systracker.rico.bd/install -OutFile $env:TEMP\Install-SysTracker.ps1
-            Unblock-File $env:TEMP\Install-SysTracker.ps1
-            & $env:TEMP\Install-SysTracker.ps1 -Component Server   # on the server machine
-            & $env:TEMP\Install-SysTracker.ps1 -Component Agent    # on each monitored PC
             ```
 
-            ### 🛡️ If SmartScreen still appears on the `.exe` directly
-            Right-click the downloaded file → **Properties** → tick **Unblock** → **OK**, then run it.
-            Or in PowerShell: `Unblock-File .\SysTracker-Agent-Setup.exe`
+            Or install components separately:
 
-            ### 🚀 Quick Start
-            1. Run **SysTracker-Server-Setup.exe** (or use the PS script above with `-Component Server`)
-            2. Run **SysTracker-Agent-Setup.exe** on each machine to monitor
-            3. Open your browser to `http://[server-ip]:7777`
+            ```powershell
+            irm https://systracker.rico.bd/install -OutFile $env:TEMP\Install-SysTracker.ps1
+            Unblock-File $env:TEMP\Install-SysTracker.ps1
+            & $env:TEMP\Install-SysTracker.ps1 -Component Server
+            & $env:TEMP\Install-SysTracker.ps1 -Component Agent
+            ```
 
-            See [full release notes](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) and the [SysTracker website](https://systracker.rico.bd/) for setup guides.
+            ### SmartScreen Warning?
+            Right-click the `.exe` → **Properties** → tick **Unblock** → **OK**, then run.
+
+            ### Quick Start
+            1. Run **SysTracker-Server-Setup.exe** on the host machine
+            2. Visit `http://localhost:7777/setup` to create your admin account
+            3. Run **SysTracker-Agent-Setup.exe** on each monitored machine
+            4. Open the dashboard at `http://[server-ip]:7777`
+
+            See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) and [website](https://systracker.rico.bd/) for full details.
           files: |
             agent/dist/SysTracker-Agent-Setup.exe
             server/dist/SysTracker-Server-Setup.exe
             server/dist/systracker-server-linux
             agent/dist/Install-SysTracker.ps1
 
-  # 4. Build & Push Docker Image (Linux)
+  # === 4. Build and Push Docker Image (Linux) ================================
   docker-publish:
+    name: Build and Push Docker Image
+    # Wait for agent + dashboard to validate first; Docker is self-contained
     needs: [build-agent, build-dashboard]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-        
+        uses: docker/setup-buildx-action@v3
+
       - name: Log into registry ${{ env.REGISTRY }}
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
+            # Tag push v3.3.2  ->  :3.3.2  and  :3.3
             type=semver,pattern={{version}}
-            type=raw,value=latest
-            
+            type=semver,pattern={{major}}.{{minor}}
+            # Branch push main  ->  :main  (never overwrites :latest)
+            type=ref,event=branch
+            # :latest only on version tag pushes, not every main commit
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
+
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # GHA layer cache — dramatically speeds up subsequent builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
